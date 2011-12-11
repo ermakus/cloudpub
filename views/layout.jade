@@ -1,0 +1,58 @@
+!!! 5
+html(lang='en')
+  head
+    meta(charset='utf-8')
+    title CloudPub
+    meta(name='description', content='Annihilatr Control Panel')
+    meta(name='author', content='Anton Ermak')
+    // if lt IE 9
+        script(src='http://html5shim.googlecode.com/svn/trunk/html5.js')
+    // Javascript
+    != js('/js/jquery.js')
+    != js('/js/jquery.validate.js')
+    != js('/js/jquery.tablesorter.min.js')
+    != js('/js/bootstrap-modal.js')
+    != js('/js/bootstrap-alerts.js')
+    != js('/js/bootstrap-buttons.js')
+    != js('/js/app.js')
+ 
+    // CSS
+    != css('/css/bootstrap.css')
+    != css('/css/app.css')
+  body
+    .topbar
+      .fill
+        .container.fixed
+          h3
+            a(href='/')
+                span(style="color: lightgreen;") Cloud
+                span(style="color: red;") Pub
+                img(src="/logo.png", style="height: 20px; width: 20px;")
+          ul#nav
+            - if(!session.uid)
+              li.menu-item#nav-register
+                a(href='/register')
+                  span Register
+               li.menu-item#nav-login
+                a(href='/login')
+                  span Login
+            - else
+              li
+                a(href='/services') Services
+              li
+                a(href='/account')
+                    span Account&nbsp;(
+                    b= session.uid
+                    span )
+              li
+                a(href='/logout')
+                    span Logout
+                  
+  #masthead
+    .inner
+      h1 &nbsp;
+  #body.container
+    != body
+
+  - if(typeof(error) !== 'undefined' && error)
+    script $(function(){ show_error("#{error}") })

@@ -1,0 +1,28 @@
+form#register-form(action="/register",method="post")
+    fieldset
+        legend Create Account
+        input(type="hidden", name="next", value=next)
+        .clearfix
+            label Account ID
+            .input
+                input.required(type="text",name="uid")
+                span.help-block Unique ID for your network instance
+        .clearfix
+            label E-Mail
+            .input
+                input.required.email(type="text",name="email")
+                span.help-block Account administrator E-Mail address
+        .clearfix 
+            label Password
+            .input
+                input.required#password(type="password",name="password")
+                span.help-block Account password
+        .clearfix
+            label Repeat Password
+            .input
+                input.required(equalto="#password", type="password",name="password2")
+                span.help-block Reepat password one more time
+        .actions
+            input.btn.primary(type="submit",value="Create")
+
+!= js("/js/register.js")

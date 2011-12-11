@@ -1,0 +1,5 @@
+Native asynchronous PAM authentication module for NodeJS.
+
+Tested on NodeJS 0.4.8, with PAM on Fedora 15.
+
+A note that I've used service name "system-auth" on Fedora 15 without a problem.

@@ -1,0 +1,60 @@
+h1 Services
+table.bordered-table.zebra-striped
+    thead
+        tr
+            th.service Service
+            th.status Domain
+            th.control Run 
+    tbody
+        - for service in services
+            tr.service(class="xstate-#{service.state}")
+                td.service
+                    img(src="state-#{service.state}.png")
+                    h3= service.name
+                td.domain
+                    h3
+                        a(href="http://#{service.domain}")= service.domain
+                td.control
+                    - if(service.state == "down")
+                        img.btn.command(src="command-start.png",data-sid=service.sid,data-domain=service.domain,data-command="start")
+                    - if(service.state == "up")
+                        img.btn.command(src="command-stop.png",data-sid=service.sid,data-domain=service.domain,data-command="stop")
+
+#start-dialog.modal.hide.fade(style="display:none;")
+    .modal-header
+        a.close(href="#") × 
+        h3 Start Service
+    form.modal-body#start-form
+        .clearfix
+            label Domain Name
+            .input
+                input.required.domain(type="text",name="domain")
+                span.help-block Select domain name for this service
+    .modal-footer
+        a.btn.primary.execute(href="#") Start Service
+        a.btn.secondary.cancel(href="#") Cancel
+
+#stop-dialog.modal.hide.fade(style="display:none;")
+    .modal-header
+        a.close(href="#") × 
+        h3 Stop Service
+    form.modal-body
+        .clearfix
+            label Service Data
+            .input
+                ul.inputs-list
+                    li
+                        label
+                            input(type="radio", checked="true", name="data", value="keep")
+                            b Keep service data
+                            span.help-block You will pay for the storage area.
+                    li
+                        label
+                            input(type="radio", name="data", value="delete")
+                            span.red Delete service data
+                            span.help-block This cannot be undone! Use this with caution.
+    .modal-footer
+        a.btn.primary.execute(href="#") Stop Service
+        a.btn.secondary.cancel(href="#") Cancel
+
+!= js('/js/services.js')

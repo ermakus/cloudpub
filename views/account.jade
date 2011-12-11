@@ -1,0 +1,27 @@
+form#account-form(action="/account",method="post")
+    fieldset
+        legend Your Account
+        .clearfix
+            label Account ID
+            .input
+                input.disabled(type="text",name="uid", value=account.uid, disabled="true")
+                span.help-block Unique ID for your network instance
+        .clearfix
+            label E-Mail
+            .input
+                input.required.email(type="text",name="email", value=account.email)
+                span.help-block Account administrator E-Mail address
+        .clearfix 
+            label Password
+            .input
+                input#password(type="password",name="password", value=account.email)
+                span.help-block Type new account password to change, keep empty to current
+        .clearfix
+            label Repeat Password
+            .input
+                input(equalto="#password", type="password",name="password2")
+                span.help-block Reepat password one more time
+        .actions
+            input.btn.primary(type="submit",value="Update")
+
+!= js("/js/account.js")

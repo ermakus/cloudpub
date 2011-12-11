@@ -1,0 +1,2 @@
+$ ->
+    $("#account-form").validate()

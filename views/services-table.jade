@@ -1,0 +1,14 @@
+- for service in services
+    tr.service(class="xstate-#{service.state}")
+        td.service
+            img(src="state-#{service.state}.png")
+            h3= service.name
+        td.domain
+            h3
+                a(href="http://#{service.domain}")= service.domain
+        td.control
+            - if(service.state == "down")
+                img.btn.command(src="command-start.png",data-sid=service.sid,data-domain=service.domain,data-command="start")
+            - if(service.state == "up")
+                img.btn.command(src="command-stop.png",data-sid=service.sid,data-domain=service.domain,data-command="stop")
+

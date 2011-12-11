@@ -1,0 +1,18 @@
+form#login-form(action="/login",method="post")
+    input(type="hidden", name="next", value=next)
+    fieldset
+        legend Login
+        .clearfix
+            label Account ID
+            .input
+                input.required(type="text",name="uid")
+                span.help-block Unique ID for your network instance
+        .clearfix
+            label Password
+            .input
+                input.required#password(type="password",name="password")
+                span.help-block Account password
+        .actions
+            input.btn.default(type="submit",value="Login")
+
+!= js("/js/login.js")
