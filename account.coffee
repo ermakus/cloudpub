@@ -1,6 +1,8 @@
 form   = require 'express-form'
+nconf  = require 'nconf'
 passwd = require './passwd'
 pamlib = require './pam.node'
+
 pam = new pamlib.PAM()
 MEGANON='anton'
 
@@ -14,17 +16,17 @@ class Account
     constructor: (@posix) ->
         @uid = @posix.username
         @home = "/home/#{@uid}"
-        @email = ''
+        @email = nconf.get("user:#{@uid}:email")
 
     save: (cb) ->
-        # TODO: Save config
-        cb and cb( null )
+        nconf.set("user:#{@uid}:email", @email )
+        nconf.save cb
 
 # Reload PAM users cache
 exports.reload = (cb)->
     passwd.getAll (usr)->
         cache = (usr or []).map (u) -> new Account(u)
-        cb and cb(cache)
+        cb and cb(null, cache)
 
 # Find user by UID in cache
 exports.find = (uid)->
@@ -39,7 +41,10 @@ exports.exists = (uid)-> exports.find(uid) != null
 exports.create = (params, cb)->
     passwd.add params.uid, params.passwd, {createHome:true,sudo:true}, (code)->
         if code != 0 then return cb and cb( new Error("Can't create user") )
-        exports.reload -> cb and cb( null, exports.find( params.uid ) )
+        exports.reload (err) ->
+            account = exports.find( params.uid )
+            account.email = params.email
+            account.save cb
 
 # PAM auth
 exports.auth = (uid, password, cb) ->
@@ -143,6 +148,7 @@ exports.init = (app, cb)->
         if not req.form.isValid
             resp.render 'account', {error:req.form.errors.join(' * '), account}
         else
+            account.email = req.form.email
             account.save (error) -> resp.render 'account', {account,error}
 
     exports.reload cb

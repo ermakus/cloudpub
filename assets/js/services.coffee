@@ -58,8 +58,17 @@ show_dialog = ->
                 dialog.modal('hide')
                 update_services()
 
+
+            form = $('#' + command + '-form')
+            if form.length
+                params = form.serializeArray()
+            else
+                params = []
+
+            params.push {name:'sid', value: sid}
+
             # Execute command on server and close dialog
-            $.get "/service/#{command}", {sid}, (res) ->
+            $.post "/service/#{command}", params, (res) ->
                 message "Command #{command} executed on service #{sid}"
                 hide_dialog()
             .error hide_dialog

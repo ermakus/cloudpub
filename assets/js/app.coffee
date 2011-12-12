@@ -20,6 +20,9 @@ window.error = (err) ->
 window.sysalert = window.alert
 window.alert = (msg, classes) ->
     container = $('#body')
+    if typeof(msg) != 'string'
+        msg = msg.statusText or JSON.stringify msg
+
     if not container
         sysalert msg
     else

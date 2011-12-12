@@ -1,6 +1,7 @@
 express  = require 'express'
 stylus   = require 'stylus'
 assets   = require 'connect-assets'
+nconf    = require 'nconf'
 
 account  = require './account'
 service  = require './service'
@@ -28,8 +29,12 @@ createApp = ->
     app
 
 exports.init = (cb) ->
+    nconf.file
+        file: __dirname + '/settings.conf'
+
     app = createApp()
     account.init app, ->
         service.init app, ->
             domain.init app, ->
                 cb and cb( null, app )
+
