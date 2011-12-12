@@ -1,6 +1,6 @@
 {
-    "name": "express-coffee"
-  , "version": "1.2.1"
+    "name": "cloudpub"
+  , "version": "0.1"
   , "private": true
   , "dependencies": {
       "coffee-script": "1.1.x"
@@ -10,7 +10,6 @@
     , "connect-assets": "2.1.x"
     , "stylus": "*"
     , "nib": "*"
-    , "node-passwd": "0.0.10"
   }
   , "devDependencies": {
   }

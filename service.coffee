@@ -21,17 +21,25 @@ class Service extends events.EventEmitter
     # Source for install
     source: '/home/anton/Projects/cloudpub'
 
+    port: 3001
+
+    domain: 'localhost'
+
     # Create instanse of service and load state from the store
     constructor: (@sid, @account) ->
         if not @sid then throw new Error('SID is not set')
         if not @account then throw new Error('Account is not set')
-        @state = nconf.get( "service:#{@sid}:state" ) or "down"
+        @state  = nconf.get( "service:#{@sid}:state" ) or "down"
+        @port   = nconf.get( "service:#{@sid}:port" ) or 3001
+        @domain = nconf.get( "service:#{@sid}:domain" ) or "localhost"
         @home = "/home/#{@account.uid}/#{@sid}"
 
 
     # Save service state to store
     save: (cb) ->
-        nconf.set( "service:#{@sid}:state", @state )
+        nconf.set( "service:#{@sid}:state",  @state )
+        nconf.set( "service:#{@sid}:port",   @port )
+        nconf.set( "service:#{@sid}:domain", @domain )
         nconf.save cb
 
     # Change and save state
@@ -52,7 +60,7 @@ class Service extends events.EventEmitter
             return cb and cb(err) if err
             @install params, (err)=>
                 return cb and cb(err) if err
-                @worker = new Worker( @, 3001 )
+                @worker = new Worker( @ )
                 @worker.start (err)=>
                     return cb and cb(err) if err
                     @setState 'up', cb
@@ -74,6 +82,7 @@ class Service extends events.EventEmitter
     # Install service files and configure
     install: (params, cb)->
         console.log "Install #{@sid} to #{@home}"
+        @domain = params.domain
         fs.stat @home, (err, dir) =>
             return cb and cb( null ) if not err
             exec "sudo -u #{@account.uid} cp -r #{@source} #{@home}", (err, stdout, stderr) =>
@@ -84,7 +93,7 @@ class Service extends events.EventEmitter
 
     # Configure service (i.e. setup proxy)
     configure: (params, cb)->
-        preproc __dirname + '/nginx.vhost', @home + '/vhost', { @service, params }, (err) =>
+        preproc __dirname + '/nginx.vhost', @home + '/vhost', { service:@, params }, (err) =>
             cmd = "sudo ln -sf #{@home}/vhost /etc/nginx/sites-enabled/#{@sid}.#{@account.uid}.conf && sudo service nginx reload"
             exec cmd, (err, stdout, stderr) =>
                 if stdout then console.log stdout
@@ -104,7 +113,7 @@ class Service extends events.EventEmitter
 
 # Preprocess config file template
 preproc = (source, target, context, cb) ->
-    console.log "Preproc #{source} -> #{target}"
+    console.log "Preproc #{source} -> #{target}: " + JSON.stringify context
     fs.readFile source, (err, cfg) ->
         return cb and cb( err ) if err
         cfg = _.template cfg.toString(), context
@@ -114,14 +123,13 @@ preproc = (source, target, context, cb) ->
 
 # Wrap worker process
 class Worker
-    constructor: (@service, @port)->
+    constructor: (@service)->
         if not @service then throw new Error('No service set with worker')
-        if not @port then throw new Error('No port set with worker')
 
     # Start process and pass port to it
     start: (cb)->
-        console.log "Start #{@service.home} on port #{@port}"
-        @child = spawn "node", ["server.js", @port], cwd:@service.home
+        console.log "Start #{@service.uid} on port #{@service.port}"
+        @child = spawn "node", ["server.js", @service.port], cwd:@service.home
         @child.stderr.on 'data', (data) -> console.log data.toString()
         @child.stdout.on 'data', (data) -> console.log data.toString()
         timer = setTimeout (=>

@@ -17,7 +17,7 @@ table.bordered-table.zebra-striped
                 td.control
                     - if(service.state == "down")
                         img.btn.command(src="command-start.png",data-sid=service.sid,data-domain=service.domain,data-command="start")
-                    - if(service.state == "up")
+                    - else
                         img.btn.command(src="command-stop.png",data-sid=service.sid,data-domain=service.domain,data-command="stop")
 
 #start-dialog.modal.hide.fade(style="display:none;")

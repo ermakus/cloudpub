@@ -26,12 +26,15 @@ exports.init = (app, cb) ->
             return resp.send domain
         
         dns.resolve4 req.form.domain, (err, addrs) ->
+            if req.form.domain in ['demo']
+                err = null
+                addrs = ['127.0.0.1']
             domain.addrs = addrs
             domain.valid = not err
             if err
                 if err.code == 'ENOTFOUND'
                     domain.error = 'Domain not found'
-                    domain.help = "You can <a href='#'>Buy and Use</a> this domain name"
+                    domain.help = "You need to buy this domain name first"
                 else
                     domain.error = 'Invalid domain name'
                     domain.help  = "Type correct domain name for service"
