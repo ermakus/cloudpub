@@ -3,9 +3,10 @@ _       = require 'underscore'
 form    = require 'express-form'
 events  = require 'events'
 nconf   = require 'nconf'
-account = require './account'
+exec    = require('child_process').exec
+spawn   = require('child_process').spawn
 
-ENV     = require './env'
+account = require './account'
 
 # Default service object
 
@@ -20,15 +21,21 @@ class Service extends events.EventEmitter
     # Source for install
     source: '/home/anton/Projects/cloudpub'
 
+    # Create instanse of service and load state from the store
     constructor: (@sid, @account) ->
         if not @sid then throw new Error('SID is not set')
         if not @account then throw new Error('Account is not set')
         @state = nconf.get( "service:#{@sid}:state" ) or "down"
         @home = "/home/#{@account.uid}/#{@sid}"
 
+
+    # Save service state to store
     save: (cb) ->
         nconf.set( "service:#{@sid}:state", @state )
         nconf.save cb
+
+    # Change and save state
+    setState: (@state, cb) -> @save cb
 
     # Retreive service info
     info: (cb)->
@@ -41,77 +48,93 @@ class Service extends events.EventEmitter
 
     # Start service
     start: (params, cb)->
-        @state = 'maintain'
-        @install params, (err)=>
+        @setState 'maintain', (err)=>
             return cb and cb(err) if err
-            @worker = new Worker( @, 3001 )
-            @worker.start (err)=>
+            @install params, (err)=>
                 return cb and cb(err) if err
-                @state = 'up'
-                @save cb
+                @worker = new Worker( @, 3001 )
+                @worker.start (err)=>
+                    return cb and cb(err) if err
+                    @setState 'up', cb
 
     # Stop service
     stop: (params, cb)->
-        @state = 'maintain'
-        @uninstall params, (err)=>
-            return cb and cb(err) if err or not @worker
-            @worker.stop (err)=>
-                return cb and cb(err) if err
-                @state = 'down'
-                @save cb
+        @setState 'maintain', (err)=>
+            return cb and cb(err) if err
+            if @worker
+                @worker.stop (err)=>
+                    @worker = null
+                    return cb and cb(err) if err
+                    @uninstall params, (err)=>
+                        @setState 'down', cb
+            else
+                @uninstall params, =>
+                    @setState 'down', cb
 
+    # Install service files and configure
     install: (params, cb)->
         console.log "Install #{@sid} to #{@home}"
-        fs.stat target, (err, dir) =>
+        fs.stat @home, (err, dir) =>
             return cb and cb( null ) if not err
-                exec "sudo -u #{@account.uid} cp -r #{source} #{target}", (err, stdout, stderr) =>
-                if stderr then console.error stderr
+            exec "sudo -u #{@account.uid} cp -r #{@source} #{@home}", (err, stdout, stderr) =>
+                if stdout then console.log stdout
+                if stderr then console.log stderr
                 return cb and cb( err ) if err
                 @configure params, cb
 
+    # Configure service (i.e. setup proxy)
     configure: (params, cb)->
-        preproc __currdir + '/nginx.vhost', @home + '/nginx.vhost', @. =>
-            exec "sudo 'ln -s #{@home}/nginx.vhost /etc/nginx/sites-enabled/#{@sid}.#{@account.uid}.conf && service nginx reload'", (err, stdout, stderr) =>
-                if stderr then console.error stderr
+        preproc __dirname + '/nginx.vhost', @home + '/vhost', { @service, params }, (err) =>
+            cmd = "sudo ln -sf #{@home}/vhost /etc/nginx/sites-enabled/#{@sid}.#{@account.uid}.conf && sudo service nginx reload"
+            exec cmd, (err, stdout, stderr) =>
+                if stdout then console.log stdout
+                if stderr then console.log stderr
                 cb and cb(err)
 
 
+    # Delete service files
     uninstall: (params, cb)->
         console.log "Uninstall #{@home}"
-            fs.stat target, (err, dir) ->
-                return cb and cb(null) if err
-                exec "rm -rf #{target}", (err, stdout, stderr) ->
-                    cb and cb( err )
+        fs.stat @home, (err, dir) =>
+            return cb and cb(null) if err
+            exec "rm -rf #{@home}", (err, stdout, stderr) =>
+                if stderr then console.log stderr
+                cb and cb(err)
 
 
-# Preprocess files
-preproc = (source, targert, context, cb) ->
+# Preprocess config file template
+preproc = (source, target, context, cb) ->
+    console.log "Preproc #{source} -> #{target}"
     fs.readFile source, (err, cfg) ->
         return cb and cb( err ) if err
         cfg = _.template cfg.toString(), context
         fs.writeFile target, cfg, (err)->
-            return cb and cb( err ) if err
+            cb and cb( err )
 
 
+# Wrap worker process
 class Worker
-
     constructor: (@service, @port)->
+        if not @service then throw new Error('No service set with worker')
+        if not @port then throw new Error('No port set with worker')
 
+    # Start process and pass port to it
     start: (cb)->
         console.log "Start #{@service.home} on port #{@port}"
         @child = spawn "node", ["server.js", @port], cwd:@service.home
-        @child.stderr.on 'data', (data) -> console.error data.toString()
+        @child.stderr.on 'data', (data) -> console.log data.toString()
         @child.stdout.on 'data', (data) -> console.log data.toString()
         timer = setTimeout (=>
             timer = null
-            cb and cb null ), 100
-        @child.on 'exit', (code, signal) ->
+            cb and cb null ), 500
+        @child.on 'exit', (code, signal) =>
             console.log 'child process terminated due to receipt of signal ' + signal
             if not timer
-                return cb and cb( null )
+                @service.setState 'maintain'
             clearTimeout timer
             cb and cb( new Error('Child terminated with signal ' + signal ) )
 
+    # Stop process
     stop: (cb)->
         if @child
             console.log "Send kill signal to #{@service.home} on port #{@port}"
@@ -119,7 +142,9 @@ class Worker
             @child = null
         cb and cb( null )
 
-# Service management
+
+
+# Service management forms and views
 
 SERVICES         = []
 SERVICE_COMMANDS = ['start','stop']
@@ -138,7 +163,7 @@ COMMAND_FORMS =
         form.validate("data").required().is(/^(keep|delete)$/)
     )
 
-# Reload all services 
+# Reload all service configs 
 exports.reload = (cb)->
     console.log "Loaded services from #{SERVICE_DIR}"
     fs.readdir SERVICE_DIR, (err, list)->

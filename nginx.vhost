@@ -1,16 +1,16 @@
-upstream worker_<%=sid %>_<%= account.uid %> {
+upstream worker_<%= service.sid %>_<%= service.account.uid %> {
     server 127.0.0.1:3000;
 }
 
 server {
     listen 0.0.0.0:80;
     
-    server_name localhost;
+    server_name <%= params.domain %>;
 
-    access_log /var/log/nginx/<%=sid%>.<%=account.uid%>.log;
+    access_log /var/log/nginx/<%= service,sid%>.<%=account.uid%>.log;
 
     location / {
-        proxy_pass http://worker_<%=sid %>_<%=account.uid %>;
+        proxy_pass http://worker_<%= service.sid %>_<%=account.uid %>;
         proxy_redirect off;
         proxy_set_header Host $host;
     }
