@@ -8,20 +8,16 @@ table.bordered-table.zebra-striped
     tbody
         include instancies-table
     
-a.btn.secondary.new(href="#",data-id='new',data-command='start') Start New Instance
+a.btn.secondary.command(href="#",data-id='new',data-command='start') Start New Instance
 
 #start-dialog.modal.hide.fade(style="display:none;")
     .modal-header
         a.close(href="#") × 
         h3 Start Instance
     form.modal-body#start-form
-        .clearfix
-            label Master Domain Name
-            .input
-                input.required.cluster(type="text",name="cluster")
-                span.help-block Select domain of master node for this instance
+        p Do you really want to start instance?
     .modal-footer
-        a.btn.primary.execute(href="#") Start Instance
+        a.btn.primary.execute(href="#") Start
         a.btn.secondary.cancel(href="#") Cancel
 
 #stop-dialog.modal.hide.fade(style="display:none;")

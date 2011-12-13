@@ -11,7 +11,7 @@
                 a(href="http://#{service.domain}",target="_new")= service.domain
         td.control
             - if(service.state == "down")
-                img.btn.command(src="command-start.png",data-sid=service.sid,data-domain=service.domain,data-command="start")
+                img.btn.command(src="command-start.png",data-id=service.sid,data-domain=service.domain,data-command="start")
             - else 
-                img.btn.command(src="command-stop.png",data-sid=service.sid,data-domain=service.domain,data-command="stop")
+                img.btn.command(src="command-stop.png",data-id=service.sid,data-domain=service.domain,data-command="stop")
 

@@ -147,12 +147,12 @@ SERVICE_DIR      = __dirname + '/wapp'
 
 COMMAND_FORMS =
     start: form(
-        form.validate("sid").required().is(/^[a-z0-9\.]+$/)
+        form.validate("id").required().is(/^[a-z0-9\.]+$/)
         form.filter("domain").trim().toLower(),
         form.validate("domain").required().is(/^[a-z0-9\.]+$/)
     )
     stop: form(
-        form.validate("sid").required().is(/^[a-z0-9\.]+$/)
+        form.validate("id").required().is(/^[a-z0-9\.]+$/)
         form.validate("data").required().is(/^(keep|delete)$/)
     )
 
@@ -185,7 +185,7 @@ exports.init = (app, cb)->
         count = SERVICES.length
         if not (acc = account.find req.session.uid)
             return resp.render 'services', {error:"Invalid account ID"}
-        if req.param('naked',false)
+        if req.param('type',false) == 'inline'
             template = 'services-table'
             layout = false
         else
@@ -209,7 +209,7 @@ exports.init = (app, cb)->
             return resp.send 'Invalid account ID', 500
         if not (req.params.command in SERVICE_COMMANDS)
             return resp.send 'Invalid service command', 500
-        service = exports.create req.param('sid', null), acc
+        service = exports.create req.param('id', null), acc
         if not service
             return resp.send 'Invalid service ID', 500
         command = service[ req.params.command ]
@@ -222,7 +222,7 @@ exports.init = (app, cb)->
            console.log "Exec #{service.sid}.#{req.params.command} " + if req.form then JSON.stringify req.form
            command.call service, req.form, (err) ->
                 if err then return resp.send err.message, 500
-                resp.send true
+                resp.send "Command #{req.params.command} executed on service #{service.sid} SUCCESSFULLY"
 
         if form
             form req, resp, ->

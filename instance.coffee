@@ -11,12 +11,11 @@ EC2 = aws.createEC2Client( EC2_ACCESS_KEY, EC2_SECRET_KEY, secure:false )
 # Instance class
 exports.Instance = class Instance
 
-    iid: null
+    id: null
 
     state: 'down'
 
-    constructor: ->
-        @iid = null
+    constructor: (@id)->
 
     start: (cb)->
         options =
@@ -31,21 +30,31 @@ exports.Instance = class Instance
             cb and cb( null, result.instancesSet )
 
     stop: (cb) ->
-        return cb and cb(null) if not @iid
-        EC2.call "TerminateInstances", 'InstanceId.0':@iid, (result) ->
+        return cb and cb(null) if not @id
+        EC2.call "TerminateInstances", 'InstanceId.0':@id, (result) ->
             console.log result
             cb and cb( null, result )
 
 exports.list = (cb) ->
     EC2.call "DescribeInstances", {}, (result) ->
         console.log result
-        cb and cb( null, result )
+        insts = []
+        for id of result.instancesSet
+            inst = result.instancesSet[id]
+            insts.push new Instance(id)
+        cb and cb( null, insts )
 
-exports.create = -> new Instance()
+exports.create = (id) -> new Instance(id)
 
 # Init module and requiet handlers
 exports.init = (app, cb)->
     app.get '/instancies', account.force_login, (req, resp)->
+        if req.param('type') == 'inline'
+            template = 'instancies-table'
+            layout = false
+        else
+            template = 'instancies'
+            layout = true
         exports.list (error, items)->
-            resp.render 'instancies', { items,error }
+            resp.render  template, { items,layout,error }
     cb and cb( null )
