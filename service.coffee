@@ -7,6 +7,7 @@ exec    = require('child_process').exec
 spawn   = require('child_process').spawn
 
 account = require './account'
+worker  = require './worker'
 
 # Default service object
 
@@ -27,20 +28,24 @@ class Service extends events.EventEmitter
     # Service domain
     domain: 'localhost'
 
+    workers: 0
+
     # Create instanse of service and load state from the store
     constructor: (@sid, @account) ->
         if not @sid then throw new Error('SID is not set')
         if not @account then throw new Error('Account is not set')
-        @state  = nconf.get( "service:#{@sid}:state" ) or "down"
-        @port   = nconf.get( "service:#{@sid}:port" ) or 3001
-        @domain = nconf.get( "service:#{@sid}:domain" ) or "#{@sid}.#{@account.uid}.cloudpub.us"
+        @state   = nconf.get( "service:#{@sid}:state" ) or "down"
+        @port    = nconf.get( "service:#{@sid}:port" ) or 3001
+        @workers = nconf.get( "service:#{@sid}:workers" ) or 0
+        @domain  = nconf.get( "service:#{@sid}:domain" ) or "#{@sid}.#{@account.uid}.cloudpub.us"
         @home = "/home/#{@account.uid}/#{@sid}"
 
     # Save service state to store
     save: (cb) ->
-        nconf.set( "service:#{@sid}:state",  @state )
-        nconf.set( "service:#{@sid}:port",   @port )
-        nconf.set( "service:#{@sid}:domain", @domain )
+        nconf.set( "service:#{@sid}:state",   @state )
+        nconf.set( "service:#{@sid}:port",    @port )
+        nconf.set( "service:#{@sid}:workers", @workers )
+        nconf.set( "service:#{@sid}:domain",  @domain )
         nconf.save cb
 
     # Change and save state
@@ -53,6 +58,9 @@ class Service extends events.EventEmitter
             name:@name
             state:@state
             domain:@domain
+            workers:@workers
+            storage:0.0
+            bandwith:0.0
         cb and cb(null, info)
 
     # Start service
@@ -61,18 +69,19 @@ class Service extends events.EventEmitter
             return cb and cb(err) if err
             @install params, (err)=>
                 return cb and cb(err) if err
-                @worker = new Worker( @ )
-                @worker.start (err)=>
+                wrk = @getWorker @workers
+                wrk.start (err)=>
                     return cb and cb(err) if err
+                    @workers++
                     @setState 'up', cb
 
     # Stop service
     stop: (params, cb)->
         @setState 'maintain', (err)=>
             return cb and cb(err) if err
-            if @worker
-                @worker.stop (err)=>
-                    @worker = null
+            if @workers
+                wrk = @getWorker --@workers
+                wrk.stop (err)=>
                     return cb and cb(err) if err
                     @uninstall params, (err)=>
                         @setState 'down', cb
@@ -111,6 +120,11 @@ class Service extends events.EventEmitter
                 if stderr then console.log stderr
                 cb and cb(err)
 
+    getWorker: (num) ->
+        wid = "#{@account.uid}-#{@sid}-#{num}"
+        new worker.create( wid, @ )
+ 
+
 
 # Preprocess config file template
 preproc = (source, target, context, cb) ->
@@ -120,36 +134,6 @@ preproc = (source, target, context, cb) ->
         cfg = _.template cfg.toString(), context
         fs.writeFile target, cfg, (err)->
             cb and cb( err )
-
-
-# Wrap worker process
-class Worker
-    constructor: (@service)->
-        if not @service then throw new Error('No service set with worker')
-
-    # Start process and pass port to it
-    start: (cb)->
-        console.log "Start #{@service.uid} on port #{@service.port}"
-        @child = spawn "node", ["server.js", @service.port], cwd:@service.home
-        @child.stderr.on 'data', (data) -> console.log data.toString()
-        @child.stdout.on 'data', (data) -> console.log data.toString()
-        timer = setTimeout (=>
-            timer = null
-            cb and cb null ), 500
-        @child.on 'exit', (code, signal) =>
-            console.log 'child process terminated due to receipt of signal ' + signal
-            if not timer
-                @service.setState 'maintain'
-            clearTimeout timer
-            cb and cb( new Error('Child terminated with signal ' + signal ) )
-
-    # Stop process
-    stop: (cb)->
-        if @child
-            console.log "Send kill signal to #{@service.home} on port #{@port}"
-            @child.kill('SIGHUP')
-            @child = null
-        cb and cb( null )
 
 
 

@@ -1,9 +1,9 @@
 - for service in services
     tr.service(class="srow-#{service.state}")
         td.service
-            a.status(href="#", title="0 workers, 0.0Gb storage, 0.0Gb bandwith")
+            a.status(href="#", title="#{service.workers} worker(s), #{service.storage}Gb storage, #{service.bandwith}Gb bandwith")
                 img(src="state-#{service.state}.png")
-                .workers 0
+                .workers= service.workers
             h3= service.name
             
         td.domain
