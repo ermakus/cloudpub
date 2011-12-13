@@ -4,12 +4,12 @@ account = require './account'
 ALLOWED_COMMANDS = ['start','stop']
 
 COMMAND_FORMS =
-    session_start: form(
+    service_start: form(
         form.validate("id").required().is(/^[a-z0-9\.]+$/)
         form.filter("domain").trim().toLower(),
         form.validate("domain").required().is(/^[a-z0-9\.]+$/)
     )
-    session_stop: form(
+    service_stop: form(
         form.validate("id").required().is(/^[a-z0-9\.]+$/)
         form.validate("data").required().is(/^(keep|delete)$/)
     )
@@ -54,6 +54,7 @@ exports.command_handler = (entity, factory)->
             return resp.send 'Command not supported', 500
 
         form = COMMAND_FORMS[ entity + '_' + req.params.command ]
+        console.log "XXXXXXXXXXXXXXXXXXXXXX" + form
 
         exec_command = (req,resp) ->
            console.log "Exec #{service.sid}.#{req.params.command} " + if req.form then JSON.stringify req.form

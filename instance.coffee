@@ -43,13 +43,12 @@ exports.Instance = class Instance
             console.log result
             cb and cb( null, result )
 
+# List all available instacies
 exports.list = (cb) ->
     EC2.call "DescribeInstances", {}, (result) ->
         insts = []
         for rr in result.reservationSet?.item
-            inst = rr.instancesSet?.item
-            if inst
-                console.log inst
+            if inst = rr.instancesSet?.item
                 insts.push new Instance(inst.instanceId, inst)
         cb and cb( null, insts )
 
