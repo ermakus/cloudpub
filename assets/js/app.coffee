@@ -59,8 +59,11 @@ window.Updater = class Updater
 #
 window.Listing = class Listing extends Updater
 
-    constructor: (node, path)->
-        super(node, path + '?type=inline')
+    # node = selector of dom node
+    # listPath = handler for collection
+    # actionPath = handler for collection item
+    constructor: (node, listPath, @actionPath )->
+        super(node, '/' + listPath + '?type=inline')
         $('table').tablesorter()
 
         listing = @
@@ -105,7 +108,7 @@ window.Listing = class Listing extends Updater
         params.push {name:'id', value: id}
 
         # Execute command on server and close dialog
-        $.post "/service/#{command}", params, (res) ->
+        $.post "/#{@actionPath}/#{command}", params, (res) ->
             message res
             hide_dialog()
         .error hide_dialog

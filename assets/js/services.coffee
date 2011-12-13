@@ -1,3 +1,3 @@
 $ ->
-    listing = new Listing('tbody', '/services')
+    listing = new Listing('tbody', 'services', 'service')
     listing.startUpdate()

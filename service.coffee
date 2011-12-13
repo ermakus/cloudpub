@@ -1,13 +1,13 @@
 fs      = require 'fs'
 _       = require 'underscore'
-form    = require 'express-form'
 events  = require 'events'
 nconf   = require 'nconf'
 exec    = require('child_process').exec
 spawn   = require('child_process').spawn
 
-account = require './account'
-worker  = require './worker'
+account  = require './account'
+worker   = require './worker'
+command  = require './command'
 
 # Default service object
 
@@ -120,11 +120,10 @@ class Service extends events.EventEmitter
                 if stderr then console.log stderr
                 cb and cb(err)
 
+    # Return worker by number [0..@workers-1]
     getWorker: (num) ->
         wid = "#{@account.uid}-#{@sid}-#{num}"
         new worker.create( wid, @ )
- 
-
 
 # Preprocess config file template
 preproc = (source, target, context, cb) ->
@@ -135,103 +134,66 @@ preproc = (source, target, context, cb) ->
         fs.writeFile target, cfg, (err)->
             cb and cb( err )
 
+# Array of available apps
+APPS         = []
 
+# Directory with apps
+APPS_DIR      = __dirname + '/wapp'
 
-# Service management forms and views
-
-SERVICES         = []
-SERVICE_COMMANDS = ['start','stop']
-SERVICE_DIR      = __dirname + '/wapp'
-
-# Service command forms (passed as 1st param to service methods)
-
-COMMAND_FORMS =
-    start: form(
-        form.validate("id").required().is(/^[a-z0-9\.]+$/)
-        form.filter("domain").trim().toLower(),
-        form.validate("domain").required().is(/^[a-z0-9\.]+$/)
-    )
-    stop: form(
-        form.validate("id").required().is(/^[a-z0-9\.]+$/)
-        form.validate("data").required().is(/^(keep|delete)$/)
-    )
-
-# Reload all service configs 
+# Reload all application templates to APPS
 exports.reload = (cb)->
-    console.log "Loaded services from #{SERVICE_DIR}"
-    fs.readdir SERVICE_DIR, (err, list)->
+    console.log "Loaded apps from #{APPS_DIR}"
+    fs.readdir APPS_DIR, (err, list)->
         if err then return cb and cb( err )
-        SERVICES = []
+        APPS = []
         for file in list
             if match = /(.+)\.coffee/.exec file
-                service = require "#{SERVICE_DIR}/#{match[1]}"
-                service.sid = match[1]
-                SERVICES.push service
-        cb and cb( null, SERVICES )
+                app = require "#{APPS_DIR}/#{match[1]}"
+                app.id = match[1]
+                APPS.push app
+        cb and cb( null, APPS )
 
 # Create service by SID and bind with account
-exports.create = (sid, acc) ->
-    for service in SERVICES
-        if service.sid == sid
-            instance = _.extend( new Service( sid, acc ), service )
-            return instance
+exports.create = (appid, acc) ->
+    # Seeking for app
+    for app in APPS
+        if app.id == appid
+            # Create service and patch by app
+            console.log "Accesing service #{appid}"
+            return _.extend( new Service( appid, acc ), app )
     null
 
 # Init request handlers here
 exports.init = (app, cb)->
-
     # Return services list with account info
-    app.get '/services', account.force_login, (req,resp)->
-        count = SERVICES.length
-        if not (acc = account.find req.session.uid)
-            return resp.render 'services', {error:"Invalid account ID"}
-        if req.param('type',false) == 'inline'
-            template = 'services-table'
-            layout = false
-        else
-            template = 'services'
-            layout = true
-        services = []
+    app.get '/services', account.force_login, command.list_handler("service", (entity, acc, cb) ->
+        # Data callback should return list of items. 
+        # Here we create one service for each available app type
+        data = APPS.map (app) -> exports.create app.id, acc
+        # Final countdown
+        count = data.length
+        items = []
         errors = ''
-        # Async call each servics info handler
-        for service in (SERVICES.map (meta) -> exports.create meta.sid, acc)
-            service.info (err, info)->
+        # And call each servics info handler
+        for item in data
+            item.info (err, info)->
                 if not err
-                    services.push info
+                    items.push info
                 else
                     errors += (err.message + "<br/>")
-                # Send response when all info collected
-                --count or resp.render template, {layout, services, error:errors}
+                # ..until all info is collected
+                unless --count
+                    if errors
+                        err = new Error(errors)
+                    else
+                        err = null
+                    cb and cb err, items
+    )
 
     # Call service command
-    app.post '/service/:command', account.ensure_login, (req, resp)->
-        if not (acc = account.find req.session.uid)
-            return resp.send 'Invalid account ID', 500
-        if not (req.params.command in SERVICE_COMMANDS)
-            return resp.send 'Invalid service command', 500
-        service = exports.create req.param('id', null), acc
-        if not service
-            return resp.send 'Invalid service ID', 500
-        command = service[ req.params.command ]
-        if not command
-            return resp.send 'Command not supported', 500
-
-        form = COMMAND_FORMS[ req.params.command ]
-
-        exec_command = (req,resp) ->
-           console.log "Exec #{service.sid}.#{req.params.command} " + if req.form then JSON.stringify req.form
-           command.call service, req.form, (err) ->
-                if err then return resp.send err.message, 500
-                resp.send "Command #{req.params.command} executed on service #{service.sid} SUCCESSFULLY"
-
-        if form
-            form req, resp, ->
-                if req.form.isValid
-                    exec_command req, resp
-                else
-                    resp.send (req.form.errors.join '</br>'), 500
-        else
-            exec_command req, resp
-
+    app.post '/service/:command', account.ensure_login, command.command_handler("service", (id, acc)->
+        # Factory callback should create and init item instance by id and user account
+        exports.create id, acc
+    )
     exports.reload cb
 

@@ -1,46 +1,48 @@
-h1 Instances
+h1 Services
 table.bordered-table.zebra-striped
     thead
         tr
-            th.service Instance
-            th.status Status
+            th.service Service
+            th.status Domain
             th.control Run 
     tbody
-        include instancies-table
-    
-a.btn.secondary.command(href="#",data-id='new',data-command='start') Start New Instance
+        include service-inline
 
 #start-dialog.modal.hide.fade(style="display:none;")
     .modal-header
         a.close(href="#") × 
-        h3 Start Instance
+        h3 Start Service
     form.modal-body#start-form
-        p Do you really want to start instance?
+        .clearfix
+            label Domain Name
+            .input
+                input.required.domain(type="text",name="domain")
+                span.help-block Select domain name for this service
     .modal-footer
-        a.btn.primary.execute(href="#") Start
+        a.btn.primary.execute(href="#") Start Service
         a.btn.secondary.cancel(href="#") Cancel
 
 #stop-dialog.modal.hide.fade(style="display:none;")
     .modal-header
         a.close(href="#") × 
-        h3 Stop Instance
+        h3 Stop Service
     form.modal-body#stop-form
         .clearfix
-            label Shut down mode
+            label Service Data
             .input
                 ul.inputs-list
                     li
                         label
                             input(type="radio", checked="true", name="data", value="keep")
-                            b Put to maintaince mode
-                            span.help-block Instance will be stopped
+                            b Keep service data
+                            span.help-block You will pay for the storage area.
                     li
                         label
                             input(type="radio", name="data", value="delete")
-                            span.red Delete instance
-                            span.help-block Instance will be deleted and local cache will be disposed
+                            span.red Delete service data
+                            span.help-block This cannot be undone! Use this with caution.
     .modal-footer
-        a.btn.primary.execute(href="#") Stop Instance
+        a.btn.primary.execute(href="#") Stop Service
         a.btn.secondary.cancel(href="#") Cancel
 
-!= js('/js/instancies.js')
+!= js('/js/services.js')

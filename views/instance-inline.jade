@@ -1,0 +1,16 @@
+- for item in items
+    tr.service(class="srow-#{item.state}")
+        td.service
+            a.status(href="#", title="Instance ID: #{item.id}")
+                img(src="state-#{item.state}.png")
+                .workers &nbsp;
+            h3= item.id
+            
+        td.domain
+            h3= item.id
+        td.control
+            - if(item.state == "down")
+                img.btn.command(src="command-start.png",data-id=item.id,data-command="start")
+            - else 
+                img.btn.command(src="command-stop.png",data-id=item.id,data-command="stop")
+
