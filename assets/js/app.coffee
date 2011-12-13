@@ -35,7 +35,13 @@ window.alert = (msg, classes) ->
 $ ->
     # Catch-all ajax error handler
     $('body').ajaxError (ev, req, settings) ->
-        error req.responseText or JSON.stringify req
+        if req.responseText
+            error req.responseText
+        else
+            if req.status
+                error req.statusText
+            else
+                error "Connection error"
     $('#nav li').each ->
         href = $(this).children(':first-child').attr('href')
         if window.location.pathname == href

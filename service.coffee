@@ -21,8 +21,10 @@ class Service extends events.EventEmitter
     # Source for install
     source: '/home/anton/Projects/cloudpub'
 
+    # Service port
     port: 3001
 
+    # Service domain
     domain: 'localhost'
 
     # Create instanse of service and load state from the store
@@ -31,9 +33,8 @@ class Service extends events.EventEmitter
         if not @account then throw new Error('Account is not set')
         @state  = nconf.get( "service:#{@sid}:state" ) or "down"
         @port   = nconf.get( "service:#{@sid}:port" ) or 3001
-        @domain = nconf.get( "service:#{@sid}:domain" ) or "localhost"
+        @domain = nconf.get( "service:#{@sid}:domain" ) or "#{@sid}.#{@account.uid}.cloudpub.us"
         @home = "/home/#{@account.uid}/#{@sid}"
-
 
     # Save service state to store
     save: (cb) ->
@@ -51,7 +52,7 @@ class Service extends events.EventEmitter
             sid:@sid
             name:@name
             state:@state
-            domain:"#{@sid}.#{@account.uid}.cloudpub.us"
+            domain:@domain
         cb and cb(null, info)
 
     # Start service
