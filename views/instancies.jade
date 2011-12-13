@@ -1,0 +1,50 @@
+h1 Instances
+table.bordered-table.zebra-striped
+    thead
+        tr
+            th.service Instance
+            th.status Status
+            th.control Run 
+    tbody
+        include instancies-table
+    
+a.btn.secondary.new(href="#",data-id='new',data-command='start') Start New Instance
+
+#start-dialog.modal.hide.fade(style="display:none;")
+    .modal-header
+        a.close(href="#") × 
+        h3 Start Instance
+    form.modal-body#start-form
+        .clearfix
+            label Master Domain Name
+            .input
+                input.required.cluster(type="text",name="cluster")
+                span.help-block Select domain of master node for this instance
+    .modal-footer
+        a.btn.primary.execute(href="#") Start Instance
+        a.btn.secondary.cancel(href="#") Cancel
+
+#stop-dialog.modal.hide.fade(style="display:none;")
+    .modal-header
+        a.close(href="#") × 
+        h3 Stop Instance
+    form.modal-body#stop-form
+        .clearfix
+            label Shut down mode
+            .input
+                ul.inputs-list
+                    li
+                        label
+                            input(type="radio", checked="true", name="data", value="keep")
+                            b Put to maintaince mode
+                            span.help-block Instance will be stopped
+                    li
+                        label
+                            input(type="radio", name="data", value="delete")
+                            span.red Delete instance
+                            span.help-block Instance will be deleted and local cache will be disposed
+    .modal-footer
+        a.btn.primary.execute(href="#") Stop Instance
+        a.btn.secondary.cancel(href="#") Cancel
+
+!= js('/js/instancies.js')

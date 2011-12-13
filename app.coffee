@@ -6,6 +6,7 @@ nconf    = require 'nconf'
 account  = require './account'
 service  = require './service'
 domain   = require './domain'
+instance = require './instance'
 
 publicDir = __dirname + '/public'
 
@@ -36,5 +37,6 @@ exports.init = (cb) ->
     account.init app, ->
         service.init app, ->
             domain.init app, ->
-                cb and cb( null, app )
+                instance.init app, ->
+                    cb and cb( null, app )
 
