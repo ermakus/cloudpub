@@ -1,21 +1,49 @@
-h1 Instances
+h1 Nodes
 table.bordered-table.zebra-striped
     thead
         tr
-            th.service Instance
             th.status Status
+            th.service Node
             th.control Run 
     tbody
         include instance-inline
     
-a.btn.secondary.command(href="#",data-id='new',data-command='start') Start New Instance
+a.btn.secondary.command(href="#",data-id='new',data-command='start') Start New Node
 
 #start-dialog.modal.hide.fade(style="display:none;")
     .modal-header
         a.close(href="#") × 
-        h3 Start Instance
+        h3 Start Node
     form.modal-body#start-form
-        p Do you really want to start instance?
+        .clearfix
+            ul.inputs-list
+                li
+                    label
+                        input.cloud(type="radio", checked="true", name="cloud", value="ec2")
+                        b Allocate node from Amazon EC2 cloud
+                        span.help-block You will pay for instance usage
+                li
+                    label
+                        input.cloud(type="radio", name="cloud", value="ssh")
+                        span Add your own node
+                        span.help-block Add node to cluster by SSH
+        .clearfix.custom(style='display: none')
+                label Node address
+                .input
+                    input.custom-input.address(type="text",name="address",value="127.0.0.1")
+                    span.help-block Enter your node IP address or domain name or allocate from Amazon EC2 cloud
+        .clearfix.custom(style='display: none')
+                label SSH login
+                .input
+                    input.custom-input.login(type="text",name="user",value="root")
+                    span.help-block Specify user account for node setup
+        .clearfix.custom(style='display: none')
+                label
+                    div SSH public key
+                    a(href="#") (Copy)
+                .input
+                    textarea(rows="3",readonly="true", style="width: 350px; font-size: 9px;") ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEArReBqZnuNxIKy/xHS2rIuCNOZ0nOmtJyLIr5lnJ26LPD3vRGzrpMNh4e7SKES70cSf8OW/d55G5Xi+VXExdL+ub6j/6++06wJYf63Ts4DFL4UGMlwob0VKS73KiVI1yk5FVKJ8BajaqMvWqSss59XD5bQoLQVdvtKjpaMPjPFMq+m170cRQF7sgf3iGfM9GoKVHU2+B3N6+DUIgX8DTdfikatY70cC8HwI0dl5M2bZbh+pNujij13oeM0zcZcjbrqn2VXt3vuEIhAd/UYp2mRPC+JI7lZAQmkoI+jHKHv2LOOaHC9yXFGpvG8p8yqu4Dbw7JoruDTlXsNoET6D2eow== cloudpub
+                    span.help-block Add this public key to ~/.ssh/authorized_hosts file&nbsp;
     .modal-footer
         a.btn.primary.execute(href="#") Start
         a.btn.secondary.cancel(href="#") Cancel
