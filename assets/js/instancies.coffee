@@ -21,10 +21,12 @@ $ ->
 
     $('#start-dialog').bind 'show', ->
         if $(this).data('id') != 'new'
-            $('#start-form').hide()
+            $('.cloudtype').hide()
+            $('.address').attr 'readonly', true
         else
-            $('#start-form').show()
+            $('.address').attr 'readonly', false
+            $('.cloudtype').show()
     
 
-    listing = new Listing('tbody', 'instancies', 'instance')
+    listing = new Listing('table', 'instancies', 'instance')
     listing.startUpdate()

@@ -21,6 +21,10 @@ COMMAND_FORMS =
         form.filter("address").trim().toLower(),
         form.validate("address").is(/^[a-z0-9\.]+$/)
     )
+    instance_stop: form(
+        form.validate("id").required().is(/^[a-z0-9\.\-]+$/)
+        form.validate("mode").required().is(/^(maintain|shutdown)$/)
+    )
 
 #
 # Return closure with function of entity list view

@@ -10,26 +10,27 @@ CLOUDS =
 # Instance class
 exports.Instance = class Instance
 
-    id: null
     state: 'down'
-    address: null
-    privateKey: null
 
     # Create instance in cloud
     constructor: (@id)->
         if @id
-            @cloud   = nconf.get("node:#{@id}:cloud") or 'ssh'
+            # Init persisten fields
             @state   = nconf.get("node:#{@id}:state") or 'down'
+            @message = nconf.get("node:#{@id}:message")
+            @cloud   = nconf.get("node:#{@id}:cloud") or 'ssh'
             @address = nconf.get("node:#{@id}:address")
             @user    = nconf.get("node:#{@id}:user")
         else
+            # Unsaved
             @cloud   = 'ssh'
-        console.log "Instance", @
 
     # Save instance state
     save: (cb) ->
         return cb and cb(null) unless @id
+        # Save persistend fields
         nconf.set("node:#{@id}:state",   @state)
+        nconf.set("node:#{@id}:message", @message)
         nconf.set("node:#{@id}:cloud",   @cloud)
         nconf.set("node:#{@id}:address", @address)
         nconf.set("node:#{@id}:user",    @user)
@@ -37,17 +38,27 @@ exports.Instance = class Instance
 
     clear: (cb) ->
         if @id
-            console.log "Clear ", @
             nconf.clear "node:#{@id}"
-            @id = null
+            @id = undefined
             nconf.save cb
         else
             cb and cb( null )
 
     # Update state and save if changed
-    setState: (state, cb) ->
-        @state = state
-        @save cb
+    setState: (state, message, cb) ->
+        if state
+            @state = state
+        if typeof(message) == 'function'
+            cb = message
+        else
+            @message = message
+        @save (err) =>
+            if err
+                @state = 'maintain'
+                @message = 'State save error: ' + err
+            
+            console.log "Server #{@id}: [#{@state}] #{@message}"
+            cb and cb(err)
 
     # Start instance
     start: (params, cb)->
@@ -56,19 +67,24 @@ exports.Instance = class Instance
                 @cloud = params.cloud
             else
                 return cb and cb( new Error('Invalud cloud ID: ' + params.cloud) )
-        @setState 'maintain', (err) =>
+        @setState 'maintain', "Installing services", (err) =>
             return cb and cb(err) if err
             CLOUDS[@cloud].install.call @, params, (err) =>
                 return cb and cb(err) if err
                 @save cb
 
-    # Start instance
+    # Stop instance
     stop: (params, cb)->
-        @setState 'maintain', (err) =>
-            return cb and cb(err) if err
-            CLOUDS[@cloud].uninstall.call @, params, (err) =>
+        if params.mode == 'shutdown'
+            @setState 'maintain', "Removing data", (err) =>
                 return cb and cb(err) if err
-                @save cb
+                CLOUDS[@cloud].uninstall.call @, params, (err) =>
+                    if err
+                        @setState "maintain", err, cb
+                    else
+                        @setState "down", "Deleted", cb
+        else
+            @setState "down", "In maintaince mode", cb
 
 
 # Init HTTP request handlers
@@ -89,7 +105,7 @@ exports.init = (app, cb)->
                 node.cloud = 'ec2'
                 node.address = item.address
                 # Update node state and save to cache
-                node.setState item.state, (err)->
+                node.setState item.state, "Run", (err)->
                     if err then console.log "CACHE: Error save ec2 instance: ", err
                 result.push node
                 ec2ids.push node.id

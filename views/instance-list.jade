@@ -1,12 +1,6 @@
 h1 Servers
-table.bordered-table.zebra-striped
-    thead
-        tr
-            th.status Status
-            th.service Server Address
-            th.control Launch
-    tbody
-        include instance-inline
+
+include instance-inline
     
 a.btn.secondary.command(href="#",data-id='new',data-command='start') Start New Server
 
@@ -16,7 +10,7 @@ a.btn.secondary.command(href="#",data-id='new',data-command='start') Start New S
         a.close(href="#") × 
         h3 Start Server
     form.modal-body#start-form
-        .clearfix
+        .clearfix.cloudtype
             ul.inputs-list
                 li
                     label
@@ -61,12 +55,12 @@ a.btn.secondary.command(href="#",data-id='new',data-command='start') Start New S
                 ul.inputs-list
                     li
                         label
-                            input(type="radio", checked="true", name="data", value="keep")
+                            input(type="radio", checked="true", name="mode", value="maintain")
                             b Put to maintaince mode
                             span.help-block Stop all services but keep data
                     li
                         label
-                            input(type="radio", name="data", value="delete")
+                            input(type="radio", name="mode", value="shutdown")
                             span.red Complete Remove
                             span.help-block Delete all data and release server (this can't be undone!)
     .modal-footer
