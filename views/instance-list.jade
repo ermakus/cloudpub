@@ -1,48 +1,50 @@
-h1 Nodes
+h1 Servers
 table.bordered-table.zebra-striped
     thead
         tr
             th.status Status
-            th.service Node Address
+            th.service Server Address
             th.control Launch
     tbody
         include instance-inline
     
-a.btn.secondary.command(href="#",data-id='new',data-command='start') Start New Node
+a.btn.secondary.command(href="#",data-id='new',data-command='start') Start New Server
+
 
 #start-dialog.modal.hide.fade(style="display:none;")
     .modal-header
         a.close(href="#") × 
-        h3 Start Node
+        h3 Start Server
     form.modal-body#start-form
         .clearfix
             ul.inputs-list
                 li
                     label
-                        input.cloud(type="radio", checked="true", name="cloud", value="ec2")
-                        b Allocate node from Amazon EC2 cloud
-                        span.help-block You will pay for instance usage
+                        input.cloud(type="radio", name="cloud", value="ec2")
+                        b Take server from Amazon EC2 cloud
+                        span.help-block You will pay for usage by Amazon price
                 li
                     label
-                        input.cloud(type="radio", name="cloud", value="ssh")
-                        span Add your own node
-                        span.help-block Add node to cluster by SSH
-        .clearfix.custom(style='display: none')
-                label Node address
+                        input.cloud(type="radio", checked="true", name="cloud", value="ssh")
+                        span Add your own server by SSH
+                        span.help-block You need to have SSH user account and ability to add the public key
+        .clearfix.custom
+                label Server address
                 .input
-                    input.custom-input.address(type="text",name="address",value="127.0.0.1")
-                    span.help-block Enter your node IP address or domain name or allocate from Amazon EC2 cloud
-        .clearfix.custom(style='display: none')
+                    input.custom-input.required.address(type="text",name="address",value="127.0.0.1")
+                    span.help-block Enter your server domain name or IP address
+        .clearfix.custom
                 label SSH login
                 .input
-                    input.custom-input.login(type="text",name="user",value="root")
+                    input.custom-input.required.login(type="text",name="user",value="root")
                     span.help-block Specify user account for node setup
-        .clearfix.custom(style='display: none')
+        .clearfix.custom
                 label
                     div SSH public key
-                    a(href="#") (Copy)
+                    #clip-container(style="position: relative;")
+                        #clip-button.label Copy to clipboard
                 .input
-                    textarea(rows="3",readonly="true", style="width: 350px; font-size: 9px;") ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEArReBqZnuNxIKy/xHS2rIuCNOZ0nOmtJyLIr5lnJ26LPD3vRGzrpMNh4e7SKES70cSf8OW/d55G5Xi+VXExdL+ub6j/6++06wJYf63Ts4DFL4UGMlwob0VKS73KiVI1yk5FVKJ8BajaqMvWqSss59XD5bQoLQVdvtKjpaMPjPFMq+m170cRQF7sgf3iGfM9GoKVHU2+B3N6+DUIgX8DTdfikatY70cC8HwI0dl5M2bZbh+pNujij13oeM0zcZcjbrqn2VXt3vuEIhAd/UYp2mRPC+JI7lZAQmkoI+jHKHv2LOOaHC9yXFGpvG8p8yqu4Dbw7JoruDTlXsNoET6D2eow== cloudpub
+                    textarea#pubkey(rows="3",readonly="true", style="width: 350px; font-size: 9px;") ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEArReBqZnuNxIKy/xHS2rIuCNOZ0nOmtJyLIr5lnJ26LPD3vRGzrpMNh4e7SKES70cSf8OW/d55G5Xi+VXExdL+ub6j/6++06wJYf63Ts4DFL4UGMlwob0VKS73KiVI1yk5FVKJ8BajaqMvWqSss59XD5bQoLQVdvtKjpaMPjPFMq+m170cRQF7sgf3iGfM9GoKVHU2+B3N6+DUIgX8DTdfikatY70cC8HwI0dl5M2bZbh+pNujij13oeM0zcZcjbrqn2VXt3vuEIhAd/UYp2mRPC+JI7lZAQmkoI+jHKHv2LOOaHC9yXFGpvG8p8yqu4Dbw7JoruDTlXsNoET6D2eow== cloudpub
                     span.help-block Add this public key to ~/.ssh/authorized_hosts file&nbsp;
     .modal-footer
         a.btn.primary.execute(href="#") Start
@@ -51,7 +53,7 @@ a.btn.secondary.command(href="#",data-id='new',data-command='start') Start New N
 #stop-dialog.modal.hide.fade(style="display:none;")
     .modal-header
         a.close(href="#") × 
-        h3 Stop Instance
+        h3 Stop Server
     form.modal-body#stop-form
         .clearfix
             label Shut down mode
@@ -61,14 +63,14 @@ a.btn.secondary.command(href="#",data-id='new',data-command='start') Start New N
                         label
                             input(type="radio", checked="true", name="data", value="keep")
                             b Put to maintaince mode
-                            span.help-block Instance will be stopped
+                            span.help-block Stop all services but keep data
                     li
                         label
                             input(type="radio", name="data", value="delete")
-                            span.red Delete instance
-                            span.help-block Instance will be deleted and local cache will be disposed
+                            span.red Complete Remove
+                            span.help-block Delete all data and release server (this can't be undone!)
     .modal-footer
-        a.btn.primary.execute(href="#") Stop Instance
+        a.btn.primary.execute(href="#") Stop Server
         a.btn.secondary.cancel(href="#") Cancel
 
 != js('/js/instancies.js')

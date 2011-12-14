@@ -17,7 +17,7 @@ exports.install = (params, cb) ->
         if code == 0
             state = 'up'
         else
-            state = 'down'
+            state = 'maintain'
         @setState state, (err)->
             if err
                 console.log "Status save error #{err}"

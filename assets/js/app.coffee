@@ -120,6 +120,9 @@ window.Listing = class Listing extends Updater
     
         # Get dialog for command
         @dlg = $('#' + command + '-dialog')
+        
+        @dlg.data 'command', command
+        @dlg.data 'id', id
 
         # Show dialog
         @dlg.modal
@@ -139,6 +142,8 @@ window.error = (err) ->
 
 window.sysalert = window.alert
 window.alert = (msg, classes) ->
+    if not msg
+        msg = "null"
     container = $('#body')
     if typeof(msg) != 'string'
         msg = msg.statusText or JSON.stringify msg

@@ -1,22 +1,22 @@
 .main-page
     .facts
-        h1 What is CloudPub?
-        ul
-            li Run WEB application in seconds 
-            li Use your own or our domains
-            li Store data on S3 storage
-            li Autoscale computing resources
-    .demos
-        .subbox
-            h2 See demo apps
+        h1 
+            span What is 
+            span(style="color: green;") Cloud
+            span(style="color: darkred;") Pub
+            img(src="/logo.png", width="50")
+            span ?
+        h2 This is distributed cloud platform
             ul
-                li.c3
-                    a(href="http://demo",target="top") PHP site 
-                li.c1
-                    a(href="http://demo",target="top") NodeJS site
                 li
-                    hr
-                    a(href="/services/add") Submit your app &gt;&gt;
+                    a.fact(href="/services") Select applications
+                li 
+                    a.fact(href="/instances") Register servers
+                li 
+                    a.fact(href="/services") Run applications on servers in one click
+                li 
+                    a.fact(href="/instances") Grow and scale
+    .demos
             a.enter(href="/services")
                 img(src='/command-start-big.png')
-                h2 &nbsp;Enter
+                h2 &nbsp;Start!

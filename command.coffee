@@ -66,7 +66,7 @@ exports.command_handler = (entity, factory)->
            console.log "Exec #{req.params.command} on #{entity} " + if req.form then JSON.stringify req.form
            command.call service, req.form, (err) ->
                 if err then return resp.send err.message, 500
-                resp.send "Command #{req.params.command} executed on #{entity} SUCCESSFULLY"
+                resp.send "Command \"#{req.params.command} #{entity}\" executed"
 
         if form
             form req, resp, ->
