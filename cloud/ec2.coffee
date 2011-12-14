@@ -35,6 +35,7 @@ ec2_inst_set = (res) ->
         for ec2inst in iset
             ii =  id:ec2inst.instanceId
             ii.state = STATE_EC2LOCAL[ ec2inst.instanceState?.name ] or 'maintain'
+            ii.address = if typeof(ec2inst.dnsName) == 'string' then ec2inst.dnsName else null
             insts.push ii
     insts
 
@@ -55,20 +56,20 @@ exports.install = (params, cb) ->
             cb(err)
         else
             insts = ec2_inst_set result
-            console.log insts
             @id = insts[0].id
             @state = insts[0].state
+            @address = insts[0].address
             cb and cb( null, insts )
 
 exports.start = (params, cb) ->
     return cb and cb(new Error('Node ID not set')) if not @id
     EC2.call "StartInstances", 'InstanceId.0':@id, (result) ->
-        console.log result
         if err = ec2_error result
             cb(err)
         else
             insts = ec2_inst_set result
             @state = insts[0].state
+            @address = insts[0].address
 
 exports.stop = (params, cb) ->
     cb and cb(null)
@@ -76,7 +77,6 @@ exports.stop = (params, cb) ->
 exports.uninstall = (params, cb) ->
     return cb and cb(new Error('Node ID not set')) if not @id
     EC2.call "TerminateInstances", 'InstanceId.0':@id, (result) ->
-        console.log result
         if err = ec2_error result
             cb(err)
         else
@@ -85,7 +85,6 @@ exports.uninstall = (params, cb) ->
 # List all available instacies
 exports.list = (cb) ->
     EC2.call "DescribeInstances", {}, (result) ->
-        console.log result
         if err = ec2_error result
             cb(err)
         else
