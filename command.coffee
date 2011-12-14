@@ -54,13 +54,12 @@ exports.command_handler = (entity, factory)->
             return resp.send 'Command not supported', 500
 
         form = COMMAND_FORMS[ entity + '_' + req.params.command ]
-        console.log "XXXXXXXXXXXXXXXXXXXXXX" + form
 
         exec_command = (req,resp) ->
-           console.log "Exec #{service.sid}.#{req.params.command} " + if req.form then JSON.stringify req.form
+           console.log "Exec #{req.params.command} on #{entity} " + if req.form then JSON.stringify req.form
            command.call service, req.form, (err) ->
                 if err then return resp.send err.message, 500
-                resp.send "Command #{req.params.command} executed on service #{service.sid} SUCCESSFULLY"
+                resp.send "Command #{req.params.command} executed on #{entity} SUCCESSFULLY"
 
         if form
             form req, resp, ->
