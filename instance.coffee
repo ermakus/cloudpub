@@ -7,6 +7,9 @@ CLOUDS =
     'ssh':     require './cloud/ssh'
     'ec2':     require './cloud/ec2'
 
+# TODO: read from ~/.ssh/id_rsa.pub
+PUBLIC_KEY = 'ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEArReBqZnuNxIKy/xHS2rIuCNOZ0nOmtJyLIr5lnJ26LPD3vRGzrpMNh4e7SKES70cSf8OW/d55G5Xi+VXExdL+ub6j/6++06wJYf63Ts4DFL4UGMlwob0VKS73KiVI1yk5FVKJ8BajaqMvWqSss59XD5bQoLQVdvtKjpaMPjPFMq+m170cRQF7sgf3iGfM9GoKVHU2+B3N6+DUIgX8DTdfikatY70cC8HwI0dl5M2bZbh+pNujij13oeM0zcZcjbrqn2VXt3vuEIhAd/UYp2mRPC+JI7lZAQmkoI+jHKHv2LOOaHC9yXFGpvG8p8yqu4Dbw7JoruDTlXsNoET6D2eow== cloudpub'
+
 # Instance class
 exports.Instance = class Instance
 
@@ -54,7 +57,7 @@ exports.Instance = class Instance
             @message = message
         @save (err) =>
             if err
-                @state = 'maintain'
+                @state = 'error'
                 @message = 'State save error: ' + err
             
             console.log "Server #{@id}: [#{@state}] #{@message}"
@@ -80,19 +83,23 @@ exports.Instance = class Instance
                 return cb and cb(err) if err
                 CLOUDS[@cloud].uninstall.call @, params, (err) =>
                     if err
-                        @setState "maintain", err, cb
+                        @setState "error", err, cb
                     else
                         @setState "down", "Deleted", cb
         else
-            @setState "down", "In maintaince mode", cb
+            @setState "maintain", "In maintaince mode", cb
 
 
 # Init HTTP request handlers
 exports.init = (app, cb)->
 
-    # List of nodes
-    app.get  '/instancies', account.force_login, command.list_handler('instance', (entity, acc, cb ) ->
-        # Return instancies list in callback
+    # HTML server list view
+    app.get '/instances', (req, resp)->
+        resp.render 'instance', {pubkey:PUBLIC_KEY}
+
+    # JSON server list
+    app.get  '/api/instances', account.force_login, command.list_handler('instance', (entity, acc, cb ) ->
+        # Return instances list in callback
         CLOUDS['ec2'].list (err,inst)->
             result = []
             # Collect SSH nodes from cache
@@ -105,8 +112,7 @@ exports.init = (app, cb)->
                 node.cloud = 'ec2'
                 node.address = item.address
                 # Update node state and save to cache
-                node.setState item.state, "Run", (err)->
-                    if err then console.log "CACHE: Error save ec2 instance: ", err
+                node.setState item.state
                 result.push node
                 ec2ids.push node.id
 
@@ -125,8 +131,8 @@ exports.init = (app, cb)->
             cb null, result
     )
 
-    # Node command
-    app.post '/instance/:command', account.ensure_login, command.command_handler('instance',(id,acc) ->
+    # Server command handler
+    app.post '/api/instance/:command', account.ensure_login, command.command_handler('instance',(id,acc) ->
         # Create instance immediately
         if id == 'new' then id = null
         new Instance(id)

@@ -1,13 +1,13 @@
-upstream worker_<%=service.sid%>_<%=service.account.uid%> {
+upstream worker_<%=service.id%>_<%=service.account.uid%> {
     server 127.0.0.1:<%=service.port%>;
 }
 
 server {
     listen 0.0.0.0:80;
     server_name <%=service.domain%>;
-    access_log /var/log/nginx/<%=service.sid%>.<%=service.account.uid%>.log;
+    access_log /var/log/nginx/<%=service.id%>.<%=service.account.uid%>.log;
     location / {
-        proxy_pass http://worker_<%=service.sid %>_<%=service.account.uid %>;
+        proxy_pass http://worker_<%=service.id %>_<%=service.account.uid %>;
         proxy_redirect off;
         proxy_set_header Host $host;
     }

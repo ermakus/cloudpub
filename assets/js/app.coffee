@@ -27,108 +27,133 @@ $.validator.addMethod 'domain', (value, elem) ->
     $.domain.valid
 , -> $.domain.error
 
-# Validate form $name, show errors and reuturn state
-window.validate_form = (name) ->
-    form = $('#' + name + '-form')
-    return true if not form
-    validator = form.validate()
-    return true if not validator
-    validator.form()
+#
+# Create template renderer by name
+#
+window.TEMPLATE = TEMPLATE = (name) ->
+    text = $(".#{name}-template").html()
+    if text
+        _.template text.replace(/&amp;/g, "&").replace(/&gt;/g, ">").replace(/&lt;/g, "<").replace(/&quot;/g, "&")
+    else
+        error "Invalid template: #{name}"
+        null
 
 #
 # Class to reload DOM element from $path
 #
-window.Updater = class Updater
+window.Listing = class Listing
 
-    constructor: (@node, @path, @timeout) ->
-        @timeout ?= 15000
+    # node = selector or dom node
+    # entities = name of collection
+    # entity = name of item
+    constructor: (@node, @entities, @entity )->
+        @path = '/api/' + @entities
+        @view = TEMPLATE 'list'
+        @timeout = 15000
         @timer = null
 
-    reload: =>
-        $(@node).load @path
+        self = @
+        $('.command').live 'click', ->
+            id = $(this).attr('data-id')
+            command = $(this).attr('data-command')
+            handler = new CommandHandler(entity, command, self.items[id], (err) -> self.reload() )
+            handler.show()
+        
+        @reload()
 
+    # Render template
+    render: ->
+        # Render template to control node
+        ohtml = $(@node).html()
+        nhtml = @view( items:@items )
+        if nhtml != ohtml
+            $(@node).html nhtml
+            $(@node).tablesorter()
+
+    # Reload data
+    reload: =>
+        $.get @path, (data)=>
+            @items = {}
+            for item in data
+                @items[ item.id ] = item
+            @render()
+
+    # Start auto-refreshing
     startUpdate: ->
         @timer = setInterval @reload, @timeout
 
+    # Stop auto-refreshing
     stopUpdate: ->
         clearInterval @timer
         @timer = null
 
-#
-# Listing control and commands dialog manager
-#
-window.Listing = class Listing extends Updater
+# Helper to execute command on server
+window.CommandHandler = class CommandHandler
 
-    # node = selector of dom node
-    # listPath = handler for collection
-    # actionPath = handler for collection item
-    constructor: (node, listPath, @actionPath )->
-        super(node, '/' + listPath + '?type=inline')
-        $('table').tablesorter()
-
-        listing = @
-        $('.command').live 'click', ->
-            el = $(this)
-            listing.id = el.attr('data-id')
-            listing.command = el.attr('data-command')
-            
-            #listing.fillDialog listing.command, listing.id
-            
-            # TODO: Remove it from here
-            domain = el.attr('data-domain')
-            $('input[name=domain]').val domain
-
-            listing.dialog listing.command, listing.id
-        
-        $('.execute').live 'click', ->
-            listing.execute listing.command, listing.id
-
-    execute: (command, id) ->
-        button = $('.execute')
-        # Validate form on click
-        return if not validate_form( command )
-
-        # Button Loading... state
-        button.button('loading')
-        button.unbind 'click'
-
-        # Func. to hide dialog
-        hide_dialog = =>
-            button.button('reset')
-            @dlg.modal('hide')
-            @dlg = undefined
-            @reload()
-
-        form = $('#' + command + '-form')
-        if form.length
-            params = form.serializeArray()
-        else
-            params = []
-
-        params.push {name:'id', value: id}
-
-        # Execute command on server and close dialog
-        $.post "/#{@actionPath}/#{command}", params, (res) ->
-            message res
-            hide_dialog()
-        .error hide_dialog
-
-
-    dialog: (command, id) ->
-        # Validate form first
-        validate_form command
-    
+    # Construct command handler
+    # entity = item name
+    # command = command name
+    # item = item JSON object
+    constructor: (@entity, @command, @item, cb) ->
         # Get dialog for command
-        @dlg = $('#' + command + '-dialog')
-        
-        @dlg.data 'command', command
-        @dlg.data 'id', id
+        template = TEMPLATE command
+        # Render template
+        @dlg = $(template(item:@item))
+        @dlg.data 'item', @item
+        # Bind execute button
+        @dlg.find('.execute').bind 'click', => @execute( cb )
+        # Remove element after hide
+        @dlg.bind 'hidden', => @dlg.remove()
 
+    # Show command dialog
+    show: ->
+        # Validate form before show
+        @validate()
         # Show dialog
         @dlg.modal
             backdrop: true
             keyboard: true
             show: true
+
+    # Hide and remove dialog
+    hide: ->
+        @dlg.modal('hide')
+
+    # Validate form if available
+    validate: ->
+        form = @dlg.find('form')
+        return true if not form
+        validator = form.validate()
+        return true if not validator
+        validator.form()
+ 
+    execute: (cb) ->
+        # Validate form on click
+        return if not @validate()
+        
+        # Set button to Loading... state
+        button = $('.execute')
+        button.button('loading')
+        button.unbind 'click'
+
+        # Func. to hide dialog
+        hide_dialog = =>
+            @hide()
+            cb and cb( null )
+
+        form = @dlg.find('form')
+        if form.length
+            params = form.serializeArray()
+        else
+            params = []
+
+        params.push {name:'id', value: @item.id}
+
+        # Execute command on server and close dialog
+        $.post "/api/#{@entity}/#{@command}", params, (res) =>
+            message res
+            hide_dialog()
+        .error hide_dialog
 
 #
 # Messages and alerts (override system alert)

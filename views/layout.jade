@@ -14,10 +14,10 @@ html(lang='en')
     != js('/js/bootstrap-modal.js')
     != js('/js/bootstrap-alerts.js')
     != js('/js/bootstrap-buttons.js')
+    != js('/js/underscore.js')
+    != js('/js/underscore-template-autoescape.js')
     != js('/js/app.js')
-    
     script(src='/ZeroClipboard.js')
- 
     // CSS
     != css('/css/bootstrap.css')
     != css('/css/app.css')
@@ -42,7 +42,7 @@ html(lang='en')
               li
                 a(href='/services') Services
               li
-                a(href='/instancies') Servers
+                a(href='/instances') Servers
               li
                 a(href='/account')
                     span Account&nbsp;(

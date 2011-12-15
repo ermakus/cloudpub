@@ -31,21 +31,21 @@ class Service extends events.EventEmitter
     workers: 0
 
     # Create instanse of service and load state from the store
-    constructor: (@sid, @account) ->
-        if not @sid then throw new Error('SID is not set')
+    constructor: (@id, @account) ->
+        if not @id then throw new Error('SID is not set')
         if not @account then throw new Error('Account is not set')
-        @state   = nconf.get( "service:#{@sid}:state" ) or "down"
-        @port    = nconf.get( "service:#{@sid}:port" ) or 3001
-        @workers = nconf.get( "service:#{@sid}:workers" ) or 0
-        @domain  = nconf.get( "service:#{@sid}:domain" ) or "#{@sid}.#{@account.uid}.cloudpub.us"
-        @home = "/home/#{@account.uid}/#{@sid}"
+        @state   = nconf.get( "service:#{@id}:state" ) or "down"
+        @port    = nconf.get( "service:#{@id}:port" ) or 3001
+        @workers = nconf.get( "service:#{@id}:workers" ) or 0
+        @domain  = nconf.get( "service:#{@id}:domain" ) or "#{@id}.#{@account.uid}.cloudpub.us"
+        @home = "/home/#{@account.uid}/#{@id}"
 
     # Save service state to store
     save: (cb) ->
-        nconf.set( "service:#{@sid}:state",   @state )
-        nconf.set( "service:#{@sid}:port",    @port )
-        nconf.set( "service:#{@sid}:workers", @workers )
-        nconf.set( "service:#{@sid}:domain",  @domain )
+        nconf.set( "service:#{@id}:state",   @state )
+        nconf.set( "service:#{@id}:port",    @port )
+        nconf.set( "service:#{@id}:workers", @workers )
+        nconf.set( "service:#{@id}:domain",  @domain )
         nconf.save cb
 
     # Change and save state
@@ -53,15 +53,7 @@ class Service extends events.EventEmitter
 
     # Retreive service info
     info: (cb)->
-        info =
-            sid:@sid
-            name:@name
-            state:@state
-            domain:@domain
-            workers:@workers
-            storage:0.0
-            bandwith:0.0
-        cb and cb(null, info)
+        cb and cb(null, @)
 
     # Start service
     start: (params, cb)->
@@ -91,7 +83,7 @@ class Service extends events.EventEmitter
 
     # Install service files and configure
     install: (params, cb)->
-        console.log "Install #{@sid} to #{@home}"
+        console.log "Install #{@id} to #{@home}"
         @domain = params.domain
         fs.stat @home, (err, dir) =>
             return cb and cb( null ) if not err
@@ -104,7 +96,7 @@ class Service extends events.EventEmitter
     # Configure service (i.e. setup proxy)
     configure: (params, cb)->
         preproc __dirname + '/nginx.vhost', @home + '/vhost', { service:@, params }, (err) =>
-            cmd = "sudo ln -sf #{@home}/vhost /etc/nginx/sites-enabled/#{@sid}.#{@account.uid}.conf && sudo service nginx reload"
+            cmd = "sudo ln -sf #{@home}/vhost /etc/nginx/sites-enabled/#{@id}.#{@account.uid}.conf && sudo service nginx reload"
             exec cmd, (err, stdout, stderr) =>
                 if stdout then console.log stdout
                 if stderr then console.log stderr
@@ -122,7 +114,7 @@ class Service extends events.EventEmitter
 
     # Return worker by number [0..@workers-1]
     getWorker: (num) ->
-        wid = "#{@account.uid}-#{@sid}-#{num}"
+        wid = "#{@account.uid}-#{@id}-#{num}"
         new worker.create( wid, @ )
 
 # Preprocess config file template
@@ -165,8 +157,11 @@ exports.create = (appid, acc) ->
 
 # Init request handlers here
 exports.init = (app, cb)->
+    app.get '/services', account.force_login, (req, resp)->
+        resp.render 'service'
+
     # Return services list with account info
-    app.get '/services', account.force_login, command.list_handler("service", (entity, acc, cb) ->
+    app.get '/api/services', account.ensure_login, command.list_handler("service", (entity, acc, cb) ->
         # Data callback should return list of items. 
         # Here we create one service for each available app type
         data = APPS.map (app) -> exports.create app.id, acc
@@ -191,7 +186,7 @@ exports.init = (app, cb)->
     )
 
     # Call service command
-    app.post '/service/:command', account.ensure_login, command.command_handler("service", (id, acc)->
+    app.post '/api/service/:command', account.ensure_login, command.command_handler("service", (id, acc)->
         # Factory callback should create and init item instance by id and user account
         exports.create id, acc
     )

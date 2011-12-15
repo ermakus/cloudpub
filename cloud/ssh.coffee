@@ -40,7 +40,7 @@ exports.install = (params, cb) ->
         if code == 0
             @setState 'up', stdout, callback
         else
-            @setState 'down', stderr, callback
+            @setState 'error', stderr, callback
      
 
 exports.uninstall = (params, cb) ->

@@ -32,20 +32,13 @@ COMMAND_FORMS =
 # factory = (entity, account, callback) -> callback( error, data )
 exports.list_handler = (entity, factory) ->
     return (req, resp) ->
-        console.log "List handler"
-        # Manage template (FIXME)
-        if req.param('type',false) == 'inline'
-            template = entity + '-inline'
-            layout = false
-        else
-            template = entity + '-list'
-            layout = true
-
         if not (acc = account.find req.session.uid)
-            return resp.render template, {error:"Invalid account ID"}
-
+            return resp.send  "Invalid account", 500
         factory entity, acc, (error, items)->
-                resp.render template, {layout, items, error}
+                if error
+                    resp.send error.message, 500
+                else
+                    resp.send items
 
 #
 # Return closure with function of entity command handler
@@ -77,7 +70,7 @@ exports.command_handler = (entity, factory)->
                 if req.form.isValid
                     exec_command req, resp
                 else
-                    resp.send (req.form.errors.join '</br>'), 500
+                    resp.send (req.form.errors.join '\n'), 500
         else
             exec_command req, resp
 
