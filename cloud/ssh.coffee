@@ -10,12 +10,18 @@ exports.install = (params, cb) ->
     @user = params.user
     @address = params.address
     @id = "c-#{@address}"
-    
+   
+    source = '/home/anton/Projects/cloudpub'
+    target = '~/cloudpub'
+
+    scp     = ["scp", '-r', '-i', SSH_PRIVATE_KEY, '-o', 'StrictHostKeyChecking no', '-o', 'BatchMode yes', source, @user + '@' + @address + ':' + target ]
+
     command = ['uname','-a']
-    ssh     = ["ssh",'-i', SSH_PRIVATE_KEY, '-o', 'StrictHostKeyChecking no', '-o', 'BatchMode yes', @user + '@' + @address ]
+    ssh     = ["ssh",'-i', SSH_PRIVATE_KEY, '-o', 'StrictHostKeyChecking no', '-o', 'BatchMode yes', '-l', @user, @address ]
     
-    run = ssh.concat command
-    
+    run = scp #ssh.concat command
+
+    console.log run.join " "
     stdout = ''
     stderr = ''
     ch = spawn run[0], run[1...]
@@ -40,7 +46,8 @@ exports.install = (params, cb) ->
         if code == 0
             @setState 'up', stdout, callback
         else
-            @setState 'error', stderr, callback
+            @setState 'error', stderr, ->
+                callback and callback( new Error( stderr ) )
      
 
 exports.uninstall = (params, cb) ->

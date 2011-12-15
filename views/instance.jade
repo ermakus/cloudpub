@@ -21,7 +21,7 @@ script.list-template(type="text/template")
                 td.service
                     a.status(href="#", title="Server state: <%=item.state%>")
                         img(src="state-<%=item.state%>.png")
-                        .workers &nbsp;
+                        .workers 0
                     .status-label
                         b.item <%= item.id %>
                         .message <%= item.message %>
