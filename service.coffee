@@ -12,6 +12,7 @@ state    = require './state'
 
 # Default service object
 
+
 class Service extends state.State
 
     # Service display name
@@ -46,18 +47,19 @@ class Service extends state.State
             return cb and cb(err) if err
             @install params, (err)=>
                 return cb and cb(err) if err
-                wrk = @getWorker @workers
-                wrk.start (err)=>
+                wrk = @createWorker()
+                wrk.exec ['node','~/cloudpub/server.js','4000'] (err)=>
                     return cb and cb(err) if err
-                    @workers++
                     @setState 'up', cb
+                @workers = wrk.id
+
 
     # Stop service
     stop: (params, cb)->
         @setState 'maintain', (err)=>
             return cb and cb(err) if err
             if @workers
-                wrk = @getWorker --@workers
+                wrk = @createWorker()
                 wrk.stop (err)=>
                     return cb and cb(err) if err
                     @uninstall params, (err)=>
@@ -97,10 +99,8 @@ class Service extends state.State
                 if stderr then console.log stderr
                 cb and cb(err)
 
-    # Return worker by number [0..@workers-1]
-    getWorker: (num) ->
-        wid = "#{@account.uid}-#{@id}-#{num}"
-        new worker.create( wid, @ )
+    createWorker: ->
+        new worker.Worker( @account.uid, 'localhost' )
 
 # Preprocess config file template
 preproc = (source, target, context, cb) ->

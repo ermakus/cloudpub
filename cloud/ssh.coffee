@@ -2,26 +2,23 @@
 # Custom cloud manager (SSH nodes)
 #
 exports.install = (params, cb) ->
-    console.log "Installing to server", @
-    source = '/home/anton/Projects/cloudpub'
-    target = '~/cloudpub'
-    worker = @createWorker()
-    # Sync woker and server state
-    worker.on 'state', (state,message) =>
-        console.log "Worker: #{state}:#{message}", @
-        @setState state, message
-    worker.scp source, target, cb
+    @worker 'scp', (err,worker) =>
+        return cb and cb(err) if err
+        worker.user = @user
+        worker.address = @address
+        worker.source = '/home/anton/Projects/cloudpub'
+        worker.target = '~/cloudpub'
+        worker.start cb
 
 exports.uninstall = (params, cb) ->
-    console.log "Uninstalling from server", @
     target = '~/cloudpub'
-    worker = @createWorker()
-    # Sync woker and server state
-    worker.on 'state', (state, message) =>
-        console.log "Worker: #{state}:#{message}", @
-        @setState state, message
-    worker.ssh ['rm','-rf', target], (err) =>
-        return cb and cb( err ) if err
-        @clear (err) ->
-            cb and cb( err )
-
+    @worker 'ssh', (err,worker) =>
+        return cb and cb(err) if err
+        worker.user = @user
+        worker.address = @address
+        worker.command = ['rm','-rf', target]
+        worker.on 'success', (err, worker) =>
+            return cb and cb( err ) if err
+            @clear (err) ->
+                cb and cb( err )
+        worker.start cb

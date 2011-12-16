@@ -82,7 +82,13 @@ window.Listing = class Listing
         if io?
             @socket = io.connect()
             @socket.on 'message', (data) =>
-                alert data.message, data.state
+                styles =
+                    up: 'success'
+                    error: 'error'
+                    down: 'warning'
+                    maintain: 'info'
+                style = styles[data.state] or 'warning'
+                alert data.message, style
                 @reload()
 
     # Stop auto-refreshing
@@ -153,7 +159,7 @@ window.CommandHandler = class CommandHandler
 
         # Execute command on server and close dialog
         $.post "/api/#{@entity}/#{@command}", params, (res) =>
-            message res
+            # res is item JSON
             hide_dialog()
         .error hide_dialog
 

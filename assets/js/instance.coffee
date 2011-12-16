@@ -1,12 +1,15 @@
 init_clipboard = ->
-    # Init copy-to-clipboard flash kostyl
-    clip = new ZeroClipboard.Client()
-    clip.glue "clip-button", 'clip-container'
-    clip.setText $('#pubkey').val()
-    clip.addEventListener 'load', (client)->
-        clip.setHandCursor(true)
-    clip.addEventListener 'complete', (client, text)->
-        message "Public key copied to clipboard"
+    if typeof(ZeroClipboard) != 'undefined'
+        # Init copy-to-clipboard flash kostyl
+        clip = new ZeroClipboard.Client()
+        clip.glue "clip-button", 'clip-container'
+        clip.setText $('#pubkey').val()
+        clip.addEventListener 'load', (client)->
+            clip.setHandCursor(true)
+        clip.addEventListener 'complete', (client, text)->
+            message "Public key copied to clipboard"
+    else
+        error "Clipboard undefined"
 
 
 init_cloud_type = (type)->

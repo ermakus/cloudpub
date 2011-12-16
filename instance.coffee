@@ -1,12 +1,7 @@
-spawn   = require('child_process').spawn
 account = require './account'
 command = require './command'
-
-state   = require('./state')
-
-SSH_PRIVATE_KEY='/home/anton/.ssh/id_rsa'
-RUN_TIMEOUT=500
-
+state   = require './state'
+worker  = require './worker'
 
 # Load cloud managers
 CLOUDS =
@@ -16,86 +11,24 @@ CLOUDS =
 # TODO: read from ~/.ssh/id_rsa.pub
 PUBLIC_KEY = 'ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEArReBqZnuNxIKy/xHS2rIuCNOZ0nOmtJyLIr5lnJ26LPD3vRGzrpMNh4e7SKES70cSf8OW/d55G5Xi+VXExdL+ub6j/6++06wJYf63Ts4DFL4UGMlwob0VKS73KiVI1yk5FVKJ8BajaqMvWqSss59XD5bQoLQVdvtKjpaMPjPFMq+m170cRQF7sgf3iGfM9GoKVHU2+B3N6+DUIgX8DTdfikatY70cC8HwI0dl5M2bZbh+pNujij13oeM0zcZcjbrqn2VXt3vuEIhAd/UYp2mRPC+JI7lZAQmkoI+jHKHv2LOOaHC9yXFGpvG8p8yqu4Dbw7JoruDTlXsNoET6D2eow== cloudpub'
 
-
-#
-# Low level system interface
-#
-exports.Worker = class Worker extends state.State
-
-    # Set address and user for remote system
-    constructor: (@user, @address) ->
-        super('worker', null )
-
-    # Execute command on local system
-    exec: (run, cb) ->
-        console.log "Exec " + run.join " "
-        stdout = ''
-        stderr = ''
-        ch = spawn run[0], run[1...]
-
-        @id = @user + '@' + @address + '-' + ch.pid
-
-        timer = setTimeout (=>
-            timer = null
-            @setState 'maintain', 'Running ' + run[0], cb
-        ), RUN_TIMEOUT
-
-        ch.stdout.on 'data', (data) ->
-            console.log "SHELL: ", data.toString()
-            stdout += data.toString()
-
-        ch.stderr.on 'data', (data) ->
-            stderr += data.toString()
-            console.log "ERROR: ", data.toString()
-        
-        ch.on 'exit', (code) =>
-            callback = undefined
-            if timer
-                clearTimeout timer
-                callback = cb
-            if code == 0
-                @setState 'up', 'Command executed', (err)=>
-                    return callback and callback(err) if err
-                    @clear callback
-            else
-                @setState 'error', stderr, (err)=>
-                    return callback and callback(err) if err
-                    @clear (err)->
-                        callback and callback( new Error( stderr ) )
-     
-    # Execute command on remote system (over ssh)
-    ssh: ( command, cb ) ->
-        cmd = ["ssh",'-i', SSH_PRIVATE_KEY, '-o', 'StrictHostKeyChecking no', '-o', 'BatchMode yes', '-l', @user, @address ]
-        @exec cmd.concat(command), cb
-
-    # Copy files to remote system (over scp)
-    scp: ( source, target, cb ) ->
-        cmd = ["scp", '-r', '-c', 'blowfish', '-C', '-i', SSH_PRIVATE_KEY, '-o', 'StrictHostKeyChecking no', '-o', 'BatchMode yes', source, @user + '@' + @address + ':' + target ]
-        @exec cmd, cb
-
-
 # Instance class
-exports.Instance = class Instance extends state.State
+exports.Instance = class Instance extends worker.WorkQueue
 
     cloud: 'ssh'
 
     constructor: (id) ->
-        super('node',id)
+        super('instance', id)
 
-    createWorker: ->
-        if not (@user and @address)
-            throw new Error("Can't create local worker")
-        new Worker(@user, @address)
+    configure: (params, cb)->
 
-
-    # Start instance
-    start: (params, cb)->
         if not (@id and @cloud)
             if params.cloud of CLOUDS
                 @cloud = params.cloud
             else
                 return cb and cb( new Error('Invalud cloud ID: ' + params.cloud) )
-        
+
+        console.log "CONFIGURE", @
+
         @address = params.address
         @user = params.user
 
@@ -105,25 +38,51 @@ exports.Instance = class Instance extends state.State
         if not @id and (@cloud == 'ssh')
             @id = 'c-' + @address.replace '.','-'
         
-        @setState 'maintain', "Installing services", (err) =>
+        @setState 'maintain', "Configured with #{@user}@#{@address}", cb
+
+    # Start instance
+    start: (params, cb)->
+        @configure params, (err) =>
             return cb and cb(err) if err
-            CLOUDS[@cloud].install.call @, params, (err) =>
-                return cb and cb(err) if err
-                @save cb
+            @install params, cb
 
     # Stop instance
-    stop: (params, cb)->
+    stop: (params, cb) ->
         if params.mode == 'shutdown'
-            @setState 'maintain', "Removing data", (err) =>
-                return cb and cb(err) if err
-                CLOUDS[@cloud].uninstall.call @, params, (err) =>
-                    if err
-                        @setState "error", err, cb
-                    else
-                        @setState "down", "Deleted", cb
+            @uninstall params, cb
         else
             @setState "maintain", "In maintaince mode", cb
 
+    install: (params, cb) ->
+        @worker 'scp', (err,worker) =>
+            return cb and cb(err) if err
+            worker.user = @user
+            worker.address = @address
+            worker.source = '/home/anton/Projects/cloudpub'
+            worker.target = '~/cloudpub'
+            worker.on 'success', =>
+                @setState 'up', "Installation complete"
+            worker.on 'failure', (err) =>
+                @setState 'error', err.message
+            @setState 'maintain', "Transfering files to #{@address}", (err)->
+                worker.start cb
+
+
+    uninstall: (params, cb) ->
+        target = '~/cloudpub'
+        @worker 'ssh', (err,worker) =>
+            return cb and cb(err) if err
+            worker.user = @user
+            worker.address = @address
+            worker.command = ['rm','-rf', target]
+            worker.on 'failure', (err) =>
+                @setState 'error', err.message
+                @clear()
+            worker.on 'success', =>
+                @setState 'up', 'Server removed successfully'
+                @clear()
+            @setState 'maintain', "Uninstalling from #{@address}", (err)->
+                worker.start cb
 
 # Init HTTP request handlers
 exports.init = (app, cb)->
@@ -138,7 +97,7 @@ exports.init = (app, cb)->
         CLOUDS['ec2'].list (err,inst)->
             result = []
             # Collect SSH nodes from cache
-            nodes = state.list('node') or {}
+            nodes = state.list('instance') or {}
             ec2ids = []
             # Add EC2 nodes
             for item in inst

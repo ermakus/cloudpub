@@ -2,7 +2,6 @@ nconf   = require 'nconf'
 _       = require 'underscore'
 events  = require 'events'
 io      = require './io'
-
 #
 # Persistent state
 #
@@ -26,11 +25,11 @@ exports.State = class State extends events.EventEmitter
 
     # Save state
     save: (cb) ->
+        console.log "Save: #{@entity}:#{@id} [#{@state}] #{@message}"
         return cb and cb(null) unless @id
         # Save persistend fields
         nconf.set(@entity + ":" + @id, @)
         nconf.save (err) =>
-            if not err then @emit 'saved'
             cb and cb(err)
 
     # Clear and remove from storage
@@ -39,7 +38,6 @@ exports.State = class State extends events.EventEmitter
             nconf.clear(@entity + ':' + @id)
             @id = undefined
             nconf.save (err) =>
-                if not err then @emit 'cleared'
                 cb and cb(err)
         else
             cb and cb( null )
@@ -52,15 +50,24 @@ exports.State = class State extends events.EventEmitter
             cb = message
         else
             @message = message
-        io.message 'anton', {state:@state, message:@message}
-        @save (err) =>
-            if err
-                @state = 'error'
-                @message = 'State save error: ' + err
-            else
-                @emit 'state', state, message
-            console.log "#{@entity}.#{@id}: [#{@state}] #{@message}"
-            cb and cb(err)
+        
+        console.log "State: #{@entity}.#{@id}: [#{@state}] #{@message}"
+        io.emit 'anton', { entity:@entity, state:@state, message:@message }
+        @emit 'state', @state, @message
+        @save cb
 
 exports.list = (entity) ->
     nconf.get(entity)
+
+exports.pload = (package, entity, id, cb) ->
+    module = require('./' + package)
+    entityClass = entity.charAt(0).toUpperCase() + entity.substring(1).toLowerCase()
+    console.log "Loading #{entityClass} id=#{id}"
+    Entity = module[ entityClass ]
+    if not Entity
+        cb and cb( new Error("Entity #{entityClass} not found in #{package}") )
+    else
+        cb and cb( null, new Entity( entity, id ) )
+
+exports.load = (entity, id, cb) -> exports.pload entity, entity, id, cb
+

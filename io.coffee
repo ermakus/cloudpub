@@ -6,9 +6,13 @@ parseCookie = require('connect').utils.parseCookie
 
 UID2SOCKET = {}
 
-exports.message = (uid, msg) ->
+exports.emit = (uid, msg) ->
+    if msg.entity != 'instance'
+        return
     if uid of UID2SOCKET
-        UID2SOCKET[ uid ]?.emit('message', msg)
+        UID2SOCKET[ uid ].emit('message', msg)
+    else
+        console.log "ERROR: Can't push event", msg
 
 exports.init = (app, cb)->
 
