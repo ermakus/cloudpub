@@ -24,7 +24,7 @@ script.list-template(type="text/template")
                         .workers 0
                     .status-label
                         b.item <%= item.id %>
-                        .message <%= item.message %>
+                        pre.message <%= item.message %>
                 td.domain
                     h3 <%= (item.address || "Not Available") %>
                 td.control

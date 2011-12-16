@@ -184,6 +184,8 @@ window.alert = (msg, classes) ->
     if not container
         sysalert msg
     else
+        if msg.indexOf('\n') >= 0
+            msg = '<pre>' + msg + '</pre>'
         msg = $("<div class='alert-message fade in #{classes}'><a href='#' class='close'>×</a><p>#{msg}</p></div>")
         # Assign and check, not equal
         msgs = $('.alert-message:last')

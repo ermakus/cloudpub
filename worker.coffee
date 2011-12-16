@@ -32,21 +32,20 @@ exports.Worker = class Worker extends state.State
         
         ch.on 'exit', (code) =>
             if code == 0
-                @emit 'success', null, @
+                @emit 'success', stdout, @
             else
                 @emit 'failure', new Error( stderr ), @
         
         cb and cb( null )
 
 
-exports.Scp = class Scp extends Worker
+exports.Copy = class Copy extends Worker
     start: (cb)->
         if not @source  then return cb and cb(new Error("Copy source not set"))
         if not @target  then return cb and cb(new Error("Copy target not set"))
         if not @user    then return cb and cb(new Error("Remote user not set"))
         if not @address then return cb and cb(new Error("Remote address not set"))
-        cmd = ["scp", '-r', '-c', 'blowfish', '-C', '-i', SSH_PRIVATE_KEY, '-o', 'StrictHostKeyChecking no', '-o', 'BatchMode yes',
-                @source, @user + '@' + @address + ':' + @target ]
+        cmd = ["rsync", '-aPe', 'ssh', @source, @user + '@' + @address + ':' + @target ]
         @exec cmd, cb
     
 # Execute command on remote system over ssh
@@ -96,9 +95,9 @@ exports.WorkQueue = class WorkQueue extends state.State
         worker.clear()
         @save()
 
-    success: (err, worker) ->
+    success: (stdout, worker) ->
         console.log "Worker #{worker.id} succeeded"
-        @emit 'success', err, worker
+        @emit 'success', stdout, worker
         @workers =  _.without @workers, worker.id
         worker.clear()
         @save()

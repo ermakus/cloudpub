@@ -54,14 +54,14 @@ exports.Instance = class Instance extends worker.WorkQueue
             @setState "maintain", "In maintaince mode", cb
 
     install: (params, cb) ->
-        @worker 'scp', (err,worker) =>
+        @worker 'copy', (err,worker) =>
             return cb and cb(err) if err
             worker.user = @user
             worker.address = @address
             worker.source = '/home/anton/Projects/cloudpub'
-            worker.target = '~/cloudpub'
-            worker.on 'success', =>
-                @setState 'up', "Installation complete"
+            worker.target = "/home/#{@user}/"
+            worker.on 'success', (msg)=>
+                @setState 'up', msg
             worker.on 'failure', (err) =>
                 @setState 'error', err.message
             @setState 'maintain', "Transfering files to #{@address}", (err)->
