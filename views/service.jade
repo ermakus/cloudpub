@@ -1,0 +1,78 @@
+h1 Apps
+// Put controls into this div
+.page
+    .loading
+
+// Module script
+!= js('/js/services.js')
+
+// Below is client-side _.templates (use <% %>!)
+// Items list
+script.list-template(type="text/template")
+    table.bordered-table.zebra-striped
+        thead
+            tr
+                th.service App
+                th.status Domain
+                th.control Run 
+        tbody
+            <% _.each(items, function(item) { %>
+            tr.service(class="srow-<%=item.state%>")
+                td.service
+                    a.status(href="#", title="<%=item.state%>, <%=item.workers%> worker(s)")
+                        img(src="state-<%=item.state%>.png")
+                        .workers <%= item.workers %>
+                    h3 <%=item.name%>
+                    
+                td.domain
+                    h3
+                        a(href="http://<%= item.domain %>",target="_new") <%=item.domain%>
+                td.control
+                    <% if(item.state == "down") { %>
+                    img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="start")
+                    <% } else { %>
+                    img.btn.command(src="command-stop.png",data-id="<%=item.id%>",data-command="stop")
+                    <% } %>
+            <% }); %>
+
+// Start dialog
+script.start-template(type="text/template")
+    .modal.hide.fade
+        .modal-header
+            a.close(href="#") × 
+            h3 Start App
+        form.modal-body
+            .clearfix
+                label Domain Name
+                .input
+                    input.required.domain(type="text",name="domain",value="<%= item.domain%>")
+                    span.help-block Select domain name for this service
+        .modal-footer
+            a.btn.primary.execute(href="#") Start App
+            a.btn.secondary.cancel(href="#") Cancel
+
+// Stop dialog
+script.stop-template(type="text/template")
+    .modal.hide.fade
+        .modal-header
+            a.close(href="#") × 
+            h3 Stop App
+        form.modal-body
+            .clearfix
+                label App Data
+                .input
+                    ul.inputs-list
+                        li
+                            label
+                                input(type="radio", checked="true", name="data", value="keep")
+                                b Keep app data
+                                span.help-block You will pay for the storage area.
+                        li
+                            label
+                                input(type="radio", name="data", value="delete")
+                                span.red Delete app data
+                                span.help-block This cannot be undone! Use this with caution.
+        .modal-footer
+            a.btn.primary.execute(href="#") Stop App
+            a.btn.secondary.cancel(href="#") Cancel
+

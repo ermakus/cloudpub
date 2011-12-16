@@ -1,6 +1,12 @@
-nconf   = require 'nconf'
+spawn   = require('child_process').spawn
 account = require './account'
 command = require './command'
+
+state   = require('./state')
+
+SSH_PRIVATE_KEY='/home/anton/.ssh/id_rsa'
+RUN_TIMEOUT=500
+
 
 # Load cloud managers
 CLOUDS =
@@ -10,58 +16,77 @@ CLOUDS =
 # TODO: read from ~/.ssh/id_rsa.pub
 PUBLIC_KEY = 'ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEArReBqZnuNxIKy/xHS2rIuCNOZ0nOmtJyLIr5lnJ26LPD3vRGzrpMNh4e7SKES70cSf8OW/d55G5Xi+VXExdL+ub6j/6++06wJYf63Ts4DFL4UGMlwob0VKS73KiVI1yk5FVKJ8BajaqMvWqSss59XD5bQoLQVdvtKjpaMPjPFMq+m170cRQF7sgf3iGfM9GoKVHU2+B3N6+DUIgX8DTdfikatY70cC8HwI0dl5M2bZbh+pNujij13oeM0zcZcjbrqn2VXt3vuEIhAd/UYp2mRPC+JI7lZAQmkoI+jHKHv2LOOaHC9yXFGpvG8p8yqu4Dbw7JoruDTlXsNoET6D2eow== cloudpub'
 
+
+#
+# Low level system interface
+#
+exports.Worker = class Worker extends state.State
+
+    # Set address and user for remote system
+    constructor: (@user, @address) ->
+        super('worker', null )
+
+    # Execute command on local system
+    exec: (run, cb) ->
+        console.log "Exec " + run.join " "
+        stdout = ''
+        stderr = ''
+        ch = spawn run[0], run[1...]
+
+        @id = @user + '@' + @address + '-' + ch.pid
+
+        timer = setTimeout (=>
+            timer = null
+            @setState 'maintain', 'Running ' + run[0], cb
+        ), RUN_TIMEOUT
+
+        ch.stdout.on 'data', (data) ->
+            console.log "SHELL: ", data.toString()
+            stdout += data.toString()
+
+        ch.stderr.on 'data', (data) ->
+            stderr += data.toString()
+            console.log "ERROR: ", data.toString()
+        
+        ch.on 'exit', (code) =>
+            callback = undefined
+            if timer
+                clearTimeout timer
+                callback = cb
+            if code == 0
+                @setState 'up', 'Command executed', (err)=>
+                    return callback and callback(err) if err
+                    @clear callback
+            else
+                @setState 'error', stderr, (err)=>
+                    return callback and callback(err) if err
+                    @clear (err)->
+                        callback and callback( new Error( stderr ) )
+     
+    # Execute command on remote system (over ssh)
+    ssh: ( command, cb ) ->
+        cmd = ["ssh",'-i', SSH_PRIVATE_KEY, '-o', 'StrictHostKeyChecking no', '-o', 'BatchMode yes', '-l', @user, @address ]
+        @exec cmd.concat(command), cb
+
+    # Copy files to remote system (over scp)
+    scp: ( source, target, cb ) ->
+        cmd = ["scp", '-r', '-c', 'blowfish', '-C', '-i', SSH_PRIVATE_KEY, '-o', 'StrictHostKeyChecking no', '-o', 'BatchMode yes', source, @user + '@' + @address + ':' + target ]
+        @exec cmd, cb
+
+
 # Instance class
-exports.Instance = class Instance
+exports.Instance = class Instance extends state.State
 
-    state: 'down'
+    cloud: 'ssh'
 
-    # Create instance in cloud
-    constructor: (@id)->
-        if @id
-            # Init persisten fields
-            @state   = nconf.get("node:#{@id}:state") or 'down'
-            @message = nconf.get("node:#{@id}:message")
-            @cloud   = nconf.get("node:#{@id}:cloud") or 'ssh'
-            @address = nconf.get("node:#{@id}:address")
-            @user    = nconf.get("node:#{@id}:user")
-        else
-            # Unsaved
-            @cloud   = 'ssh'
+    constructor: (id) ->
+        super('node',id)
 
-    # Save instance state
-    save: (cb) ->
-        return cb and cb(null) unless @id
-        # Save persistend fields
-        nconf.set("node:#{@id}:state",   @state)
-        nconf.set("node:#{@id}:message", @message)
-        nconf.set("node:#{@id}:cloud",   @cloud)
-        nconf.set("node:#{@id}:address", @address)
-        nconf.set("node:#{@id}:user",    @user)
-        nconf.save cb
+    createWorker: ->
+        if not (@user and @address)
+            throw new Error("Can't create local worker")
+        new Worker(@user, @address)
 
-    clear: (cb) ->
-        if @id
-            nconf.clear "node:#{@id}"
-            @id = undefined
-            nconf.save cb
-        else
-            cb and cb( null )
-
-    # Update state and save if changed
-    setState: (state, message, cb) ->
-        if state
-            @state = state
-        if typeof(message) == 'function'
-            cb = message
-        else
-            @message = message
-        @save (err) =>
-            if err
-                @state = 'error'
-                @message = 'State save error: ' + err
-            
-            console.log "Server #{@id}: [#{@state}] #{@message}"
-            cb and cb(err)
 
     # Start instance
     start: (params, cb)->
@@ -70,6 +95,16 @@ exports.Instance = class Instance
                 @cloud = params.cloud
             else
                 return cb and cb( new Error('Invalud cloud ID: ' + params.cloud) )
+        
+        @address = params.address
+        @user = params.user
+
+        if not (@address and @user)
+            return cb and cb( new Error('Invalid address or user' + params.cloud) )
+        
+        if not @id and (@cloud == 'ssh')
+            @id = 'c-' + @address.replace '.','-'
+        
         @setState 'maintain', "Installing services", (err) =>
             return cb and cb(err) if err
             CLOUDS[@cloud].install.call @, params, (err) =>
@@ -103,7 +138,7 @@ exports.init = (app, cb)->
         CLOUDS['ec2'].list (err,inst)->
             result = []
             # Collect SSH nodes from cache
-            nodes = nconf.get('node') or {}
+            nodes = state.list('node') or {}
             ec2ids = []
             # Add EC2 nodes
             for item in inst

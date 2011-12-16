@@ -7,8 +7,11 @@ account  = require './account'
 service  = require './service'
 domain   = require './domain'
 instance = require './instance'
+io       = require './io'
 
 publicDir = __dirname + '/public'
+
+MemoryStore = express.session.MemoryStore
 
 createApp = ->
     app = express.createServer()
@@ -17,10 +20,13 @@ createApp = ->
     app.use express.static(publicDir)
     app.use express.cookieParser()
     app.use express.bodyParser()
+    app.sessionStore = new MemoryStore()
 
     # Session backend
     app.use express.session
+        store: app.sessionStore
         secret:"(#^LHh(*YHI^YIJHDFSDLsdfKF"
+        key:'cloudpub.sid'
 
     # Make 'session' available in views
     app.dynamicHelpers
@@ -38,5 +44,6 @@ exports.init = (cb) ->
         service.init app, ->
             domain.init app, ->
                 instance.init app, ->
-                    cb and cb( null, app )
+                    io.init app, ->
+                        cb and cb( null, app )
 

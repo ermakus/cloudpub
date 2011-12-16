@@ -8,16 +8,14 @@ spawn   = require('child_process').spawn
 account  = require './account'
 worker   = require './worker'
 command  = require './command'
+state    = require './state'
 
 # Default service object
 
-class Service extends events.EventEmitter
+class Service extends state.State
 
     # Service display name
     name: 'Default Service Name'
-
-    # State: DOWN, MANTAINING or UP
-    state: 'down'
 
     # Source for install
     source: '/home/anton/Projects/cloudpub'
@@ -26,30 +24,17 @@ class Service extends events.EventEmitter
     port: 3001
 
     # Service domain
-    domain: 'localhost'
+    domain: undefined
 
     workers: 0
 
     # Create instanse of service and load state from the store
     constructor: (@id, @account) ->
+        super('service', @id)
         if not @id then throw new Error('SID is not set')
         if not @account then throw new Error('Account is not set')
-        @state   = nconf.get( "service:#{@id}:state" ) or "down"
-        @port    = nconf.get( "service:#{@id}:port" ) or 3001
-        @workers = nconf.get( "service:#{@id}:workers" ) or 0
-        @domain  = nconf.get( "service:#{@id}:domain" ) or "#{@id}.#{@account.uid}.cloudpub.us"
+        @domain  ?= "#{@id}.#{@account.uid}.cloudpub.us"
         @home = "/home/#{@account.uid}/#{@id}"
-
-    # Save service state to store
-    save: (cb) ->
-        nconf.set( "service:#{@id}:state",   @state )
-        nconf.set( "service:#{@id}:port",    @port )
-        nconf.set( "service:#{@id}:workers", @workers )
-        nconf.set( "service:#{@id}:domain",  @domain )
-        nconf.save cb
-
-    # Change and save state
-    setState: (@state, cb) -> @save cb
 
     # Retreive service info
     info: (cb)->

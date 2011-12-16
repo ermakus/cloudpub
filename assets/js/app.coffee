@@ -64,11 +64,9 @@ window.Listing = class Listing
     # Render template
     render: ->
         # Render template to control node
-        ohtml = $(@node).html()
-        nhtml = @view( items:@items )
-        if nhtml != ohtml
-            $(@node).html nhtml
-            $(@node).tablesorter()
+        html = @view( items:@items )
+        $(@node).html html
+        $(@node).tablesorter()
 
     # Reload data
     reload: =>
@@ -80,12 +78,16 @@ window.Listing = class Listing
 
     # Start auto-refreshing
     startUpdate: ->
-        @timer = setInterval @reload, @timeout
+        # Connect websocket if available
+        if io?
+            @socket = io.connect()
+            @socket.on 'message', (data) =>
+                alert data.message, data.state
+                @reload()
 
     # Stop auto-refreshing
     stopUpdate: ->
-        clearInterval @timer
-        @timer = null
+        @socket and @socket.disconnect()
 
 # Helper to execute command on server
 window.CommandHandler = class CommandHandler
@@ -177,9 +179,16 @@ window.alert = (msg, classes) ->
         sysalert msg
     else
         msg = $("<div class='alert-message fade in #{classes}'><a href='#' class='close'>×</a><p>#{msg}</p></div>")
-        container.prepend msg
+        # Assign and check, not equal
+        msgs = $('.alert-message:last')
+        if msgs.length
+            msg.insertAfter msgs
+        else
+            msg.prependTo container
         msg.alert()
         setTimeout (-> msg.find('.close').click() ), 10000
+
+
 
 #
 # Initialization to run on all pages
