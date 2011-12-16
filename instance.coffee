@@ -147,7 +147,8 @@ exports.init = (app, cb)->
                 node.cloud = 'ec2'
                 node.address = item.address
                 # Update node state and save to cache
-                node.setState item.state
+                if item.state != node.state
+                    node.setState item.state
                 result.push node
                 ec2ids.push node.id
 
