@@ -13,7 +13,7 @@ state    = require './state'
 # Default service object
 
 
-class Service extends state.State
+exports.Service = class Service extends worker.WorkQueue
 
     # Service display name
     name: 'Default Service Name'
@@ -27,19 +27,17 @@ class Service extends state.State
     # Service domain
     domain: undefined
 
-    workers: 0
+    # Instance ID service run on
+    instance: 'localhost'
+
+    # User account to run
+    user: 'root'
 
     # Create instanse of service and load state from the store
-    constructor: (@id, @account) ->
-        super('service', @id)
-        if not @id then throw new Error('SID is not set')
-        if not @account then throw new Error('Account is not set')
+    constructor: (entity, id) ->
+        super(entity, id)
         @domain  ?= "#{@id}.#{@account.uid}.cloudpub.us"
         @home = "/home/#{@account.uid}/#{@id}"
-
-    # Retreive service info
-    info: (cb)->
-        cb and cb(null, @)
 
     # Start service
     start: (params, cb)->
@@ -111,69 +109,8 @@ preproc = (source, target, context, cb) ->
         fs.writeFile target, cfg, (err)->
             cb and cb( err )
 
-# Array of available apps
-APPS         = []
-
-# Directory with apps
-APPS_DIR      = __dirname + '/wapp'
-
-# Reload all application templates to APPS
-exports.reload = (cb)->
-    console.log "Loaded apps from #{APPS_DIR}"
-    fs.readdir APPS_DIR, (err, list)->
-        if err then return cb and cb( err )
-        APPS = []
-        for file in list
-            if match = /(.+)\.coffee/.exec file
-                app = require "#{APPS_DIR}/#{match[1]}"
-                app.id = match[1]
-                APPS.push app
-        cb and cb( null, APPS )
-
-# Create service by SID and bind with account
-exports.create = (appid, acc) ->
-    # Seeking for app
-    for app in APPS
-        if app.id == appid
-            # Create service and patch by app
-            console.log "Accesing service #{appid}"
-            return _.extend( new Service( appid, acc ), app )
-    null
-
 # Init request handlers here
 exports.init = (app, cb)->
-    app.get '/services', account.force_login, (req, resp)->
-        resp.render 'service'
-
-    # Return services list with account info
-    app.get '/api/services', account.ensure_login, command.list_handler("service", (entity, acc, cb) ->
-        # Data callback should return list of items. 
-        # Here we create one service for each available app type
-        data = APPS.map (app) -> exports.create app.id, acc
-        # Final countdown
-        count = data.length
-        items = []
-        errors = ''
-        # And call each servics info handler
-        for item in data
-            item.info (err, info)->
-                if not err
-                    items.push info
-                else
-                    errors += (err.message + "<br/>")
-                # ..until all info is collected
-                unless --count
-                    if errors
-                        err = new Error(errors)
-                    else
-                        err = null
-                    cb and cb err, items
-    )
-
-    # Call service command
-    app.post '/api/service/:command', account.ensure_login, command.command_handler("service", (id, acc)->
-        # Factory callback should create and init item instance by id and user account
-        exports.create id, acc
-    )
-    exports.reload cb
-
+    # Register default handler
+    app.register 'service'
+    cb and cb(null)

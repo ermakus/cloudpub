@@ -24,7 +24,8 @@ exports.Worker = class Worker extends state.State
 
         ch.stdout.on 'data', (data) ->
             console.log "SHELL: ", data.toString()
-            stdout += data.toString()
+            if stdout.length < 512
+                stdout += data.toString()
 
         ch.stderr.on 'data', (data) ->
             stderr += data.toString()
@@ -80,13 +81,19 @@ exports.WorkQueue = class WorkQueue extends state.State
 
     start: (cb) ->
         if @workers.length
+            console.log "Start queue #{@id}"
             state.load 'worker', @workers[0], (err, worker) ->
-                worker.start cb
+                if worker.state in ['error', 'down']
+                    worker.start cb
+                else
+                    cb and ab( null )
 
     stop: (cb) ->
         if @workers.length
+            console.log "Stop queue #{@id}"
             state.load 'worker', @workers[0], (err, worker) ->
-                worker.stop cb
+                if worker.state in ['up', 'maintain']
+                    worker.stop cb
 
     failure: (err, worker) ->
         console.log "Worker #{worker.id} failed", err
@@ -101,3 +108,13 @@ exports.WorkQueue = class WorkQueue extends state.State
         @workers =  _.without @workers, worker.id
         worker.clear()
         @save()
+
+    submit: (type, params, cb) ->
+        @worker type, (err, worker)=>
+            _.extend worker, params
+            async.series [worker.save, @start], cb
+
+
+exports.init = (app, cb)->
+    app.register 'worker'
+    cb and cb( null )

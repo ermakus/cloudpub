@@ -1,5 +1,6 @@
 nconf   = require 'nconf'
 _       = require 'underscore'
+async   = require 'async'
 events  = require 'events'
 io      = require './io'
 #
@@ -56,10 +57,8 @@ exports.State = class State extends events.EventEmitter
         @emit 'state', @state, @message
         @save cb
 
-exports.list = (entity) ->
-    nconf.get(entity)
-
-exports.pload = (package, entity, id, cb) ->
+# Load state from module
+exports.pload = pload = (package, entity, id, cb) ->
     module = require('./' + package)
     entityClass = entity.charAt(0).toUpperCase() + entity.substring(1).toLowerCase()
     console.log "Loading #{entityClass} id=#{id}"
@@ -67,7 +66,22 @@ exports.pload = (package, entity, id, cb) ->
     if not Entity
         cb and cb( new Error("Entity #{entityClass} not found in #{package}") )
     else
-        cb and cb( null, new Entity( entity, id ) )
+        obj = new Entity( entity, id )
+        cb and cb( null, obj )
 
-exports.load = (entity, id, cb) -> exports.pload entity, entity, id, cb
+# Load default module state
+exports.load = load = (entity, id, cb) -> exports.pload entity, entity, id, cb
+
+# Query states by params and cb( error, [entities] )
+exports.query = (entity, params, cb) ->
+    if typeof(params) == 'function'
+        cb = params
+        params = []
+    console.log "Query #{entity}", params
+    json = nconf.get(entity)
+    if not json or (_.isArray(json) and json.length == 0)
+        json =  {}
+    # Load async each entity by key
+    async.map _.keys(json), ((k,c)->load entity, k, c), cb
+
 

@@ -40,7 +40,7 @@ $ ->
         init_clipboard()
     
     # Show listing
-    listing = new Listing('.page', 'instances', 'instance')
+    listing = new Listing('.page', 'instance')
     listing.startUpdate()
 
     # Start new server handler

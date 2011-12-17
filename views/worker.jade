@@ -1,0 +1,102 @@
+h1 Workers
+
+.page
+    .loading
+
+a.btn.primary.start-new(href="#") Submit Job
+
+!= js('/js/worker.js')
+
+// Templates
+script.list-template(type="text/template")
+    table.bordered-table.zebra-striped
+        thead
+            tr
+                th.status Status
+                th.service State
+                th.control Launch
+        tbody
+            <% _.each( items, function(item) { %>
+            tr.service(class="srow-<%=item.state%>")
+                td.service
+                    a.status(href="#", title="Worker state: <%=item.state%>")
+                        img(src="state-<%=item.state%>.png")
+                        .workers 0
+                    .status-label
+                        b.item <%= item.id %>
+                        pre.message <%= item.message %>
+                td.domain
+                    h3 <%= (item.address || "Not Available") %>
+                td.control
+                    <% if(item.state != "up") { %>
+                    img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="start")
+                    <% } %>
+                    <% if(item.state == "error" || item.state == "up" || item.state == "maintain") { %>
+                    img.btn.command(src="command-stop.png",data-id="<%=item.id%>",data-command="stop")
+                    <% } %>
+            <% }); %>
+
+script.start-template(type="text/template")
+    .start.modal.hide.fade
+        .modal-header
+            a.close(href="#") × 
+            h3 Start Server
+        form.modal-body
+            .clearfix.cloudtype(style="display:none;")
+                ul.inputs-list
+                    li
+                        label
+                            input.cloud(type="radio", name="cloud", value="ec2")
+                            b Take server from Amazon EC2 cloud
+                            span.help-block You will pay for usage by Amazon price
+                    li
+                        label
+                            input.cloud(type="radio", checked="true", name="cloud", value="ssh")
+                            span Add your own server by SSH
+                            span.help-block You need to have SSH user account and ability to add the public key
+            .clearfix.custom
+                    label Server address
+                    .input
+                        input.custom-input.required.address(type="text",name="address",value="<%= item.address %>")
+                        span.help-block Enter your server domain name or IP address
+            .clearfix.custom
+                    label SSH login
+                    .input
+                        input.custom-input.required.login(type="text",name="user",value="<%= item.user %>")
+                        span.help-block Specify user account for node setup
+            .clearfix.custom
+                    label
+                        div SSH public key
+                        #clip-container(style="position: relative;")
+                            #clip-button.label Copy to clipboard
+                    .input
+                        textarea#pubkey(rows="3",readonly="true", style="width: 350px; font-size: 9px;")= pubkey
+                        span.help-block Add this public key to ~/.ssh/authorized_hosts file&nbsp;
+        .modal-footer
+            a.btn.primary.execute(href="#") Start
+            a.btn.secondary.cancel(href="#") Cancel
+
+script.stop-template(type="text/template")
+    .modal.hide.fade(style="display:none;")
+        .modal-header
+            a.close(href="#") × 
+            h3 Stop Server
+        form.modal-body
+            .clearfix
+                label Shut down mode
+                .input
+                    ul.inputs-list
+                        li
+                            label
+                                input(type="radio", checked="true", name="mode", value="maintain")
+                                b Put to maintaince mode
+                                span.help-block Stop all services but keep data
+                        li
+                            label
+                                input(type="radio", name="mode", value="shutdown")
+                                span.red Complete Remove
+                                span.help-block Delete all data and release server (this can't be undone!)
+        .modal-footer
+            a.btn.primary.execute(href="#") Stop Server
+            a.btn.secondary.cancel(href="#") Cancel
+

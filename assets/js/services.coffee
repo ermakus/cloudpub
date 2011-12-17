@@ -1,3 +1,3 @@
 $ ->
-    listing = new Listing('.page', 'services', 'service')
+    listing = new Listing('.page', 'service')
     listing.startUpdate()

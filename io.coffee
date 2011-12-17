@@ -21,12 +21,10 @@ exports.init = (app, cb)->
     sio.sockets.on 'connection', (socket)->
         hs = socket.handshake
         if hs.session?.uid
-            console.log "User connected", hs.session
             UID2SOCKET[ hs.session.uid ] = socket
 
         socket.on 'disconnect', ->
             if hs.session?.uid
-                console.log 'User disconnected', hs.session.uid
                 delete UID2SOCKET[ hs.session.uid ]
 
     sio.set 'authorization', (data, accept) ->

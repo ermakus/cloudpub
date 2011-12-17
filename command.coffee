@@ -27,49 +27,40 @@ COMMAND_FORMS =
     )
 
 #
-# Return closure with function of entity list view
-#
-# factory = (entity, account, callback) -> callback( error, data )
-exports.list_handler = (entity, factory) ->
-    return (req, resp) ->
-        if not (acc = account.find req.session.uid)
-            return resp.send  "Invalid account", 500
-        factory entity, acc, (error, items)->
-                if error
-                    resp.send error.message, 500
-                else
-                    resp.send items
-
-#
 # Return closure with function of entity command handler
 #
-exports.command_handler = (entity, factory)->
+exports.handler = (entity, factory)->
 
     return (req, resp)->
         if not (acc = account.find req.session.uid)
             return resp.send 'Invalid account ID', 500
         if not (req.params.command in ALLOWED_COMMANDS)
             return resp.send 'Invalid command', 500
-        service = factory req.param('id', null), acc
-        if not service
-            return resp.send 'Invalid service ID', 500
-        command = service[ req.params.command ]
-        if not command
-            return resp.send 'Command not supported', 500
+        
+        factory entity, req.param('id', null), (err, service)->
 
-        form = COMMAND_FORMS[ entity + '_' + req.params.command ]
+            if not service
+                return resp.send 'Invalid service ID', 500
 
-        exec_command = (req,resp) ->
-           console.log "Exec #{req.params.command} on #{entity} " + if req.form then JSON.stringify req.form
-           command.call service, req.form, (err) ->
-                if err then return resp.send err.message, 500
-                resp.send service
-        if form
-            form req, resp, ->
-                if req.form.isValid
-                    exec_command req, resp
-                else
-                    resp.send (req.form.errors.join '\n'), 500
-        else
-            exec_command req, resp
+            #service.user = acc.uid
+
+            command = service[ req.params.command ]
+            if not command
+                return resp.send 'Command not supported', 500
+
+            form = COMMAND_FORMS[ entity + '_' + req.params.command ]
+
+            exec_command = (req,resp) ->
+               console.log "Exec #{req.params.command} on #{entity} " + if req.form then JSON.stringify req.form
+               command.call service, req.form, (err) ->
+                    if err then return resp.send err.message, 500
+                    resp.send service
+            if form
+                form req, resp, ->
+                    if req.form.isValid
+                        exec_command req, resp
+                    else
+                        resp.send (req.form.errors.join '\n'), 500
+            else
+                exec_command req, resp
 
