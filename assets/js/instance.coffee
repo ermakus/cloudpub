@@ -9,7 +9,9 @@ init_clipboard = ->
         clip.addEventListener 'complete', (client, text)->
             message "Public key copied to clipboard"
     else
-        error "Clipboard undefined"
+        # Trick: see layout header
+        error "Session expired"
+        window.location.reload()
 
 
 init_cloud_type = (type)->

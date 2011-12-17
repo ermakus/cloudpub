@@ -38,6 +38,8 @@ exports.Worker = class Worker extends state.State
         
         cb and cb( null )
 
+# SSH global options
+SSH = "ssh -i #{SSH_PRIVATE_KEY} -o StrictHostKeyChecking=no -o BatchMode=yes"
 
 exports.Copy = class Copy extends Worker
     start: (cb)->
@@ -45,17 +47,15 @@ exports.Copy = class Copy extends Worker
         if not @target  then return cb and cb(new Error("Copy target not set"))
         if not @user    then return cb and cb(new Error("Remote user not set"))
         if not @address then return cb and cb(new Error("Remote address not set"))
-        cmd = ["rsync", '-aPe', 'ssh', @source, @user + '@' + @address + ':' + @target ]
-        @exec cmd, cb
+        @exec [ __dirname + "/bin/copy", "-u", @user, "-a", @address, "-k", SSH_PRIVATE_KEY, @source, @target ], cb
     
 # Execute command on remote system over ssh
 exports.Ssh = class Ssh extends Worker
     start: ( cb ) ->
-        if not @user  then return cb and cb(new Error("Remote user not set"))
+        if not @user    then return cb and cb(new Error("Remote user not set"))
         if not @address then return cb and cb(new Error("Remote address not set"))
         if not @command then return cb and cb(new Error("Shell command not set"))
-        cmd = ["ssh",'-i', SSH_PRIVATE_KEY, '-o', 'StrictHostKeyChecking no', '-o', 'BatchMode yes', '-l', @user, @address ]
-        @exec cmd.concat(@command), cb
+        @exec SSH.split(' ').concat("-l", @user, @address).concat(@command), cb
 
 #
 # Work queue

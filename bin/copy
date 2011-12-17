@@ -1,0 +1,68 @@
+#!/bin/bash
+
+usage() {
+cat << EOF
+usage: $0 [options] source destination
+
+This script copy files to local or remote directory
+
+OPTIONS:
+   -h      Show this message
+   -u      Remote host user
+   -a      Remote host address
+   -k      SSH private key
+EOF
+}
+
+check() {
+    if [ -z "$1" ]; then echo "ERROR: $2" 1>&2; exit 1; fi
+}
+
+SSH=$(which ssh)
+RSYNC=$(which rsync)
+USER=$(whoami)
+ADDRESS=localhost 
+PKEY=/home/$USER/.ssh/id_rsa
+SOURCE=""
+TARGET=""
+
+while getopts "hu:a:k:" OPTION
+do
+    case $OPTION in
+         u)
+             USER=$OPTARG
+             ;;
+         a)
+             ADDRESS=$OPTARG
+             ;;
+         k)
+             PKEY=$OPTARG
+             ;;
+         h)
+             usage
+             exit 1
+             ;;
+         ?)
+             usage
+             exit
+             ;;
+    esac
+done
+
+shift $(expr $OPTIND - 1)
+
+SOURCE=$1
+TARGET=$2
+
+check "$SSH"    "ssh is not installed"
+check "$RSYNC"  "rsync is not installed"
+check "$SOURCE" "source path not set"
+check "$TARGET" "target path not set"
+
+SSH_OPTS="-i $PKEY -o StrictHostKeyChecking=no -o BatchMode=yes"
+
+if [ "$ADDRESS" = "localhost" ] ; then
+    cp -a $SOURCE $TARGET
+else
+    $RSYNC -ave  "$SSH $SSH_OPTS" $SOURCE $USER@$ADDRESS:$TARGET
+fi
