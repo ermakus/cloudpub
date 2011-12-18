@@ -40,6 +40,8 @@ exports.handler = (entity, factory)->
 
        
         factory req.param('id', null), entity, (err, service)->
+            if err
+                return resp.send err.message, 500
 
             if not service
                 return resp.send 'Invalid service ID', 500

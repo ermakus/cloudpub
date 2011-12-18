@@ -55,7 +55,7 @@ createApp = ->
         app.get '/api/' + entity, account.ensure_login, (req, resp)->
             list entity, (err, data)->
                 if err
-                    resp.send err, 500
+                    resp.send err.message, 500
                 else
                     resp.send data
 

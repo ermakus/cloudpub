@@ -31,7 +31,10 @@ exports.State = class State extends events.EventEmitter
         console.log "Save: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
         #console.trace()
         # Save persistend fields
+        _events = @_events
+        delete @['_events']
         nconf.set("object:" + @id, @)
+        @_events = _events
         nconf.set(@entity + ":" + @id, @id)
         nconf.save (err) =>
             cb and cb(err)
@@ -69,6 +72,9 @@ exports.create = create = (id, entity, package, cb) ->
     if typeof(entity) == 'function'
         return cb and cb( new Error("Can't create null entity") )
     console.log "Create #{package}.#{entity} [#{id}]"
+    if not (package and entity)
+        return cb and cb( new Error("Can't create null entity") )
+
     module = require('./' + package)
     entityClass = entity.charAt(0).toUpperCase() + entity.substring(1).toLowerCase()
     Entity = module[ entityClass ]
@@ -92,12 +98,16 @@ exports.load = load = (id, entity, package, cb) ->
     stored = null
     if id
         stored = nconf.get("object:" + id)
+
     if stored
         if stored.entity
             package = entity = stored.entity
         if stored.package
             package = stored.package
 
+    if id and not stored
+        return cb and cb( new Error("Reference not found: [#{id}]") )
+ 
     create id, entity, package, (err, obj)->
         return cb and cb(err) if err
         if stored then _.extend obj, stored

@@ -98,13 +98,14 @@ exports.init = (app, cb)->
         # Load predefined apps form storage (or create new one)
         async.map ['cloudpub'], ( (id, callback) ->
                 # Load entity from storage
-                state.load id, 'service', (err, item) ->
+                state.load id, (err, item) ->
                     return callback and callback(err) if err
                     # Load workers from storage
                     async.map item.instance, state.load, (err, instance)->
-                        return callback and callback(err) if err
+                        return callback and callback(err, item) if err
                         item.instance = instance
                         # Fire item callback and pass resolved item
                         callback and callback(null, item)
-        ), cb
+        ), (err, data) ->
+                cb and cb(err, data)
     cb and cb(null)
