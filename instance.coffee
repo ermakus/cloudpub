@@ -56,13 +56,24 @@ exports.Instance = class Instance extends worker.WorkQueue
             user:@user
             address:@address
             command:['rm','-rf', target]
-            success:(msg)=> async.series [async.apply(@setState,'up', msg), @clear]
-            failure:(err)=> async.series [async.apply(@setState,'error', err.message), @clear]
+            success:(msg)=> @clear()
+            failure:(err)=> @clear()
         
         @setState 'maintain', "Uninstalling files from #{@address}", cb
 
 
 # Init HTTP request handlers
 exports.init = (app, cb)->
-    app.register 'instance'
-    cb and cb( null )
+    app.register 'instance', (entity, cb)->
+
+        resolve = (item, cb)->
+            async.map item.workers, state.load, (err, workers)->
+                item.workers = workers
+                cb and cb(null, item)
+
+        state.query entity, (err, items)->
+            return cb and cb(err) if err
+            async.forEach items, resolve, (err)->
+                cb and cb(err, items)
+
+     cb and cb( null )

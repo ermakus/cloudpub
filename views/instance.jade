@@ -14,6 +14,7 @@ script.list-template(type="text/template")
             tr
                 th.status Status
                 th.service Server Address
+                th.worker Workers 
                 th.control Launch
         tbody
             <% _.each( items, function(item) { %>
@@ -28,6 +29,15 @@ script.list-template(type="text/template")
                         span <%= item.message %> 
                 td.domain
                     h3 <%= (item.address || "Not Available") %>
+                td.worker
+                    ul.state-list
+                        <% _.each(item.workers, function(worker) { %>
+                        li
+                            .state-icon-small
+                                img(src="state-<%=worker.state%>.png")
+                                input(type="checkbox",name="instance", value="<%= item.id %>")
+                            .state-info-small <%= worker.entity %>: <%= worker.message %>
+                        <% }); %>
                 td.control
                     <% if(item.state != "up") { %>
                     img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="start")

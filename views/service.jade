@@ -14,7 +14,7 @@ script.list-template(type="text/template")
             tr
                 th.state App
                 th.domain Domain
-                th.worker Workers
+                th.worker Servers
                 th.control &nbsp; 
         tbody
             <% _.each(items, function(item) { %>
@@ -32,12 +32,12 @@ script.list-template(type="text/template")
                         a(href="http://<%= item.domain %>",target="_new") <%=item.domain%>
                 td.worker
                     ul.state-list
-                        <% _.each(item.workers, function(worker) { %>
+                        <% _.each(item.instance, function(worker) { %>
                         li
                             .state-icon-small
                                 img(src="state-<%=worker.state%>.png")
                                 input(type="checkbox",name="instance", value="<%= item.id %>")
-                            .state-info-small <%= worker.message %>
+                            .state-info-small <%= worker.address %>
                         <% }); %>
                 td.control
                     <% if(item.state == "down") { %>

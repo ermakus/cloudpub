@@ -39,7 +39,8 @@ exports.State = class State extends events.EventEmitter
     # Clear and remove from storage
     clear: (cb) ->
         if @id
-            nconf.clear(@entity + ':' + @id)
+            nconf.clear('object:' + @id)
+            nconf.clear( @entity + ":" + @id )
             @id = undefined
             nconf.save (err) =>
                 cb and cb(err)

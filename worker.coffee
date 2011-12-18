@@ -33,12 +33,10 @@ exports.Worker = class Worker extends state.State
         
         ch.on 'exit', (code) =>
             if code == 0
-                @success and @success( stdout, @ )
                 @emit 'success', stdout, @
             else
                 err = new Error( stdout )
-                @failure and @failure( err, @ )
-                @emit 'failure', err, @
+                @emit 'failure', stderr, @
         
         cb and cb( null )
 
@@ -71,12 +69,16 @@ exports.Preproc = class Preproc extends Worker
         if not @user    then return cb and cb(new Error("Remote user not set"))
         if not @address then return cb and cb(new Error("Remote address not set"))
         console.log "Preproc #{@source} -> #{@target}: " + JSON.stringify @context
-        fs.readFile @source, (err, cfg) ->
-            return cb and cb( err ) if err
+        fs.readFile @source, (err, cfg) =>
+            if err
+                return @emit 'failure', err, @
             cfg = _.template cfg.toString(), @context
-            fs.writeFile @target, cfg, (err)->
-                cb and cb( err )
-
+            fs.writeFile @target, cfg, (err)=>
+                if err
+                    return @emit 'failure', err, @
+                else
+                    return @emit 'success', "Done", @
+        @setState 'up', "Preprocessing", cb
 
 #
 # Work queue
@@ -88,53 +90,52 @@ exports.WorkQueue = class WorkQueue extends state.State
         # List of worker IDs
         @workers = []
 
-    # Create new worker
-    worker: ( type, cb ) ->
-        id = uuid.v1()
-        state.load id, type, 'worker', (err, worker) =>
-            return cb and cb(err) if err
-            worker.on 'state',   (state, msg)  => @setState(state, msg)
-            worker.on 'failure', (err, worker) => @failure(err, worker)
-            worker.on 'success', (err, worker) => @success(err, worker)
-            @workers.push worker.id
-            @save (err) ->
-                return cb and cb( err ) if err
-                worker.save (err) ->
-                    cb and cb(err, worker)
-
     startWork: (cb) ->
         if @workers.length
             state.load @workers[0], (err, worker) ->
                 return cb and cb(err) if err
-                console.log "Start worker", worker
-                worker.start cb
-
-    stopWork: (cb) ->
-        if @workers.length
-            console.log "Stop queue #{@id}"
-            state.load @workers[0], (err, worker) ->
-                if worker.state in ['up', 'maintain']
-                    worker.stop cb
+                console.log "Start worker", worker.id
+                worker.setState 'up', 'Started', (err)->
+                    return cb and cb(err) if err
+                    worker.start cb
+        else
+            cb and cb(null)
 
     failure: (err, worker) ->
         console.log "Worker #{worker.id} failed", err
         @emit 'failure', err, worker
         @workers =  _.without @workers, worker.id
-        worker.clear()
-        @save()
+        @setState 'error', err, (e)=>
+            if worker.failure then worker.failure(err, worker)
+            worker.clear()
 
     success: (stdout, worker) ->
         console.log "Worker #{worker.id} succeeded"
         @emit 'success', stdout, worker
         @workers =  _.without @workers, worker.id
-        worker.clear()
-        @save()
+        @setState 'up', stdout, (err)=>
+            if err then return
+            if worker.success then worker.success(stdout, worker)
+            worker.clear (err)=>
+                if err then return
+                @startWork()
 
-    submit: (type, params, cb) ->
-        @worker type, (err, worker)=>
+    # Create new worker
+    submit: ( type, params, cb ) ->
+        id = uuid.v1()
+        state.load id, type, 'worker', (err, worker) =>
+            return cb and cb(err) if err
+            worker.state = 'maintain'
+            worker.message = 'Waiting...'
             _.extend worker, params
-            async.series [worker.save, (cb) => @startWork(cb) ], cb
-
+            worker.on 'state',   (state, msg)  => @setState(state, msg)
+            worker.on 'failure', (err, worker) => @failure(err, worker)
+            worker.on 'success', (err, worker) => @success(err, worker)
+            @workers.push worker.id
+            @save (err) =>
+                return cb and cb( err ) if err
+                worker.save (err) =>
+                    worker.start cb
 
 exports.init = (app, cb)->
     app.register 'worker'

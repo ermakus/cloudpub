@@ -34,19 +34,25 @@ exports.Service = class Service extends worker.WorkQueue
         @user = params.session.uid
         @domain = params.domain or "#{@id}.#{@user}.cloudpub.us"
         @home = "/home/#{@user}/#{@id}"
-        @instance = params.instance
+        if _.isArray params.instance
+            @instance = params.instance
+        else
+            if params.instance
+                @instance = [params.instance]
+            else
+                return cb and cb(new Error("Instance node set") )
 
-        # Generate SSH vhost
-        @submit 'preproc',
-            source:__dirname + '/nginx.vhost'
-            target: @home + '/vhost'
-            context: { service:@, params }
-        @submit 'shell',
-            command:["sudo", "ln", "-sf", "#{@home}/vhost", "/etc/nginx/sites-enabled/#{@id}.#{@user}.conf"]
-        @submit 'shell',
-            command:["sudo", "service", "nginx", "reload"]
+#        # Generate SSH vhost
+#        @submit 'preproc',
+#            source:__dirname + '/nginx.vhost'
+#            target: @home + '/vhost'
+#            context: { service:@, params }
+#        @submit 'shell',
+#            command:["sudo", "ln", "-sf", "#{@home}/vhost", "/etc/nginx/sites-enabled/#{@id}.#{@user}.conf"]
+#        @submit 'shell',
+#            command:["sudo", "service", "nginx", "reload"]
 
-        @setState 'maintain', "Configuring service", cb
+        @setState 'maintain', "App configured", cb
 
 
     # Start service
@@ -57,27 +63,33 @@ exports.Service = class Service extends worker.WorkQueue
 
     # Stop service
     stop: (params, cb)->
-        @setState 'maintain', "Stopping", (err)=>
-            return cb and cb(err) if err
-            if params.data != 'keep'
-                @uninstall params, cb
-            else
-                @setState 'down', "On maintance", cb
+        if params.data != 'keep'
+            @uninstall params, cb
+        else
+            @setState 'down', "On maintance", cb
 
     # Install service files and configure
     install: (params, cb)->
-        async.map params.instance, (
-            (iid, cb) =>
-                @setState 'maintain', "Installing app #{@id} on server #{iid}", (err)->
-                    return cb and cb(err) if err
-                    state.load iid, 'instance', (err, instance) ->
-                        instance.submit 'copy', {source:'~/cloudpub',target:'~/'}
-        ), cb
+
+        process = (id, cb)->
+            state.load id, (err, instance) ->
+                instance.install params, (err)->
+                    cb and cb( err, instance )
+
+        async.forEach @instance, process, (err) =>
+            return cb and cb(err) if err
+            @setState "maintain", "Installing app #{@id} on servers", cb
 
     # Delete service files
     uninstall: (params, cb)->
-        @submit 'shell', command:['rm','-rf','~/cloudpub']
-        cb and cb(err)
+        async.series [
+            async.apply( @setState, 'maintain', "Uninstalling app #{@id} from servers" ),
+            async.map( @instance, (id, cb) ->
+                state.load id, (err, instance) ->
+                    return cb and cb(err) if err
+                    instance.install params, cb
+            )
+        ], cb
 
 # Init request handlers here
 exports.init = (app, cb)->
@@ -89,9 +101,9 @@ exports.init = (app, cb)->
                 state.load id, 'service', (err, item) ->
                     return callback and callback(err) if err
                     # Load workers from storage
-                    async.map item.workers, state.load, (err, workers)->
+                    async.map item.instance, state.load, (err, instance)->
                         return callback and callback(err) if err
-                        item.workers = workers
+                        item.instance = instance
                         # Fire item callback and pass resolved item
                         callback and callback(null, item)
         ), cb
