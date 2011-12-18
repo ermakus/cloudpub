@@ -12,21 +12,33 @@ script.list-template(type="text/template")
     table.bordered-table.zebra-striped
         thead
             tr
-                th.service App
-                th.status Domain
-                th.control Run 
+                th.state App
+                th.domain Domain
+                th.worker Workers
+                th.control &nbsp; 
         tbody
             <% _.each(items, function(item) { %>
-            tr.service(class="srow-<%=item.state%>")
-                td.service
-                    a.status(href="#", title="<%=item.state%>, <%=item.workers%> worker(s)")
-                        img(src="state-<%=item.state%>.png")
-                        .workers <%= item.workers %>
-                    h3 <%=item.name%>
-                    
+            tr
+                td.state
+                    .state-icon
+                        a(href="#", title="<%=item.state%>: <%=item.message%>")
+                            img(src="state-<%=item.state%>.png")
+                            .state-hole <%= item.workers && item.workers.length || 0 %>
+                    .state-info
+                        h3 <%=item.name%>
+                        span <%= item.message %> 
                 td.domain
                     h3
                         a(href="http://<%= item.domain %>",target="_new") <%=item.domain%>
+                td.worker
+                    ul.state-list
+                        <% _.each(item.workers, function(worker) { %>
+                        li
+                            .state-icon-small
+                                img(src="state-<%=worker.state%>.png")
+                                input(type="checkbox",name="instance", value="<%= item.id %>")
+                            .state-info-small <%= worker.message %>
+                        <% }); %>
                 td.control
                     <% if(item.state == "down") { %>
                     img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="start")
@@ -35,9 +47,21 @@ script.list-template(type="text/template")
                     <% } %>
             <% }); %>
 
+// Stop dialog
+script.instances-template(type="text/template")
+    ul.state-list
+        <% _.each(items, function(item) { %>
+        li
+            .state-icon-small
+                img(src="state-<%=item.state%>.png")
+                input(type="checkbox",name="instance", value="<%= item.id %>")
+            .state-info-small <%= item.address %>
+        <% }); %>
+
+  
 // Start dialog
 script.start-template(type="text/template")
-    .modal.hide.fade
+    .start.modal.hide.fade
         .modal-header
             a.close(href="#") × 
             h3 Start App
@@ -47,6 +71,11 @@ script.start-template(type="text/template")
                 .input
                     input.required.domain(type="text",name="domain",value="<%= item.domain%>")
                     span.help-block Select domain name for this service
+            .clearfix
+                label Server to run
+                .input
+                    #items
+                    span.help-block Server(s) to run app on. If more then one server selected, load balancing will be performed.
         .modal-footer
             a.btn.primary.execute(href="#") Start App
             a.btn.secondary.cancel(href="#") Cancel
@@ -65,12 +94,12 @@ script.stop-template(type="text/template")
                         li
                             label
                                 input(type="radio", checked="true", name="data", value="keep")
-                                b Keep app data
-                                span.help-block You will pay for the storage area.
+                                b Keep application data
+                                span.help-block You can restart application later
                         li
                             label
                                 input(type="radio", name="data", value="delete")
-                                span.red Delete app data
+                                span.red Complete delete all application data
                                 span.help-block This cannot be undone! Use this with caution.
         .modal-footer
             a.btn.primary.execute(href="#") Stop App

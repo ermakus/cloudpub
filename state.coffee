@@ -17,19 +17,22 @@ exports.State = class State extends events.EventEmitter
     # Create or load state
     # @entity = entity name
     # @id = entity ID (if not null then state retreived from storage)
-    constructor: (@entity, @id)->
-        if @id
-            # Load local porperties form persistent store
-            _.extend @, nconf.get(@entity + ':' +@id)
-        else
-            # Unsaved
+    constructor: (@id)->
+        @init()
+
+    # Init state defaults
+    init: ->
+        @state = 'down'
+        @message = 'innocent'
 
     # Save state
     save: (cb) ->
-        console.log "Save: #{@entity}:#{@id} [#{@state}] #{@message}"
         return cb and cb(null) unless @id
+        console.log "Save: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
+        #console.trace()
         # Save persistend fields
-        nconf.set(@entity + ":" + @id, @)
+        nconf.set("object:" + @id, @)
+        nconf.set(@entity + ":" + @id, @id)
         nconf.save (err) =>
             cb and cb(err)
 
@@ -51,29 +54,57 @@ exports.State = class State extends events.EventEmitter
             cb = message
         else
             @message = message
-        
-        console.log "State: #{@entity}.#{@id}: [#{@state}] #{@message}"
+        console.log "State: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
         io.emit 'anton', { entity:@entity, state:@state, message:@message }
         @emit 'state', @state, @message
         @save cb
 
-# Load state from module
-exports.pload = pload = (package, entity, id, cb) ->
+
+# Create enity instance
+exports.create = create = (id, entity, package, cb) ->
+    if typeof(package) == 'function'
+        cb = package
+        package = entity
+    if typeof(entity) == 'function'
+        return cb and cb( new Error("Can't create null entity") )
+    console.log "Create #{package}.#{entity} [#{id}]"
     module = require('./' + package)
     entityClass = entity.charAt(0).toUpperCase() + entity.substring(1).toLowerCase()
-    console.log "Loading #{entityClass} id=#{id}"
     Entity = module[ entityClass ]
     if not Entity
-        cb and cb( new Error("Entity #{entityClass} not found in #{package}") )
+        cb and cb( new Error("Entity #{entity} not found in #{package}") )
     else
-        obj = new Entity( entity, id )
+        obj = new Entity(id)
+        obj.entity = entity
+        obj.package = package
         cb and cb( null, obj )
 
-# Load default module state
-exports.load = load = (entity, id, cb) -> exports.pload entity, entity, id, cb
+# Load state from module
+exports.load = load = (id, entity, package, cb) ->
+    if typeof(package) == 'function'
+        cb = package
+        package = entity
+    if typeof(entity) == 'function'
+        cb = entity
+        package = entity = null
+
+    stored = null
+    if id
+        stored = nconf.get("object:" + id)
+    if stored
+        if stored.entity
+            package = entity = stored.entity
+        if stored.package
+            package = stored.package
+
+    create id, entity, package, (err, obj)->
+        return cb and cb(err) if err
+        if stored then _.extend obj, stored
+        console.log "Loaded #{package}.#{entity} [#{id}]"
+        cb and cb( null, obj )
 
 # Query states by params and cb( error, [entities] )
-exports.query = (entity, params, cb) ->
+exports.query = query = (entity, params, cb) ->
     if typeof(params) == 'function'
         cb = params
         params = []
@@ -82,6 +113,5 @@ exports.query = (entity, params, cb) ->
     if not json or (_.isArray(json) and json.length == 0)
         json =  {}
     # Load async each entity by key
-    async.map _.keys(json), ((k,c)->load entity, k, c), cb
-
+    async.map _.keys(json), load, cb
 

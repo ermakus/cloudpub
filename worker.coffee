@@ -33,11 +33,15 @@ exports.Worker = class Worker extends state.State
         
         ch.on 'exit', (code) =>
             if code == 0
+                @success and @success( stdout, @ )
                 @emit 'success', stdout, @
             else
-                @emit 'failure', new Error( stderr ), @
+                err = new Error( stdout )
+                @failure and @failure( err, @ )
+                @emit 'failure', err, @
         
         cb and cb( null )
+
 
 # SSH global options
 SSH = "ssh -i #{SSH_PRIVATE_KEY} -o StrictHostKeyChecking=no -o BatchMode=yes"
@@ -51,24 +55,43 @@ exports.Copy = class Copy extends Worker
         @exec [ __dirname + "/bin/copy", "-u", @user, "-a", @address, "-k", SSH_PRIVATE_KEY, @source, @target ], cb
     
 # Execute command on remote system over ssh
-exports.Ssh = class Ssh extends Worker
+exports.Shell = class Shell extends Worker
     start: ( cb ) ->
         if not @user    then return cb and cb(new Error("Remote user not set"))
         if not @address then return cb and cb(new Error("Remote address not set"))
         if not @command then return cb and cb(new Error("Shell command not set"))
         @exec SSH.split(' ').concat("-l", @user, @address).concat(@command), cb
 
+# Preprocess config file by _.template
+exports.Preproc = class Preproc extends Worker
+
+    start: (cb) ->
+        if not @source  then return cb and cb(new Error("Copy source not set"))
+        if not @target  then return cb and cb(new Error("Copy target not set"))
+        if not @user    then return cb and cb(new Error("Remote user not set"))
+        if not @address then return cb and cb(new Error("Remote address not set"))
+        console.log "Preproc #{@source} -> #{@target}: " + JSON.stringify @context
+        fs.readFile @source, (err, cfg) ->
+            return cb and cb( err ) if err
+            cfg = _.template cfg.toString(), @context
+            fs.writeFile @target, cfg, (err)->
+                cb and cb( err )
+
+
 #
 # Work queue
 #
 exports.WorkQueue = class WorkQueue extends state.State
 
-    workers: []
+    init: ->
+        super()
+        # List of worker IDs
+        @workers = []
 
     # Create new worker
     worker: ( type, cb ) ->
         id = uuid.v1()
-        state.pload 'worker', type, id, (err, worker) =>
+        state.load id, type, 'worker', (err, worker) =>
             return cb and cb(err) if err
             worker.on 'state',   (state, msg)  => @setState(state, msg)
             worker.on 'failure', (err, worker) => @failure(err, worker)
@@ -79,19 +102,17 @@ exports.WorkQueue = class WorkQueue extends state.State
                 worker.save (err) ->
                     cb and cb(err, worker)
 
-    start: (cb) ->
+    startWork: (cb) ->
         if @workers.length
-            console.log "Start queue #{@id}"
-            state.load 'worker', @workers[0], (err, worker) ->
-                if worker.state in ['error', 'down']
-                    worker.start cb
-                else
-                    cb and ab( null )
+            state.load @workers[0], (err, worker) ->
+                return cb and cb(err) if err
+                console.log "Start worker", worker
+                worker.start cb
 
-    stop: (cb) ->
+    stopWork: (cb) ->
         if @workers.length
             console.log "Stop queue #{@id}"
-            state.load 'worker', @workers[0], (err, worker) ->
+            state.load @workers[0], (err, worker) ->
                 if worker.state in ['up', 'maintain']
                     worker.stop cb
 
@@ -112,7 +133,7 @@ exports.WorkQueue = class WorkQueue extends state.State
     submit: (type, params, cb) ->
         @worker type, (err, worker)=>
             _.extend worker, params
-            async.series [worker.save, @start], cb
+            async.series [worker.save, (cb) => @startWork(cb) ], cb
 
 
 exports.init = (app, cb)->

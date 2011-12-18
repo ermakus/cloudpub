@@ -8,6 +8,7 @@ COMMAND_FORMS =
         form.validate("id").required().is(/^[a-z0-9\.]+$/)
         form.filter("domain").trim().toLower(),
         form.validate("domain").required().is(/^[a-z0-9\.]+$/)
+        form.validate("instance").required()
     )
     service_stop: form(
         form.validate("id").required().is(/^[a-z0-9\.]+$/)
@@ -36,13 +37,12 @@ exports.handler = (entity, factory)->
             return resp.send 'Invalid account ID', 500
         if not (req.params.command in ALLOWED_COMMANDS)
             return resp.send 'Invalid command', 500
-        
-        factory entity, req.param('id', null), (err, service)->
+
+       
+        factory req.param('id', null), entity, (err, service)->
 
             if not service
                 return resp.send 'Invalid service ID', 500
-
-            #service.user = acc.uid
 
             command = service[ req.params.command ]
             if not command
@@ -52,6 +52,10 @@ exports.handler = (entity, factory)->
 
             exec_command = (req,resp) ->
                console.log "Exec #{req.params.command} on #{entity} " + if req.form then JSON.stringify req.form
+               if req.form
+                    req.form.session = req.session
+               else
+                    req.form = session:req.session
                command.call service, req.form, (err) ->
                     if err then return resp.send err.message, 500
                     resp.send service

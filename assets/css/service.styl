@@ -15,24 +15,23 @@ td
     clear both
 
 .control
-    width 180px
-   
-td.control
+    width 85px
     text-align center
 
 .command img
     padding 0px
     display block
 
-td.service img
+.service
+    width 200px
+
+.service img
     width 48px
     height 48px
     float left
 
 .service h3
     padding 5px
-
-td.service h3
     position relative
     top -10px
     left 10px
@@ -46,13 +45,69 @@ td.service h3
 .state-maintain
     background-color #FFA
 
-a.status, a.status:hover
+.state-list
+    margin 0
+    padding 0
+
+.state-list li
+    height 24px
+    margin 2px
+    list-style none
+
+.state-icon-small
+    height 24px
+    width 24px
+    float left
+
+.state-icon-small img
+    height 24px
+    width 24px
+
+.state-icon-small input
+    position relative
+    top -27px
+    left 4px
+    height 17px
+    width 17px
+
+.state-info-small
+    height 24px
+    float left
+    padding-left 5px
+    padding-top 2px   
+ 
+.state-icon
+    height 48px
+    width 48px
+    float left
+
+.state-icon a, .state-icon a:hover
     text-decoration none
     color black
 
-.status-label
-    position relative
-    top -15px
+.state
+    white-space nowrap
+    max-width 300px
+    overflow hidden
+
+.state-hole
+    position relative 
+    display block
+    background-color transparent
+    top -40px
+    left 12px
+    width 24px
+    height 24px
+    z-index 1
+    font-size 18px
+    font-weight bold
+    text-align center
+    padding-top 2px
+
+.state-info
+    float left
+    margin-left 7px
+    max-width 230px
 
 .item, .message
     margin-left 60px
@@ -62,13 +117,27 @@ a.status, a.status:hover
     font-size 20px
     margin-bottom 5px
 
-.message
-    color gray
+# Small status
 
-.workers
-    position relative 
-    top 15px
-    left -30px
-    z-index 1
-    font-size 18px
+img.state
+    position relative
+    left -25px
+    top -3px
+    width 24px
+    height 24px
+    vertical-align middle
+
+.state-label
+    position relative
+    height 24px
+    left -20px
     font-weight bold
+
+.state-checkbox
+    position relative
+    z-index 9999
+
+.worker
+    width 350px
+
+

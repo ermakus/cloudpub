@@ -62,7 +62,7 @@ check "$TARGET" "target path not set"
 SSH_OPTS="-i $PKEY -o StrictHostKeyChecking=no -o BatchMode=yes"
 
 if [ "$ADDRESS" = "localhost" ] ; then
-    cp -a $SOURCE $TARGET
+    echo cp -a $SOURCE $TARGET
 else
-    $RSYNC -ave  "$SSH $SSH_OPTS" $SOURCE $USER@$ADDRESS:$TARGET
+    echo $RSYNC -ave  "$SSH $SSH_OPTS" $SOURCE $USER@$ADDRESS:$TARGET
 fi

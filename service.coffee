@@ -1,9 +1,6 @@
 fs      = require 'fs'
 _       = require 'underscore'
-events  = require 'events'
-nconf   = require 'nconf'
-exec    = require('child_process').exec
-spawn   = require('child_process').spawn
+async   = require 'async'
 
 account  = require './account'
 worker   = require './worker'
@@ -15,102 +12,87 @@ state    = require './state'
 
 exports.Service = class Service extends worker.WorkQueue
 
-    # Service display name
-    name: 'Default Service Name'
+    init: ->
+        super()
+        # Service display name
+        @name = 'cloudpub'
 
-    # Source for install
-    source: '/home/anton/Projects/cloudpub'
+        # Source for install
+        @source = __dirname
 
-    # Service port
-    port: 3001
+        # Service domain
+        @domain = 'cloudpub.us'
 
-    # Service domain
-    domain: undefined
+        # Instance IDs service run on
+        @instance = []
 
-    # Instance ID service run on
-    instance: 'localhost'
+        # User account to run
+        @user = 'cloudpub'
 
-    # User account to run
-    user: 'root'
+    # Configure service
+    configure: (params, cb)->
+        @user = params.session.uid
+        @domain = params.domain or "#{@id}.#{@user}.cloudpub.us"
+        @home = "/home/#{@user}/#{@id}"
+        @instance = params.instance
 
-    # Create instanse of service and load state from the store
-    constructor: (entity, id) ->
-        super(entity, id)
-        @domain  ?= "#{@id}.#{@account.uid}.cloudpub.us"
-        @home = "/home/#{@account.uid}/#{@id}"
+        # Generate SSH vhost
+        @submit 'preproc',
+            source:__dirname + '/nginx.vhost'
+            target: @home + '/vhost'
+            context: { service:@, params }
+        @submit 'shell',
+            command:["sudo", "ln", "-sf", "#{@home}/vhost", "/etc/nginx/sites-enabled/#{@id}.#{@user}.conf"]
+        @submit 'shell',
+            command:["sudo", "service", "nginx", "reload"]
+
+        @setState 'maintain', "Configuring service", cb
+
 
     # Start service
     start: (params, cb)->
-        @setState 'maintain', (err)=>
+        @configure params, (err)=>
             return cb and cb(err) if err
-            @install params, (err)=>
-                return cb and cb(err) if err
-                wrk = @createWorker()
-                wrk.exec ['node','~/cloudpub/server.js','4000'] (err)=>
-                    return cb and cb(err) if err
-                    @setState 'up', cb
-                @workers = wrk.id
-
+            @install params, cb
 
     # Stop service
     stop: (params, cb)->
-        @setState 'maintain', (err)=>
+        @setState 'maintain', "Stopping", (err)=>
             return cb and cb(err) if err
-            if @workers
-                wrk = @createWorker()
-                wrk.stop (err)=>
-                    return cb and cb(err) if err
-                    @uninstall params, (err)=>
-                        @setState 'down', cb
+            if params.data != 'keep'
+                @uninstall params, cb
             else
-                @uninstall params, =>
-                    @setState 'down', cb
+                @setState 'down', "On maintance", cb
 
     # Install service files and configure
     install: (params, cb)->
-        console.log "Install #{@id} to #{@home}"
-        @domain = params.domain
-        fs.stat @home, (err, dir) =>
-            return cb and cb( null ) if not err
-            exec "sudo -u #{@account.uid} cp -r #{@source} #{@home}", (err, stdout, stderr) =>
-                if stdout then console.log stdout
-                if stderr then console.log stderr
-                return cb and cb( err ) if err
-                @configure params, cb
-
-    # Configure service (i.e. setup proxy)
-    configure: (params, cb)->
-        preproc __dirname + '/nginx.vhost', @home + '/vhost', { service:@, params }, (err) =>
-            cmd = "sudo ln -sf #{@home}/vhost /etc/nginx/sites-enabled/#{@id}.#{@account.uid}.conf && sudo service nginx reload"
-            exec cmd, (err, stdout, stderr) =>
-                if stdout then console.log stdout
-                if stderr then console.log stderr
-                cb and cb(err)
-
+        async.map params.instance, (
+            (iid, cb) =>
+                @setState 'maintain', "Installing app #{@id} on server #{iid}", (err)->
+                    return cb and cb(err) if err
+                    state.load iid, 'instance', (err, instance) ->
+                        instance.submit 'copy', {source:'~/cloudpub',target:'~/'}
+        ), cb
 
     # Delete service files
     uninstall: (params, cb)->
-        console.log "Uninstall #{@home}"
-        fs.stat @home, (err, dir) =>
-            return cb and cb(null) if err
-            exec "rm -rf #{@home}", (err, stdout, stderr) =>
-                if stderr then console.log stderr
-                cb and cb(err)
-
-    createWorker: ->
-        new worker.Worker( @account.uid, 'localhost' )
-
-# Preprocess config file template
-preproc = (source, target, context, cb) ->
-    console.log "Preproc #{source} -> #{target}: " + JSON.stringify context
-    fs.readFile source, (err, cfg) ->
-        return cb and cb( err ) if err
-        cfg = _.template cfg.toString(), context
-        fs.writeFile target, cfg, (err)->
-            cb and cb( err )
+        @submit 'shell', command:['rm','-rf','~/cloudpub']
+        cb and cb(err)
 
 # Init request handlers here
 exports.init = (app, cb)->
     # Register default handler
-    app.register 'service'
+    app.register 'service', (entity, cb) ->
+        # Load predefined apps form storage (or create new one)
+        async.map ['cloudpub'], ( (id, callback) ->
+                # Load entity from storage
+                state.load id, 'service', (err, item) ->
+                    return callback and callback(err) if err
+                    # Load workers from storage
+                    async.map item.workers, state.load, (err, workers)->
+                        return callback and callback(err) if err
+                        item.workers = workers
+                        # Fire item callback and pass resolved item
+                        callback and callback(null, item)
+        ), cb
     cb and cb(null)

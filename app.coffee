@@ -41,15 +41,19 @@ createApp = ->
         session: (req, res) -> return req.session
 
     # Default entity handler
-    app.register = (entity)->
+    # Entity name, optional list and item callbacks
+    app.register = (entity, list, item)->
         
+        list ?= state.query
+        item ?= state.load
+    
         # HTML page view
         app.get '/' + entity, (req, resp)->
             resp.render entity, {pubkey:PUBLIC_KEY}
 
         # API query handler
         app.get '/api/' + entity, account.ensure_login, (req, resp)->
-            state.query entity, (err, data)->
+            list entity, (err, data)->
                 if err
                     resp.send err, 500
                 else
@@ -58,10 +62,10 @@ createApp = ->
         # API command handler
         app.post '/api/' + entity + '/:command', account.ensure_login,
             # Default command handler
-            command.handler entity, (entity, id, cb ) ->
+            command.handler entity, (id, entity, cb) ->
                 # Create or load instance
                 if id == 'new' then id = null
-                state.load entity, id, cb
+                item id, entity, cb
 
     app.get '/', (req, resp) -> resp.render 'main'
     app

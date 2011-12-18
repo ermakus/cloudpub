@@ -17,14 +17,15 @@ script.list-template(type="text/template")
                 th.control Launch
         tbody
             <% _.each( items, function(item) { %>
-            tr.service(class="srow-<%=item.state%>")
-                td.service
-                    a.status(href="#", title="Server state: <%=item.state%>")
-                        img(src="state-<%=item.state%>.png")
-                        .workers 0
-                    .status-label
-                        b.item <%= item.id %>
-                        pre.message <%= item.message %>
+            tr
+                td.state
+                    .state-icon
+                        a(href="#", title="<%=item.state%>: <%=item.message%>")
+                            img(src="state-<%=item.state%>.png")
+                            .state-hole <%= item.workers && item.workers.length || 0 %>
+                    .state-info
+                        h3 <%=item.id%>
+                        span <%= item.message %> 
                 td.domain
                     h3 <%= (item.address || "Not Available") %>
                 td.control

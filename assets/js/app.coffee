@@ -45,9 +45,9 @@ window.Listing = class Listing
 
     # node = selector or dom node
     # entity = name of item
-    constructor: (@node, @entity )->
+    constructor: (@node, @entity, template)->
         @path = '/api/' + @entity
-        @view = TEMPLATE 'list'
+        @view = TEMPLATE(template or 'list')
         @timeout = 15000
         @timer = null
 

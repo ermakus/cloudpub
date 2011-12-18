@@ -1,3 +1,5 @@
+async   = require 'async'
+
 account = require './account'
 command = require './command'
 state   = require './state'
@@ -6,11 +8,10 @@ worker  = require './worker'
 # Instance class
 exports.Instance = class Instance extends worker.WorkQueue
 
-    constructor: (entity,id) ->
-        # Hold storage entity name
-        super('instance', id)
+    init: ->
+        super()
 
-    configure: (params, cb)->
+    configure: (params, cb) ->
 
         @address = params.address
         @user = params.user
@@ -24,7 +25,9 @@ exports.Instance = class Instance extends worker.WorkQueue
         @setState 'maintain', "Configured with #{@user}@#{@address}", cb
 
     # Start instance
-    start: (params, cb)->
+    start: (params, cb) ->
+        console.log "CONFIGURE"
+        console.trace()
         @configure params, (err) =>
             return cb and cb(err) if err
             @install params, cb
@@ -37,35 +40,26 @@ exports.Instance = class Instance extends worker.WorkQueue
             @setState "maintain", "In maintaince mode", cb
 
     install: (params, cb) ->
-        @worker 'copy', (err,worker) =>
-            return cb and cb(err) if err
-            worker.user = @user
-            worker.address = @address
-            worker.source = '/home/anton/Projects/cloudpub'
-            worker.target = "/home/#{@user}/"
-            worker.on 'success', (msg)=>
-                @setState 'up', msg
-            worker.on 'failure', (err) =>
-                @setState 'error', err.message
-            @setState 'maintain', "Transfering files to #{@address}", (err)->
-                worker.start cb
+        @submit 'copy',
+            user:@user
+            address:@address
+            source:'/home/anton/Projects/cloudpub'
+            target:"/home/#{@user}/"
+            success: (msg)=> @setState 'up', msg
+            failure: (err)=> @setState 'error', err.message
 
+        @setState 'maintain', "Transfering files to #{@address}", cb
 
     uninstall: (params, cb) ->
         target = '~/cloudpub'
-        @worker 'ssh', (err,worker) =>
-            return cb and cb(err) if err
-            worker.user = @user
-            worker.address = @address
-            worker.command = ['rm','-rf', target]
-            worker.on 'failure', (err) =>
-                @setState 'error', err.message
-                @clear()
-            worker.on 'success', =>
-                @setState 'up', 'Server removed successfully'
-                @clear()
-            @setState 'maintain', "Uninstalling from #{@address}", (err)->
-                worker.start cb
+        @submit 'shell',
+            user:@user
+            address:@address
+            command:['rm','-rf', target]
+            success:(msg)=> async.series [async.apply(@setState,'up', msg), @clear]
+            failure:(err)=> async.series [async.apply(@setState,'error', err.message), @clear]
+        
+        @setState 'maintain', "Uninstalling files from #{@address}", cb
 
 
 # Init HTTP request handlers
