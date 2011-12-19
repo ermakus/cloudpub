@@ -1,7 +1,16 @@
+fs      = require 'fs'
 form    = require 'express-form'
 account = require './account'
+state   = require './state'
 
+ENTITY_NEW       = 'new'
 ALLOWED_COMMANDS = ['start','stop']
+PUBLIC_KEY_FILE = "~/.ssh/id_rsa.pub"
+
+try
+    PUBLIC_KEY = fs.readFileSync( PUBLIC_KEY_FILE )
+catch e
+    PUBLIC_KEY = "Not found - please run ssh-keygen"
 
 COMMAND_FORMS =
     service_start: form(
@@ -27,46 +36,89 @@ COMMAND_FORMS =
         form.validate("mode").required().is(/^(maintain|shutdown)$/)
     )
 
+# Execute command in HTTP request
+exec_command = (entity, factory, req,resp) ->
+    # Create new entity if special ID
+    if req.params.id == ENTITY_NEW
+        req.params.id = null
+
+    factory req.params.id, entity, (err, obj)->
+        if err
+            return resp.send err.message, 500
+
+        if not obj
+            return resp.send 'Invalid entity', 500
+
+        command = obj[ req.params.command ]
+        if not command
+            return resp.send 'Command not supported', 500
+
+        console.log "Exec #{req.params.command} on #{entity} " + if req.form then JSON.stringify req.form
+        if req.form
+            req.form.session = req.session
+        else
+            req.form = session:req.session
+        
+        req.form.id = req.params.id
+       
+        command.call obj, req.form, (err) ->
+            if err
+                return resp.send err.message, 500
+
+            resp.send obj
+
 #
-# Return closure with function of entity command handler
+# Return closure of entity command handler
 #
-exports.handler = (entity, factory)->
+exports.handler = handler = (entity, factory)->
 
     return (req, resp)->
+
         if not (acc = account.find req.session.uid)
             return resp.send 'Invalid account ID', 500
         if not (req.params.command in ALLOWED_COMMANDS)
             return resp.send 'Invalid command', 500
+        if not req.params.id
+            return resp.send 'Invalid entity ID', 500
+            
+        form = COMMAND_FORMS[ entity + '_' + req.params.command ]
+        if form
+            form req, resp, ->
+                if req.form.isValid
+                    exec_command entity, factory, req, resp
+                else
+                    resp.send (req.form.errors.join '\n'), 500
+        else
+            exec_command entity, factory, req, resp
 
-       
-        factory req.param('id', null), entity, (err, service)->
-            if err
-                return resp.send err.message, 500
 
-            if not service
-                return resp.send 'Invalid service ID', 500
 
-            command = service[ req.params.command ]
-            if not command
-                return resp.send 'Command not supported', 500
+# Return closure to create CRUD REST handlers
+exports.register = (app)->
 
-            form = COMMAND_FORMS[ entity + '_' + req.params.command ]
+    # Register entity CRUD handlers
+    # Entity name, optional list and item callbacks
+    return (entity, list, item)->
+        
+        list ?= state.query
+        item ?= state.load
+    
+        # HTML page view
+        app.get '/' + entity, (req, resp)->
+            resp.render entity, {pubkey:PUBLIC_KEY}
 
-            exec_command = (req,resp) ->
-               console.log "Exec #{req.params.command} on #{entity} " + if req.form then JSON.stringify req.form
-               if req.form
-                    req.form.session = req.session
-               else
-                    req.form = session:req.session
-               command.call service, req.form, (err) ->
-                    if err then return resp.send err.message, 500
-                    resp.send service
-            if form
-                form req, resp, ->
-                    if req.form.isValid
-                        exec_command req, resp
-                    else
-                        resp.send (req.form.errors.join '\n'), 500
-            else
-                exec_command req, resp
+        # API query handler
+        app.get '/api/' + entity, account.ensure_login, (req, resp)->
+            list entity, (err, data)->
+                if err
+                    resp.send err.message, 500
+                else
+                    resp.send data
+
+        # API command handler
+        app.post '/api/' + entity + '/:id/:command', account.ensure_login,
+            # Default command handler
+            handler entity, (id, entity, cb) ->
+                # Create or load instance
+                item id, entity, cb
 

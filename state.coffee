@@ -3,6 +3,7 @@ _       = require 'underscore'
 async   = require 'async'
 events  = require 'events'
 io      = require './io'
+uuid    = require './uuid'
 #
 # Persistent state
 #
@@ -70,7 +71,9 @@ exports.create = create = (id, entity, package, cb) ->
         cb = package
         package = entity
     if typeof(entity) == 'function'
-        return cb and cb( new Error("Can't create null entity") )
+        return cb and cb( new Error("Entity type not set") )
+    if not id
+        id = uuid.v1()
     console.log "Create #{package}.#{entity} [#{id}]"
     if not (package and entity)
         return cb and cb( new Error("Can't create null entity") )

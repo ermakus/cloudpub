@@ -17,9 +17,6 @@ publicDir = __dirname + '/public'
 
 MemoryStore = express.session.MemoryStore
 
-# TODO: read from ~/.ssh/id_rsa.pub
-PUBLIC_KEY = 'ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEArReBqZnuNxIKy/xHS2rIuCNOZ0nOmtJyLIr5lnJ26LPD3vRGzrpMNh4e7SKES70cSf8OW/d55G5Xi+VXExdL+ub6j/6++06wJYf63Ts4DFL4UGMlwob0VKS73KiVI1yk5FVKJ8BajaqMvWqSss59XD5bQoLQVdvtKjpaMPjPFMq+m170cRQF7sgf3iGfM9GoKVHU2+B3N6+DUIgX8DTdfikatY70cC8HwI0dl5M2bZbh+pNujij13oeM0zcZcjbrqn2VXt3vuEIhAd/UYp2mRPC+JI7lZAQmkoI+jHKHv2LOOaHC9yXFGpvG8p8yqu4Dbw7JoruDTlXsNoET6D2eow== cloudpub'
-
 
 createApp = ->
     app = express.createServer()
@@ -40,32 +37,9 @@ createApp = ->
     app.dynamicHelpers
         session: (req, res) -> return req.session
 
-    # Default entity handler
-    # Entity name, optional list and item callbacks
-    app.register = (entity, list, item)->
-        
-        list ?= state.query
-        item ?= state.load
-    
-        # HTML page view
-        app.get '/' + entity, (req, resp)->
-            resp.render entity, {pubkey:PUBLIC_KEY}
+    app.register = command.register( app )
 
-        # API query handler
-        app.get '/api/' + entity, account.ensure_login, (req, resp)->
-            list entity, (err, data)->
-                if err
-                    resp.send err.message, 500
-                else
-                    resp.send data
 
-        # API command handler
-        app.post '/api/' + entity + '/:command', account.ensure_login,
-            # Default command handler
-            command.handler entity, (id, entity, cb) ->
-                # Create or load instance
-                if id == 'new' then id = null
-                item id, entity, cb
 
     app.get '/', (req, resp) -> resp.render 'main'
     app

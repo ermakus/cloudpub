@@ -2,7 +2,6 @@ spawn   = require('child_process').spawn
 nconf   = require 'nconf'
 _       = require 'underscore'
 async   = require 'async'
-uuid    = require './uuid'
 state   = require './state'
 
 
@@ -36,7 +35,7 @@ exports.Worker = class Worker extends state.State
                 @emit 'success', stdout, @
             else
                 err = new Error( stdout )
-                @emit 'failure', stderr, @
+                @emit 'failure', new Error(stderr), @
         
         cb and cb( null )
 
@@ -94,8 +93,8 @@ exports.WorkQueue = class WorkQueue extends state.State
         if @workers.length
             state.load @workers[0], (err, worker) ->
                 return cb and cb(err) if err
-                console.log "Start worker", worker.id
-                worker.setState 'up', 'Started', (err)->
+                console.log "Worker #{worker.id} started", worker.id
+                worker.setState 'up', "Worker #{worker.id} started", (err)->
                     return cb and cb(err) if err
                     worker.start cb
         else
@@ -105,7 +104,7 @@ exports.WorkQueue = class WorkQueue extends state.State
         console.log "Worker #{worker.id} failed", err
         @emit 'failure', err, worker
         @workers =  _.without @workers, worker.id
-        @setState 'error', err, (e)=>
+        @setState 'error', "Worker #{worker.id} failed:\n#{err.message}", (e)=>
             if worker.failure then worker.failure(err, worker)
             worker.clear()
 
@@ -113,7 +112,7 @@ exports.WorkQueue = class WorkQueue extends state.State
         console.log "Worker #{worker.id} succeeded"
         @emit 'success', stdout, worker
         @workers =  _.without @workers, worker.id
-        @setState 'up', stdout, (err)=>
+        @setState 'up', "Worker #{worker.id} finished", (err)=>
             if err then return
             if worker.success then worker.success(stdout, worker)
             worker.clear (err)=>
@@ -122,11 +121,11 @@ exports.WorkQueue = class WorkQueue extends state.State
 
     # Create new worker
     submit: ( type, params, cb ) ->
-        id = uuid.v1()
-        state.load id, type, 'worker', (err, worker) =>
+        console.log "Submit work #{type}:", params
+        state.create null, type, 'worker', (err, worker) =>
             return cb and cb(err) if err
             worker.state = 'maintain'
-            worker.message = 'Waiting...'
+            worker.message = 'Waiting for execution'
             _.extend worker, params
             worker.on 'state',   (state, msg)  => @setState(state, msg)
             worker.on 'failure', (err, worker) => @failure(err, worker)
@@ -135,7 +134,7 @@ exports.WorkQueue = class WorkQueue extends state.State
             @save (err) =>
                 return cb and cb( err ) if err
                 worker.save (err) =>
-                    worker.start cb
+                    @startWork cb
 
 exports.init = (app, cb)->
     app.register 'worker'

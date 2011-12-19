@@ -82,14 +82,14 @@ exports.Service = class Service extends worker.WorkQueue
 
     # Delete service files
     uninstall: (params, cb)->
-        async.series [
-            async.apply( @setState, 'maintain', "Uninstalling app #{@id} from servers" ),
-            async.map( @instance, (id, cb) ->
-                state.load id, (err, instance) ->
-                    return cb and cb(err) if err
-                    instance.install params, cb
-            )
-        ], cb
+        process = (id, cb)->
+            state.load id, (err, instance) ->
+                instance.uninstall params, (err)->
+                    cb and cb( err, instance )
+
+        async.forEach @instance, process, (err) =>
+            return cb and cb(err) if err
+            @setState "maintain", "Removing app #{@id} from servers", cb
 
 # Init request handlers here
 exports.init = (app, cb)->
@@ -108,4 +108,6 @@ exports.init = (app, cb)->
                         callback and callback(null, item)
         ), (err, data) ->
                 cb and cb(err, data)
-    cb and cb(null)
+
+    state.create 'cloudpub', 'service', (err, item) ->
+        item.save cb

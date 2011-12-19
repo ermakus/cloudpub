@@ -19,15 +19,13 @@ exports.Instance = class Instance extends worker.WorkQueue
         if not (@address and @user)
             return cb and cb( new Error('Invalid address or user' + params.cloud) )
         
-        if not @id
+        if not params.id
             @id = 'i-' + @address.split('.').join('-')
         
         @setState 'maintain', "Configured with #{@user}@#{@address}", cb
 
     # Start instance
     start: (params, cb) ->
-        console.log "CONFIGURE"
-        console.trace()
         @configure params, (err) =>
             return cb and cb(err) if err
             @install params, cb
@@ -47,8 +45,9 @@ exports.Instance = class Instance extends worker.WorkQueue
             target:"/home/#{@user}/"
             success: (msg)=> @setState 'up', msg
             failure: (err)=> @setState 'error', err.message
-
-        @setState 'maintain', "Transfering files to #{@address}", cb
+        , (err)=>
+            return cb and cb(err) if err
+            @setState 'maintain', "Transfering files to #{@address}", cb
 
     uninstall: (params, cb) ->
         target = '~/cloudpub'
@@ -58,9 +57,9 @@ exports.Instance = class Instance extends worker.WorkQueue
             command:['rm','-rf', target]
             success:(msg)=> @clear()
             failure:(err)=> @clear()
-        
-        @setState 'maintain', "Uninstalling files from #{@address}", cb
-
+        , (err)=>
+            return cb and cb(err) if err
+            @setState 'maintain', "Uninstalling files from #{@address}", cb
 
 # Init HTTP request handlers
 exports.init = (app, cb)->

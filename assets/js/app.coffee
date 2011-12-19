@@ -157,7 +157,7 @@ window.CommandHandler = class CommandHandler
         params.push {name:'id', value: @item.id}
 
         # Execute command on server and close dialog
-        $.post "/api/#{@entity}/#{@command}", params, (res) =>
+        $.post "/api/#{@entity}/#{@item.id}/#{@command}", params, (res) =>
             # res is item JSON
             hide_dialog()
         .error hide_dialog
