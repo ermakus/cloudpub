@@ -66,5 +66,5 @@ if [ "$ADDRESS" = "localhost" ] ; then
     cp -a $SOURCE $TARGET
 else
     echo "Remote sync $SOURCE to $TARGET"
-    $RSYNC -ave  "$SSH $SSH_OPTS" $SOURCE $USER@$ADDRESS:$TARGET
+    $RSYNC -ae  "$SSH $SSH_OPTS" $SOURCE $USER@$ADDRESS:$TARGET
 fi

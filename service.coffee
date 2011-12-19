@@ -42,16 +42,6 @@ exports.Service = class Service extends worker.WorkQueue
             else
                 return cb and cb(new Error("Instance node set") )
 
-#        # Generate SSH vhost
-#        @submit 'preproc',
-#            source:__dirname + '/nginx.vhost'
-#            target: @home + '/vhost'
-#            context: { service:@, params }
-#        @submit 'shell',
-#            command:["sudo", "ln", "-sf", "#{@home}/vhost", "/etc/nginx/sites-enabled/#{@id}.#{@user}.conf"]
-#        @submit 'shell',
-#            command:["sudo", "service", "nginx", "reload"]
-
         @setState 'maintain', "App configured", cb
 
 

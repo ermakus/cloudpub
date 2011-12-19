@@ -4,6 +4,79 @@ _       = require 'underscore'
 async   = require 'async'
 state   = require './state'
 
+#
+# Work queue
+#
+exports.WorkQueue = class WorkQueue extends state.State
+
+    init: ->
+        super()
+        # List of worker IDs
+        @workers = []
+
+    clear: (cb)->
+        super (err)=>
+            return cb and cb(err) if err
+            @stopWork cb
+
+    startWork: (cb) ->
+        if @workers.length
+            state.load @workers[0], (err, worker) ->
+                return cb and cb(err) if err
+                return cb and cb(err) if (worker.state == 'up')
+                console.log "Worker #{worker.id} started", worker.id
+                worker.setState 'up', "Worker #{worker.id} started", (err)->
+                    return cb and cb(err) if err
+                    worker.start cb
+        else
+            cb and cb(null)
+
+    stopWork: (cb)->
+        kill = (workerId, cb)->
+            state.load workerId, (err, worker)->
+                return cb and cb(err) if err
+                worker.clear cb
+
+        # Clear all workers
+        async.forEach @workers, kill, (err)=>
+            return cb and cb(err) if err
+            @workers = []
+            @save cb
+
+    failure: (err, worker) ->
+        console.log "Worker #{worker.id} failed", err
+        @emit 'failure', err, worker
+        @workers =  _.without @workers, worker.id
+        @setState 'error', "Worker #{worker.id} failed:\n#{err.message}", (e)=>
+            if worker.failure then worker.failure(err, worker)
+            worker.clear()
+
+    success: (stdout, worker) ->
+        console.log "Worker #{worker.id} succeeded"
+        @emit 'success', stdout, worker
+        @workers =  _.without @workers, worker.id
+        @setState 'up', "Worker #{worker.id} finished", (err)=>
+            if err then return
+            if worker.success then worker.success(stdout, worker)
+            worker.clear (err)=>
+                if err then return
+                @startWork()
+
+    # Create new worker
+    submit: ( type, params, cb ) ->
+        console.log "Submit work #{type}:", params
+        state.create null, type, 'worker', (err, worker) =>
+            return cb and cb(err) if err
+            worker.state = 'maintain'
+            worker.message = 'Waiting for execution'
+            _.extend worker, params
+            worker.on 'failure', (err, worker) => @failure(err, worker)
+            worker.on 'success', (err, worker) => @success(err, worker)
+            @workers.push worker.id
+            @save (err) =>
+                return cb and cb( err ) if err
+                worker.save (err) =>
+                    @startWork cb
 
 SSH_PRIVATE_KEY='/home/anton/.ssh/id_rsa'
 RUN_TIMEOUT=500
@@ -79,62 +152,24 @@ exports.Preproc = class Preproc extends Worker
                     return @emit 'success', "Done", @
         @setState 'up', "Preprocessing", cb
 
-#
-# Work queue
-#
-exports.WorkQueue = class WorkQueue extends state.State
 
-    init: ->
-        super()
-        # List of worker IDs
-        @workers = []
+exports.Proxy = class Proxy extends WorkQueue
+    # Configure proxy
+    start: (cb) ->
+        async.series [
+            # Generate SSH vhost
+            async.apply( @submit, 'preproc',
+                source:__dirname + '/nginx.vhost'
+                target: @home + '/vhost'
+                context: { service:@, params }
+            ),
+            async.apply( @submit, 'shell',
+                command:["sudo", "ln", "-sf", "#{@home}/vhost", "/etc/nginx/sites-enabled/#{@id}.#{@user}.conf"]
+            ),
+            async.apply( @submit, 'shell',
+                command:["sudo", "service", "nginx", "reload"]
+            ) ], cb
 
-    startWork: (cb) ->
-        if @workers.length
-            state.load @workers[0], (err, worker) ->
-                return cb and cb(err) if err
-                console.log "Worker #{worker.id} started", worker.id
-                worker.setState 'up', "Worker #{worker.id} started", (err)->
-                    return cb and cb(err) if err
-                    worker.start cb
-        else
-            cb and cb(null)
-
-    failure: (err, worker) ->
-        console.log "Worker #{worker.id} failed", err
-        @emit 'failure', err, worker
-        @workers =  _.without @workers, worker.id
-        @setState 'error', "Worker #{worker.id} failed:\n#{err.message}", (e)=>
-            if worker.failure then worker.failure(err, worker)
-            worker.clear()
-
-    success: (stdout, worker) ->
-        console.log "Worker #{worker.id} succeeded"
-        @emit 'success', stdout, worker
-        @workers =  _.without @workers, worker.id
-        @setState 'up', "Worker #{worker.id} finished", (err)=>
-            if err then return
-            if worker.success then worker.success(stdout, worker)
-            worker.clear (err)=>
-                if err then return
-                @startWork()
-
-    # Create new worker
-    submit: ( type, params, cb ) ->
-        console.log "Submit work #{type}:", params
-        state.create null, type, 'worker', (err, worker) =>
-            return cb and cb(err) if err
-            worker.state = 'maintain'
-            worker.message = 'Waiting for execution'
-            _.extend worker, params
-            worker.on 'state',   (state, msg)  => @setState(state, msg)
-            worker.on 'failure', (err, worker) => @failure(err, worker)
-            worker.on 'success', (err, worker) => @success(err, worker)
-            @workers.push worker.id
-            @save (err) =>
-                return cb and cb( err ) if err
-                worker.save (err) =>
-                    @startWork cb
 
 exports.init = (app, cb)->
     app.register 'worker'

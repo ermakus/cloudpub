@@ -1,5 +1,5 @@
 async   = require 'async'
-
+_       = require 'underscore'
 account = require './account'
 command = require './command'
 state   = require './state'
@@ -35,19 +35,31 @@ exports.Instance = class Instance extends worker.WorkQueue
         if params.mode == 'shutdown'
             @uninstall params, cb
         else
-            @setState "maintain", "In maintaince mode", cb
+            async.series [
+                ((cb) => @setState "maintain", "In maintaince mode", cb),
+                ((cb) => @stopWork cb)
+            ], cb
 
     install: (params, cb) ->
-        @submit 'copy',
-            user:@user
-            address:@address
-            source:'/home/anton/Projects/cloudpub'
-            target:"/home/#{@user}/"
-            success: (msg)=> @setState 'up', "Instance online"
-            failure: (err)=> @setState 'error', err.message
-        , (err)=>
+        async.series [
+            # Sync service files
+            (cb)=> (@submit 'copy', {
+                        user:@user
+                        address:@address
+                        source:'/home/anton/Projects/cloudpub'
+                        target:"/home/#{@user}/"
+                        success: (msg)=> @setState 'maintain', "Installing runtime"
+                        failure: (err)=> @setState 'error', err.message }, cb),
+            # Install service deps
+            (cb)=> (@submit 'shell', {
+                        user:@user
+                        address:@address
+                        command:["/home/#{@user}/cloudpub/bin/install-node"]
+                        success: (msg)=> @setState 'up', "Server online"
+                        failure: (err)=> @setState 'error', err.message }, cb)
+        ] , (err)=>
             return cb and cb(err) if err
-            @setState 'maintain', "Transfering files to #{@address}", cb
+            @setState 'maintain', "Installing service", cb
 
     uninstall: (params, cb) ->
         target = '~/cloudpub'

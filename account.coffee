@@ -1,9 +1,7 @@
 form   = require 'express-form'
 nconf  = require 'nconf'
 passwd = require './passwd'
-pamlib = require './pam.node'
 
-pam = new pamlib.PAM()
 MEGANON='anton'
 
 PAM_SERVICE = "system-auth"
@@ -46,10 +44,9 @@ exports.create = (params, cb)->
             account.email = params.email
             account.save cb
 
-# PAM auth
+# PAM auth: Curently stub is here
 exports.auth = (uid, password, cb) ->
-    pam.authenticate PAM_SERVICE, uid, password, (result)->
-        cb and cb( if result then null else new Error('Invalid password or username') )
+    cb and cb( new Error('Invalid password or username') )
 
 
 exports.ensure_login = (req, resp, next) ->
