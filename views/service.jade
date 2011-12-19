@@ -36,7 +36,7 @@ script.list-template(type="text/template")
                         li
                             .state-icon-small
                                 img(src="state-<%=worker.state%>.png")
-                                input(type="checkbox",name="instance", value="<%= item.id %>")
+                                input(type="checkbox",name="instance", value="<%= item.id %>", checked="true")
                             .state-info-small <%= worker.address %>
                         <% }); %>
                 td.control

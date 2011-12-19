@@ -43,7 +43,8 @@ exports.Instance = class Instance extends worker.WorkQueue
     install: (params, cb) ->
         async.series [
             # Sync service files
-            (cb)=> (@submit 'copy', {
+            (cb)=> (@submit 'sync', {
+                        message: "Sync service files"
                         user:@user
                         address:@address
                         source:'/home/anton/Projects/cloudpub'
@@ -52,9 +53,18 @@ exports.Instance = class Instance extends worker.WorkQueue
                         failure: (err)=> @setState 'error', err.message }, cb),
             # Install service deps
             (cb)=> (@submit 'shell', {
+                        message: "Install node.js runtime"
                         user:@user
                         address:@address
                         command:["/home/#{@user}/cloudpub/bin/install-node"]
+                        success: (msg)=> @setState 'up', "Server online"
+                        failure: (err)=> @setState 'error', err.message }, cb),
+            # Run service worker
+            (cb)=> (@submit 'shell', {
+                        message: "Service worker"
+                        user:@user
+                        address:@address
+                        command:["/home/#{@user}/cloudpub/runtime/bin/node", "/home/#{@user}/cloudpub/server.js", 4000]
                         success: (msg)=> @setState 'up', "Server online"
                         failure: (err)=> @setState 'error', err.message }, cb)
         ] , (err)=>

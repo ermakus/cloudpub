@@ -25,7 +25,7 @@ exports.WorkQueue = class WorkQueue extends state.State
                 return cb and cb(err) if err
                 return cb and cb(err) if (worker.state == 'up')
                 console.log "Worker #{worker.id} started", worker.id
-                worker.setState 'up', "Worker #{worker.id} started", (err)->
+                worker.setState 'up',(err)->
                     return cb and cb(err) if err
                     worker.start cb
         else
@@ -35,7 +35,7 @@ exports.WorkQueue = class WorkQueue extends state.State
         kill = (workerId, cb)->
             state.load workerId, (err, worker)->
                 return cb and cb(err) if err
-                worker.clear cb
+                worker.stop cb
 
         # Clear all workers
         async.forEach @workers, kill, (err)=>
@@ -43,19 +43,27 @@ exports.WorkQueue = class WorkQueue extends state.State
             @workers = []
             @save cb
 
+    # Worker error handler
     failure: (err, worker) ->
         console.log "Worker #{worker.id} failed", err
-        @emit 'failure', err, worker
-        @workers =  _.without @workers, worker.id
-        @setState 'error', "Worker #{worker.id} failed:\n#{err.message}", (e)=>
-            if worker.failure then worker.failure(err, worker)
-            worker.clear()
+        # Reload worker state due to events issue
+        state.load worker.id, (err, worker) =>
+            if err then return
+            @emit 'failure', err, worker
+            # If state is down then process is killed
+            if worker.state == 'down'
+                return worker.clear()
+            # else it failed
+            @setState 'error', "Worker failed", (e)=>
+                if worker.failure then worker.failure(err, worker)
+                worker.setState 'error', err.message
 
+    # Worker success handler
     success: (stdout, worker) ->
         console.log "Worker #{worker.id} succeeded"
         @emit 'success', stdout, worker
         @workers =  _.without @workers, worker.id
-        @setState 'up', "Worker #{worker.id} finished", (err)=>
+        @setState 'up', "Work finished", (err)=>
             if err then return
             if worker.success then worker.success(stdout, worker)
             worker.clear (err)=>
@@ -68,7 +76,6 @@ exports.WorkQueue = class WorkQueue extends state.State
         state.create null, type, 'worker', (err, worker) =>
             return cb and cb(err) if err
             worker.state = 'maintain'
-            worker.message = 'Waiting for execution'
             _.extend worker, params
             worker.on 'failure', (err, worker) => @failure(err, worker)
             worker.on 'success', (err, worker) => @success(err, worker)
@@ -107,22 +114,29 @@ exports.Worker = class Worker extends state.State
             if code == 0
                 @emit 'success', stdout, @
             else
-                err = new Error( stdout )
-                @emit 'failure', new Error(stderr), @
+                err = new Error( stderr[-64...] )
+                @emit 'failure', err, @
         
         cb and cb( null )
 
+    stop: (cb)->
+        if @pid
+            try
+                process.kill @pid
+            catch err
+                console.log "Process with #{@pid} not exists", err
+        @setState "down", "Killed", cb
 
 # SSH global options
 SSH = "ssh -i #{SSH_PRIVATE_KEY} -o StrictHostKeyChecking=no -o BatchMode=yes"
 
-exports.Copy = class Copy extends Worker
+exports.Sync = class Sync extends Worker
     start: (cb)->
         if not @source  then return cb and cb(new Error("Copy source not set"))
         if not @target  then return cb and cb(new Error("Copy target not set"))
         if not @user    then return cb and cb(new Error("Remote user not set"))
         if not @address then return cb and cb(new Error("Remote address not set"))
-        @exec [ __dirname + "/bin/copy", "-u", @user, "-a", @address, "-k", SSH_PRIVATE_KEY, @source, @target ], cb
+        @exec [ __dirname + "/bin/sync", "-u", @user, "-a", @address, "-k", SSH_PRIVATE_KEY, @source, @target ], cb
     
 # Execute command on remote system over ssh
 exports.Shell = class Shell extends Worker
