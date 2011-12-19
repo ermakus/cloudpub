@@ -43,7 +43,7 @@ exports.Instance = class Instance extends worker.WorkQueue
             address:@address
             source:'/home/anton/Projects/cloudpub'
             target:"/home/#{@user}/"
-            success: (msg)=> @setState 'up', msg
+            success: (msg)=> @setState 'up', "Instance online"
             failure: (err)=> @setState 'error', err.message
         , (err)=>
             return cb and cb(err) if err
@@ -63,16 +63,38 @@ exports.Instance = class Instance extends worker.WorkQueue
 
 # Init HTTP request handlers
 exports.init = (app, cb)->
-    app.register 'instance', (entity, cb)->
 
+    # List of instances
+    list = (entity, cb)->
+        # Resolve workers for each instance
         resolve = (item, cb)->
             async.map item.workers, state.load, (err, workers)->
                 item.workers = workers
                 cb and cb(null, item)
 
-        state.query entity, (err, items)->
+        query = (entity, cb)->
+            state.query entity, (err, items)->
+                return cb and cb(err) if err
+                async.forEach items, resolve, (err)->
+                    cb and cb(err, items)
+ 
+        async.parallel [
+            async.apply( query, 'instance' ),
+            async.apply( query, 'ec2' )
+        ], (err, result)->
             return cb and cb(err) if err
-            async.forEach items, resolve, (err)->
-                cb and cb(err, items)
+            items = []
+            for item in result
+                items = items.concat item
+            cb and cb(null, items)
 
-     cb and cb( null )
+    # Create or load instance
+    item = (params, entity, cb) ->
+        if params.cloud == 'ec2'
+            entity = "ec2"
+        state.load params.id, entity, cb
+
+    # Register CRUD handler
+    app.register 'instance', list, item
+
+    cb and cb( null )

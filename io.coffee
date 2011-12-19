@@ -7,8 +7,6 @@ parseCookie = require('connect').utils.parseCookie
 UID2SOCKET = {}
 
 exports.emit = (uid, msg) ->
-    if msg.entity != 'instance'
-        return
     if uid of UID2SOCKET
         UID2SOCKET[ uid ].emit('message', msg)
     else

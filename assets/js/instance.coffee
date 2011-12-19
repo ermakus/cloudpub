@@ -30,7 +30,7 @@ $ ->
     $('.start').live 'shown', ->
         item = $(this).data('item')
         return if not item
-        init_cloud_type item.cloud
+        init_cloud_type item.entity
         if item.id != 'new'
             $('.cloudtype').hide()
             $('.address').attr 'readonly', true

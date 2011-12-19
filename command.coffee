@@ -5,7 +5,7 @@ state   = require './state'
 
 ENTITY_NEW       = 'new'
 ALLOWED_COMMANDS = ['start','stop']
-PUBLIC_KEY_FILE = "~/.ssh/id_rsa.pub"
+PUBLIC_KEY_FILE = "/home/anton/.ssh/id_rsa.pub"
 
 try
     PUBLIC_KEY = fs.readFileSync( PUBLIC_KEY_FILE )
@@ -41,8 +41,14 @@ exec_command = (entity, factory, req,resp) ->
     # Create new entity if special ID
     if req.params.id == ENTITY_NEW
         req.params.id = null
+    if req.form
+        req.form.session = req.session
+    else
+        req.form = session:req.session
+    
+    req.form.id = req.params.id
 
-    factory req.params.id, entity, (err, obj)->
+    factory req.form, entity, (err, obj) ->
         if err
             return resp.send err.message, 500
 
@@ -54,12 +60,6 @@ exec_command = (entity, factory, req,resp) ->
             return resp.send 'Command not supported', 500
 
         console.log "Exec #{req.params.command} on #{entity} " + if req.form then JSON.stringify req.form
-        if req.form
-            req.form.session = req.session
-        else
-            req.form = session:req.session
-        
-        req.form.id = req.params.id
        
         command.call obj, req.form, (err) ->
             if err
@@ -101,7 +101,7 @@ exports.register = (app)->
     return (entity, list, item)->
         
         list ?= state.query
-        item ?= state.load
+        item ?= (params, entity, cb) -> state.load( params.id, entity, cb )
     
         # HTML page view
         app.get '/' + entity, (req, resp)->
