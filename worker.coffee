@@ -44,31 +44,29 @@ exports.WorkQueue = class WorkQueue extends state.State
             @save cb
 
     # Worker error handler
-    failure: (err, worker) ->
-        console.log "Worker #{worker.id} failed", err
-        # Reload worker state due to events issue
-        state.load worker.id, (err, worker) =>
-            if err then return
-            @emit 'failure', err, worker
-            # If state is down then process is killed
-            if worker.state == 'down'
-                return worker.clear()
+    failure: (event, cb) ->
+        console.log "Worker #{event.worker.id} failed", event.error
+        # If state is down then process is killed
+        if event.worker.state == 'down'
+            @workers =  _.without @workers, worker.id
+            @save (err)->
+                return cb and cb(err) if err
+                event.worker.clear cb
+        else
             # else it failed
             @setState 'error', "Worker failed", (e)=>
-                if worker.failure then worker.failure(err, worker)
-                worker.setState 'error', err.message
+                return cb and cb(e) if er
+                event.worker.setState 'error', event.error.message, cb
 
     # Worker success handler
-    success: (stdout, worker) ->
-        console.log "Worker #{worker.id} succeeded"
-        @emit 'success', stdout, worker
-        @workers =  _.without @workers, worker.id
+    success: (event, cb) ->
+        console.log "Worker #{event.worker.id} succeeded"
+        @workers =  _.without @workers, event.worker.id
         @setState 'up', "Work finished", (err)=>
-            if err then return
-            if worker.success then worker.success(stdout, worker)
-            worker.clear (err)=>
-                if err then return
-                @startWork()
+            return cb and cb(err) if err
+            event.worker.clear (err)=>
+                return cb and cb(err) if err
+                @startWork cb
 
     # Create new worker
     submit: ( type, params, cb ) ->
@@ -77,8 +75,10 @@ exports.WorkQueue = class WorkQueue extends state.State
             return cb and cb(err) if err
             worker.state = 'maintain'
             _.extend worker, params
-            worker.on 'failure', (err, worker) => @failure(err, worker)
-            worker.on 'success', (err, worker) => @success(err, worker)
+
+            worker.on 'failure', 'failure', @id
+            worker.on 'success', 'success', @id
+
             @workers.push worker.id
             @save (err) =>
                 return cb and cb( err ) if err
@@ -94,9 +94,15 @@ exports.Worker = class Worker extends state.State
 
     # Execute command on local system
     exec: (run, cb) ->
-        console.log "Exec " + run.join " "
+
+        if @success then @on 'success', 'success', @id
+        if @failure then @on 'failure', 'success', @id
+
         stdout = ''
         stderr = ''
+
+        console.log "Exec " + (run.join " ")
+        
         ch = spawn run[0], run[1...]
 
         @pid = ch.pid
@@ -112,10 +118,12 @@ exports.Worker = class Worker extends state.State
         
         ch.on 'exit', (code) =>
             if code == 0
-                @emit 'success', stdout, @
+                @emit 'success', { message:stdout, worker:@ }, (err)->
+                    console.log "Success hanlder result", err
             else
-                err = new Error( stderr[-64...] )
-                @emit 'failure', err, @
+                err = new Error( stderr )
+                @emit 'failure', { error:err, worker:@ }, (err)->
+                    console.log "Failure handler result", err
         
         cb and cb( null )
 
@@ -144,7 +152,9 @@ exports.Shell = class Shell extends Worker
         if not @user    then return cb and cb(new Error("Remote user not set"))
         if not @address then return cb and cb(new Error("Remote address not set"))
         if not @command then return cb and cb(new Error("Shell command not set"))
-        @exec SSH.split(' ').concat("-l", @user, @address).concat(@command), cb
+        cmd = SSH.split(' ').concat("-l", @user, @address)
+        cmd = cmd.concat(@command)
+        @exec cmd, cb
 
 # Preprocess config file by _.template
 exports.Preproc = class Preproc extends Worker

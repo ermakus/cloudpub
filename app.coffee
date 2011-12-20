@@ -1,63 +1,110 @@
-express  = require 'express'
-stylus   = require 'stylus'
-assets   = require 'connect-assets'
-nconf    = require 'nconf'
-async    = require 'async'
+fs      = require 'fs'
+_       = require 'underscore'
+async   = require 'async'
 
 account  = require './account'
-service  = require './service'
-domain   = require './domain'
-instance = require './instance'
-io       = require './io'
-state    = require './state'
-command  = require './command'
 worker   = require './worker'
-ec2      = require './ec2'
+command  = require './command'
+state    = require './state'
+
+# Default service object
 
 
-publicDir = __dirname + '/public'
+exports.App = class App extends state.State
 
-MemoryStore = express.session.MemoryStore
+    init: ->
+        super()
+        # Service display name
+        @name = 'cloudpub'
+
+        # Service domain
+        @domain = 'cloudpub.us'
+
+        # Instance IDs service run on
+        @service = []
+
+    # Configure service
+    configure: (params, cb)->
+        @domain = params.domain or "#{@id}.#{@user}.cloudpub.us"
+        if _.isArray params.instance
+            @instance = params.instance
+        else
+            if params.instance
+                @instance = [params.instance]
+            else
+                return cb and cb(new Error("Instance node set") )
+
+        @setState 'maintain', "App configured", cb
 
 
-createApp = ->
-    app = express.createServer()
-    app.set 'view engine', 'jade'
-    app.use assets()
-    app.use express.static(publicDir)
-    app.use express.cookieParser()
-    app.use express.bodyParser()
-    app.sessionStore = new MemoryStore()
+    # Start service
+    start: (params, cb)->
+        async.series [
+            ((cb)=>@configure params, cb),
+            ((cb)=>@setState "maintain", "Installing to servers", cb),
+            ((cb)=>@runEach @install, params, cb)
+            ((cb)=>@runEach @startup, params, cb)
+        ], cb
 
-    # Session backend
-    app.use express.session
-        store: app.sessionStore
-        secret:"(#^LHh(*YHI^YIJHDFSDLsdfKF"
-        key:'cloudpub.sid'
+    # Stop service
+    stop: (params, cb)->
+        params ?= {}
+        if params.data != 'keep'
+            async.series [
+                ((cb)=>@setState "maintain", "Uninstalling from servers", cb),
+                ((cb)=>@runEach @shutdown, params, cb),
+                ((cb)=>@runEach @uninstall, params, cb)
+            ], cb
+        else
+            async.series [
+                ((cb)=>@setState "maintain", "Maintaince", cb),
+                ((cb)=>@runEach @shutdown, params, cb)
+            ], cb
 
-    # Make 'session' available in views
-    app.dynamicHelpers
-        session: (req, res) -> return req.session
+    # Run command for each instance
+    runEach: (method, params, cb)->
 
-    app.register = command.register( app )
+        service = @
+
+        process = (id, cb)->
+            state.load id, (err, instance) ->
+                params.instance = instance
+                method.call service, params, instance, (err)->
+                    cb and cb( err, instance )
+
+        async.forEach @instance, process, cb
+
+    startup: ( params, instance, cb) ->
+        cb and cb(null)
+
+    shutdown: ( params, instance, cb) ->
+        instance.stopWork cb
+
+    install: ( params, instance, cb) ->
+        cb and cb(null)
+
+    uninstall: ( params, instance, cb ) ->
+        cb and cb(null)
 
 
+# Init request handlers here
+exports.init = (app, cb)->
+    # Register default handler
+    list = (entity, cb) ->
+        # Load predefined apps form storage (or create new one)
+        state.query 'cloudpub', (err, items) ->
+                return cb and cb(err) if err
+                # For each service
+                async.map items, ((item, callback)->
+                    # Resolve instances from storage
+                    async.map item.instance, state.load, (err, instance)->
+                        return callback and callback(err, item) if err
+                        item.instance = instance
+                        # Fire item callback and pass resolved item
+                        callback and callback(null, item)
+                ), cb
 
-    app.get '/', (req, resp) -> resp.render 'main'
-    app
+    app.register 'service', list
 
-exports.init = (cb) ->
-    nconf.file
-        file: __dirname + '/settings.conf'
-
-    app = createApp()
-    
-    async.parallel [
-        async.apply(account.init, app),
-        async.apply(service.init, app),
-        async.apply(domain.init, app),
-        async.apply(instance.init, app),
-        async.apply(worker.init, app),
-        async.apply(io.init, app),
-        async.apply(ec2.init, app),
-    ], (err, res) -> cb(err, app)
+    state.create 'cloudpub', 'cloudpub', (err, item) ->
+        item.save cb

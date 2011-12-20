@@ -31,13 +31,13 @@ script.list-template(type="text/template")
                     h3 <%= (item.address || "Not Available") %>
                 td.worker
                     ul.state-list
-                        <% _.each(item.workers, function(worker) { %>
+                        <% _.each(item.workers, function(worker) { if(!worker) worker={'id':'null','state':'error','message':'Invalid'}; %>
                         li
                             .state-icon-small
                                 img(src="state-<%=worker.state%>.png")
                                 input(type="checkbox",name="instance", value="<%= item.id %>")
                             .state-info-small <%= worker.entity %>: <%= worker.message %>
-                        <% }); %>
+                        <% });%>
                 td.control
                     <% if(item.state != "up") { %>
                     img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="start")

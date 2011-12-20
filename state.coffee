@@ -4,10 +4,14 @@ async   = require 'async'
 events  = require 'events'
 io      = require './io'
 uuid    = require './uuid'
+
+
+CACHE = {}
+
 #
 # Persistent state
 #
-exports.State = class State extends events.EventEmitter
+exports.State = class State
 
     # Last state name ('up','maintain','down','error')
     state  : 'down'
@@ -23,6 +27,7 @@ exports.State = class State extends events.EventEmitter
 
     # Init state defaults
     init: ->
+        @_events = {}
         @state = 'down'
         @message = 'innocent'
 
@@ -61,9 +66,27 @@ exports.State = class State extends events.EventEmitter
             @message = message
         console.log "State: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
         io.emit 'anton', { entity:@entity, state:@state, message:@message }
-        @emit 'state', @state, @message
         @save cb
 
+    # Emit event to registered handlers
+    emit: (name, event, cb)->
+        if name of @_events
+            async.forEach @_events[name], ((handler, cb) ->
+                # Load object from store
+                load handler.id, (err, item)->
+                    return cb and cb(err) if err
+                    # Call handler by name
+                    item[handler.handler] event, cb
+            ), cb
+        else
+            cb and cb(null)
+
+    # Register event handler
+    # handler = name of method(event, cb)
+    # Id object id to call handler
+    on: (name, handler, id)->
+        @_events[name] ?=[]
+        @_events[name].push {handler, id}
 
 # Create enity instance
 exports.create = create = (id, entity, package, cb) ->
@@ -122,7 +145,6 @@ exports.query = query = (entity, params, cb) ->
     if typeof(params) == 'function'
         cb = params
         params = []
-    console.log "Query #{entity}", params
     json = nconf.get(entity)
     if not json or (_.isArray(json) and json.length == 0)
         json =  {}

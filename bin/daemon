@@ -1,0 +1,80 @@
+#!/bin/bash
+
+set +e
+
+usage() {
+cat << EOF
+usage: $0 [options] (start|stop|status) id [daemon] [params]
+
+This script start or stop daemon process
+
+PARAMS:
+   id       Unique name of daemon process
+   daemon   Path to daemon exexutable
+OPTIONS:
+   -h   Show this message
+   -b   Base dir
+EOF
+}
+
+check() {
+    if [ -z "$1" ]; then echo "ERROR: $2" 1>&2; exit 1; fi
+}
+
+USER=$(whoami)
+HOMEDIR=/home/$USER/.cloudpub
+PIDFILES=$HOMEDIR/var/pid
+WORKDIR=$PWD
+mkdir -p $PIDFILES
+
+while getopts "hb:" OPTION
+do
+    case $OPTION in
+         b)
+             WORKDIR=$OPTARG
+             ;;
+         h)
+             usage
+             exit 1
+             ;;
+         ?)
+             usage
+             exit 1
+             ;;
+    esac
+done
+
+shift $(expr $OPTIND - 1)
+
+COMMAND=$1
+ID=$2
+DAEMON=$3
+shift 3
+
+check "$COMMAND" "command not set"
+check "$ID" "id not set"
+
+case $COMMAND in
+
+    start)
+        check "$DAEMON" "Daemon not set"
+    	start-stop-daemon --oknodo --start --chdir $WORKDIR --make-pidfile --background --pidfile $PIDFILES/$ID.pid --exec $DAEMON -- $@
+        ;;
+
+    stop)
+        if [ -f $PIDFILES/$ID.pid ] ; then
+    	    start-stop-daemon --stop --pidfile $PIDFILES/$ID.pid
+            rm $PIDFILES/$ID.pid
+        else
+            echo "No PID file"
+        fi
+        ;;
+
+    info)
+        if [ -f $PIDFILES/$ID.pid ] ; then
+            ps -p $(cat $PIDFILES/$ID.pid)
+        else
+            echo "No PID file"
+        fi
+        ;;
+esac

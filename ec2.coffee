@@ -118,8 +118,6 @@ exports.update = update = (cb) ->
         if err
             console.log "EC2 query error: ", err
             return
-        else
-            console.log "EC2 query: ", items
 
         # Update ec2 cache
         async.forEach items, update_node, (err)->

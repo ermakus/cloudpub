@@ -40,9 +40,9 @@ script.list-template(type="text/template")
                             .state-info-small <%= worker.address %>
                         <% }); %>
                 td.control
-                    <% if(item.state == "down") { %>
+                    <% if(item.state != "up") { %>
                     img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="start")
-                    <% } else { %>
+                    <% } if(item.state != "down") { %>
                     img.btn.command(src="command-stop.png",data-id="<%=item.id%>",data-command="stop")
                     <% } %>
             <% }); %>

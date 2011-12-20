@@ -40,48 +40,20 @@ exports.Instance = class Instance extends worker.WorkQueue
                 ((cb) => @stopWork cb)
             ], cb
 
+    submit: (task, params, cb) ->
+        params.address = @address
+        params.user = @user
+        super task, params, cb
+
     install: (params, cb) ->
-        async.series [
-            # Sync service files
-            (cb)=> (@submit 'sync', {
-                        message: "Sync service files"
-                        user:@user
-                        address:@address
-                        source:'/home/anton/Projects/cloudpub'
-                        target:"/home/#{@user}/"
-                        success: (msg)=> @setState 'maintain', "Installing runtime"
-                        failure: (err)=> @setState 'error', err.message }, cb),
-            # Install service deps
-            (cb)=> (@submit 'shell', {
-                        message: "Install node.js runtime"
-                        user:@user
-                        address:@address
-                        command:["/home/#{@user}/cloudpub/bin/install-node"]
-                        success: (msg)=> @setState 'up', "Server online"
-                        failure: (err)=> @setState 'error', err.message }, cb),
-            # Run service worker
-            (cb)=> (@submit 'shell', {
-                        message: "Service worker"
-                        user:@user
-                        address:@address
-                        command:["/home/#{@user}/cloudpub/runtime/bin/node", "/home/#{@user}/cloudpub/server.js", 4000]
-                        success: (msg)=> @setState 'up', "Server online"
-                        failure: (err)=> @setState 'error', err.message }, cb)
-        ] , (err)=>
-            return cb and cb(err) if err
-            @setState 'maintain', "Installing service", cb
+        params.domain = @address
+        state.load 'cloudpub', 'cloudpub', (err, service) =>
+            #params.instance = _.union service.instance, [@id]
+            params.instance = [@id]
+            service.start params, cb
 
     uninstall: (params, cb) ->
-        target = '~/cloudpub'
-        @submit 'shell',
-            user:@user
-            address:@address
-            command:['rm','-rf', target]
-            success:(msg)=> @clear()
-            failure:(err)=> @clear()
-        , (err)=>
-            return cb and cb(err) if err
-            @setState 'maintain', "Uninstalling files from #{@address}", cb
+        cb and cb(null)
 
 # Init HTTP request handlers
 exports.init = (app, cb)->

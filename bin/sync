@@ -4,7 +4,7 @@ usage() {
 cat << EOF
 usage: $0 [options] source destination
 
-This script copy files to local or remote directory
+This script sync files to local or remote directory
 
 OPTIONS:
    -h      Show this message
