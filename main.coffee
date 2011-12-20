@@ -52,12 +52,13 @@ exports.init = (cb) ->
 
     app = createApp()
     
-    async.parallel [
+    async.series [
+        async.apply(io.init, app),
+        async.apply(state.init, app),
         async.apply(account.init, app),
         async.apply(service.init, app),
+        async.apply(worker.init, app),
         async.apply(domain.init, app),
         async.apply(instance.init, app),
-        async.apply(worker.init, app),
-        async.apply(io.init, app),
         async.apply(ec2.init, app),
     ], (err, res) -> cb(err, app)

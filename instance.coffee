@@ -3,10 +3,10 @@ _       = require 'underscore'
 account = require './account'
 command = require './command'
 state   = require './state'
-worker  = require './worker'
+queue   = require './queue'
 
 # Instance class
-exports.Instance = class Instance extends worker.WorkQueue
+exports.Instance = class Instance extends queue.Queue
 
     init: ->
         super()
@@ -26,19 +26,37 @@ exports.Instance = class Instance extends worker.WorkQueue
 
     # Start instance
     start: (params, cb) ->
-        @configure params, (err) =>
-            return cb and cb(err) if err
-            @install params, cb
+        if typeof(params) == 'function'
+            cb = params
+            params = {}
+        # Super
+        start = queue.Queue.prototype.start
+
+        async.series [
+                (cb)=> @configure(params, cb),
+                (cb)=> @install(params, cb),
+                (cb)=> start.call(@, cb),
+        ], cb
 
     # Stop instance
     stop: (params, cb) ->
-        if params.mode == 'shutdown'
-            @uninstall params, cb
-        else
-            async.series [
-                ((cb) => @setState "maintain", "In maintaince mode", cb),
-                ((cb) => @stopWork cb)
-            ], cb
+        if typeof(params) == 'function'
+            cb = params
+            params = {}
+
+        ifUninstall = (cb)=>
+            if params.mode == 'shutdown'
+                @uninstall params, cb
+            else
+                cb(null)
+    
+        stop = queue.Queue.prototype.stop
+
+        async.series [
+            (cb) => @setState("maintain", "In maintaince mode", cb),
+            (cb) => ifUninstall(cb),
+            (cb) => stop.call(@,cb)
+        ], cb
 
     submit: (task, params, cb) ->
         params.address = @address
@@ -46,11 +64,9 @@ exports.Instance = class Instance extends worker.WorkQueue
         super task, params, cb
 
     install: (params, cb) ->
-        params.domain = @address
         state.load 'cloudpub', 'cloudpub', (err, service) =>
-            #params.instance = _.union service.instance, [@id]
-            params.instance = [@id]
-            service.start params, cb
+            service.instance = [@id]
+            service.start cb
 
     uninstall: (params, cb) ->
         cb and cb(null)

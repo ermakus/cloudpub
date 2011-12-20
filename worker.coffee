@@ -1,89 +1,10 @@
 spawn   = require('child_process').spawn
-nconf   = require 'nconf'
 _       = require 'underscore'
 async   = require 'async'
 state   = require './state'
+io      = require './io'
 
-#
-# Work queue
-#
-exports.WorkQueue = class WorkQueue extends state.State
-
-    init: ->
-        super()
-        # List of worker IDs
-        @workers = []
-
-    clear: (cb)->
-        super (err)=>
-            return cb and cb(err) if err
-            @stopWork cb
-
-    startWork: (cb) ->
-        if @workers.length
-            state.load @workers[0], (err, worker) ->
-                return cb and cb(err) if err
-                return cb and cb(err) if (worker.state == 'up')
-                console.log "Worker #{worker.id} started", worker.id
-                worker.setState 'up',(err)->
-                    return cb and cb(err) if err
-                    worker.start cb
-        else
-            cb and cb(null)
-
-    stopWork: (cb)->
-        kill = (workerId, cb)->
-            state.load workerId, (err, worker)->
-                return cb and cb(err) if err
-                worker.stop cb
-
-        # Clear all workers
-        async.forEach @workers, kill, (err)=>
-            return cb and cb(err) if err
-            @workers = []
-            @save cb
-
-    # Worker error handler
-    failure: (event, cb) ->
-        console.log "Worker #{event.worker.id} failed", event.error
-        # If state is down then process is killed
-        if event.worker.state == 'down'
-            @workers =  _.without @workers, worker.id
-            @save (err)->
-                return cb and cb(err) if err
-                event.worker.clear cb
-        else
-            # else it failed
-            @setState 'error', "Worker failed", (e)=>
-                return cb and cb(e) if er
-                event.worker.setState 'error', event.error.message, cb
-
-    # Worker success handler
-    success: (event, cb) ->
-        console.log "Worker #{event.worker.id} succeeded"
-        @workers =  _.without @workers, event.worker.id
-        @setState 'up', "Work finished", (err)=>
-            return cb and cb(err) if err
-            event.worker.clear (err)=>
-                return cb and cb(err) if err
-                @startWork cb
-
-    # Create new worker
-    submit: ( type, params, cb ) ->
-        console.log "Submit work #{type}:", params
-        state.create null, type, 'worker', (err, worker) =>
-            return cb and cb(err) if err
-            worker.state = 'maintain'
-            _.extend worker, params
-
-            worker.on 'failure', 'failure', @id
-            worker.on 'success', 'success', @id
-
-            @workers.push worker.id
-            @save (err) =>
-                return cb and cb( err ) if err
-                worker.save (err) =>
-                    @startWork cb
+log     = console
 
 SSH_PRIVATE_KEY='/home/anton/.ssh/id_rsa'
 RUN_TIMEOUT=500
@@ -95,44 +16,47 @@ exports.Worker = class Worker extends state.State
     # Execute command on local system
     exec: (run, cb) ->
 
-        if @success then @on 'success', 'success', @id
-        if @failure then @on 'failure', 'success', @id
-
         stdout = ''
         stderr = ''
 
-        console.log "Exec " + (run.join " ")
+        log.info "Exec " + (run.join " ")
         
         ch = spawn run[0], run[1...]
 
         @pid = ch.pid
 
         ch.stdout.on 'data', (data) ->
-            console.log "SHELL: ", data.toString()
+            log.info "stdout: ", data.toString()
             if stdout.length < 512
                 stdout += data.toString()
 
         ch.stderr.on 'data', (data) ->
             stderr += data.toString()
-            console.log "ERROR: ", data.toString()
+            log.info "stderr: ", data.toString()
         
         ch.on 'exit', (code) =>
             if code == 0
-                @emit 'success', { message:stdout, worker:@ }, (err)->
-                    console.log "Success hanlder result", err
+                @emit 'success', { message:stdout, worker:@ }, (err)=>
+                    if err
+                        log.error "Worker #{@id} success handler error", err
+                    else
+                        log.info "Worker #{@id} succeed"
             else
                 err = new Error( stderr )
-                @emit 'failure', { error:err, worker:@ }, (err)->
-                    console.log "Failure handler result", err
+                @emit 'failure', { error:err, worker:@ }, (err)=>
+                    if err
+                        log.error "Worker #{@id} fail handler error", err
+                    else
+                        log.error "Worker #{@id} failed", err
         
-        cb and cb( null )
+        setState "up", "Worker #{@id} started", cb
 
     stop: (cb)->
         if @pid
             try
                 process.kill @pid
             catch err
-                console.log "Process with #{@pid} not exists", err
+                log.error "Process with #{@pid} not exists", err
         @setState "down", "Killed", cb
 
 # SSH global options
@@ -164,7 +88,7 @@ exports.Preproc = class Preproc extends Worker
         if not @target  then return cb and cb(new Error("Copy target not set"))
         if not @user    then return cb and cb(new Error("Remote user not set"))
         if not @address then return cb and cb(new Error("Remote address not set"))
-        console.log "Preproc #{@source} -> #{@target}: " + JSON.stringify @context
+        log.info "Preproc #{@source} -> #{@target}: " + JSON.stringify @context
         fs.readFile @source, (err, cfg) =>
             if err
                 return @emit 'failure', err, @
@@ -177,7 +101,7 @@ exports.Preproc = class Preproc extends Worker
         @setState 'up', "Preprocessing", cb
 
 
-exports.Proxy = class Proxy extends WorkQueue
+exports.Proxy = class Proxy
     # Configure proxy
     start: (cb) ->
         async.series [
@@ -194,7 +118,7 @@ exports.Proxy = class Proxy extends WorkQueue
                 command:["sudo", "service", "nginx", "reload"]
             ) ], cb
 
-
 exports.init = (app, cb)->
     app.register 'worker'
+    log = io.log
     cb and cb( null )

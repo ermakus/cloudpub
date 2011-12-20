@@ -48,7 +48,6 @@ exports.create = (params, cb)->
 exports.auth = (uid, password, cb) ->
     cb and cb( new Error('Invalid password or username') )
 
-
 exports.ensure_login = (req, resp, next) ->
     req.session.uid ?= MEGANON
     if req.session.uid

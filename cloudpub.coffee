@@ -38,7 +38,7 @@ exports.Cloudpub = class Cloudpub extends service.Service
         home = "/home/#{instance.user}/.cloudpub"
         async.series [
             # Set instance state
-            (cb)=> (instance.stopWork cb),
+            (cb)=> (instance.stop cb),
             (cb)=> (instance.setState 'maintain', 'Installing service', cb),
             # Sync service files
             (cb)=> (instance.submit 'sync', {

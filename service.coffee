@@ -3,22 +3,19 @@ _       = require 'underscore'
 async   = require 'async'
 
 account  = require './account'
-worker   = require './worker'
+queue    = require './queue'
 command  = require './command'
 state    = require './state'
 
 # Default service object
 
 
-exports.Service = class Service extends worker.WorkQueue
+exports.Service = class Service extends state.State
 
     init: ->
         super()
         # Service display name
         @name = 'cloudpub'
-
-        # Source for install
-        @source = __dirname
 
         # Service domain
         @domain = 'cloudpub.us'
@@ -81,16 +78,16 @@ exports.Service = class Service extends worker.WorkQueue
         async.forEach @instance, process, cb
 
     startup: ( params, instance, cb) ->
-        cb and cb(null)
+        cb and cb(new Error('Not impelemented for this service'))
 
     shutdown: ( params, instance, cb) ->
-        instance.stopWork cb
+        cb and cb(new Error('Not impelemented for this service'))
 
     install: ( params, instance, cb) ->
-        cb and cb(null)
+        cb and cb(new Error('Not impelemented for this service'))
 
     uninstall: ( params, instance, cb ) ->
-        cb and cb(null)
+        cb and cb(new Error('Not impelemented for this service'))
 
 
 # Init request handlers here

@@ -6,15 +6,25 @@ parseCookie = require('connect').utils.parseCookie
 
 UID2SOCKET = {}
 
+exports.log = log = console
+
 exports.emit = (uid, msg) ->
     if uid of UID2SOCKET
         UID2SOCKET[ uid ].emit('message', msg)
     else
-        console.log "ERROR: Can't push event", msg
+        log.error "ECan't push event", msg
 
 exports.init = (app, cb)->
 
     sio = io.listen(app)
+    
+    sio.enable('browser client minification')
+    sio.enable('browser client etag')
+    sio.enable('browser client gzip')
+    sio.set('log level', 2)
+    sio.set('transports', ['websocket', 'flashsocket', 'htmlfile', 'xhr-polling', 'jsonp-polling'])
+
+    exports.log = log = sio.log
 
     sio.sockets.on 'connection', (socket)->
         hs = socket.handshake

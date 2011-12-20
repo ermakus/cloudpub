@@ -5,6 +5,7 @@ events  = require 'events'
 io      = require './io'
 uuid    = require './uuid'
 
+log = console
 
 CACHE = {}
 
@@ -34,7 +35,7 @@ exports.State = class State
     # Save state
     save: (cb) ->
         return cb and cb(null) unless @id
-        console.log "Save: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
+        log.info "Save: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
         #console.trace()
         # Save persistend fields
         _events = @_events
@@ -64,7 +65,13 @@ exports.State = class State
             cb = message
         else
             @message = message
-        console.log "State: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
+    
+        write = log.info
+        if @state == 'maintain'
+            write = log.warn
+        if @state in ['down','error']
+            write = log.error
+        write.call log, "State: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
         io.emit 'anton', { entity:@entity, state:@state, message:@message }
         @save cb
 
@@ -97,7 +104,7 @@ exports.create = create = (id, entity, package, cb) ->
         return cb and cb( new Error("Entity type not set") )
     if not id
         id = uuid.v1()
-    console.log "Create #{package}.#{entity} [#{id}]"
+    log.info "Create #{package}.#{entity} [#{id}]"
     if not (package and entity)
         return cb and cb( new Error("Can't create null entity") )
 
@@ -136,8 +143,9 @@ exports.load = load = (id, entity, package, cb) ->
  
     create id, entity, package, (err, obj)->
         return cb and cb(err) if err
-        if stored then _.extend obj, stored
-        console.log "Loaded #{package}.#{entity} [#{id}]"
+        if stored
+            _.extend obj, stored
+            log.info "Loaded #{package}.#{entity} [#{id}]"
         cb and cb( null, obj )
 
 # Query states by params and cb( error, [entities] )
@@ -151,3 +159,6 @@ exports.query = query = (entity, params, cb) ->
     # Load async each entity by key
     async.map _.keys(json), load, cb
 
+exports.init = (app, cb)->
+    log = io.log
+    cb and cb(null)
