@@ -15,7 +15,7 @@ script.list-template(type="text/template")
                 th.state Service
                 th.domain App
                 th.domain Server
-                th.worker Workers
+                th.worker Work Queue
                 th.control &nbsp;
         tbody
             <% _.each(items, function(item) { %>
@@ -41,59 +41,37 @@ script.list-template(type="text/template")
                             .state-icon-small
                                 img(src="state-<%=worker.state%>.png")
                                 input(type="checkbox",name="instance", value="<%= worker.id %>", checked="true")
-                            .state-info-small <%= worker %>
+                            .state-info-small <%= worker.message %>
                         <% }); %>
                 td.control
                     <% if(item.state != "up") { %>
-                    img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="start")
+                    img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="startup")
                     <% } if(item.state != "down") { %>
-                    img.btn.command(src="command-stop.png",data-id="<%=item.id%>",data-command="stop")
+                    img.btn.command(src="command-stop.png",data-id="<%=item.id%>",data-command="shutdown")
                     <% } %>
             <% }); %>
 
 // Start dialog
-script.start-template(type="text/template")
+script.startup-template(type="text/template")
     .start.modal.hide.fade
         .modal-header
             a.close(href="#") × 
-            h3 Start App
+            h3 Start Service
         form.modal-body
             .clearfix
-                label Domain Name
-                .input
-                    input.required.domain(type="text",name="domain",value="<%= item.domain%>")
-                    span.help-block Select domain name for this service
-            .clearfix
-                label Server to run
-                .input
-                    #items
-                    span.help-block Server(s) to run app on. If more then one server selected, load balancing will be performed.
         .modal-footer
-            a.btn.primary.execute(href="#") Start App
+            a.btn.primary.execute(href="#") Restart Service
             a.btn.secondary.cancel(href="#") Cancel
 
 // Stop dialog
-script.stop-template(type="text/template")
+script.shutdown-template(type="text/template")
     .modal.hide.fade
         .modal-header
             a.close(href="#") × 
-            h3 Stop App
+            h3 Stop Service
         form.modal-body
             .clearfix
-                label App Data
-                .input
-                    ul.inputs-list
-                        li
-                            label
-                                input(type="radio", checked="true", name="data", value="keep")
-                                b Keep application data
-                                span.help-block You can restart application later
-                        li
-                            label
-                                input(type="radio", name="data", value="delete")
-                                span.red Complete delete all application data
-                                span.help-block This cannot be undone! Use this with caution.
         .modal-footer
-            a.btn.primary.execute(href="#") Stop App
+            a.btn.primary.execute(href="#") Stop Service
             a.btn.secondary.cancel(href="#") Cancel
 

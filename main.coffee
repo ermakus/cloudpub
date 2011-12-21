@@ -3,6 +3,7 @@ stylus   = require 'stylus'
 assets   = require 'connect-assets'
 nconf    = require 'nconf'
 async    = require 'async'
+passport = require 'passport'
 
 account  = require './account'
 service  = require './service'
@@ -29,6 +30,10 @@ createApp = ->
     app.use express.static(publicDir)
     app.use express.cookieParser()
     app.use express.bodyParser()
+    # Initialize passport auth
+    app.use(passport.initialize())
+    app.use(passport.session())
+
     app.sessionStore = new MemoryStore()
 
     # Session backend

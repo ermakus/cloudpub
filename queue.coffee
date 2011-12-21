@@ -15,6 +15,12 @@ exports.Queue = class Queue extends state.State
         # List of worker IDs
         @workers = []
 
+    resolve: (cb)->
+        async.map @workers, state.load, (err, items)=>
+            return cb and cb(err) if err
+            @workers = items
+            cb and cb(null)
+
     start: (cb) ->
         if @workers.length
             state.load @workers[0], (err, worker) =>
@@ -41,7 +47,7 @@ exports.Queue = class Queue extends state.State
 
     # Worker error handler
     failure: (event, cb) ->
-        @setState 'error', event.worker.error.message, cb
+        @setState 'error', event.error.message, cb
 
     # Worker success handler
     success: (event, cb) ->

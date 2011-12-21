@@ -1,11 +1,30 @@
-form   = require 'express-form'
-nconf  = require 'nconf'
-passwd = require './passwd'
+form     = require 'express-form'
+passport = require 'passport'
+nconf    = require 'nconf'
+passport = require 'passport'
+
+passwd   = require './passwd'
+
+LocalStrategy = require('passport-local').Strategy
+
+passport.use new LocalStrategy( {
+    usernameField: 'uid',
+    passwordField: 'password'
+  },
+  (username, password, done)->
+      console.log "Auth #{username}"
+      return done(null, {id:username})
+)
+
+passport.serializeUser (user, done)->
+    done(null, user.id)
+
+passport.deserializeUser (id, done)->
+    done(null, {id})
 
 MEGANON='anton'
 
-PAM_SERVICE = "system-auth"
-AFTER_LOGIN = '/services'
+AFTER_LOGIN = '/app'
 
 cache = []
 
@@ -120,20 +139,25 @@ exports.init = (app, cb)->
         else
             resp.render 'login', {next}
 
-    app.post '/login', validate_login_form, (req, resp) ->
-        next = req.param('next', AFTER_LOGIN )
+    app.post '/login', validate_login_form, (req, resp, next) ->
+
+        nextPage = req.param('next', AFTER_LOGIN )
         if not req.form.isValid
-            resp.render 'login', {error:req.form.errors.join('<br/>'), next:next}
+            resp.render 'login', {error:req.form.errors.join('<br/>'), next:nextPage}
         else
-            exports.auth req.form.uid, req.form.password, (err)->
-                if err
-                    resp.render 'login', {error:err, next:next}
-                else
-                    req.session.uid = req.form.uid
-                    resp.redirect next
+            auth = passport.authenticate 'local', {
+                successRedirect: nextPage,
+                failureRedirect: '/login'
+            }, (err, user)->
+                console.log "User logged in", user
+                req.session.uid = user.id
+                resp.redirect nextPage
+
+            return auth( req, resp, next )
 
     app.get '/logout', (req, resp)->
         req.session.destroy()
+        req.logOut()
         resp.redirect '/login'
 
     app.get '/account', exports.force_login, (req, resp)->

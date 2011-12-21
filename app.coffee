@@ -15,6 +15,7 @@ exports.App = class App extends group.Group
 
     init: ->
         super()
+        @name = "Master Node"
         # Instance ID service run on
         @instance = undefined
         # Application ID to run
@@ -43,6 +44,7 @@ exports.App = class App extends group.Group
             return cb and cb(err) if err
             # Subscribe to state event
             async.series [
+                (cb)=> service.stop(cb),
                 (cb)=> service.install(cb),
                 (cb)=> service.startup(cb),
             ], cb
@@ -60,6 +62,7 @@ exports.App = class App extends group.Group
                     cb and cb(null)
 
             async.series [
+                (cb) => service.stop(cb),
                 (cb) => service.shutdown(cb),
                 (cb) => ifUninstall(cb)
             ], cb
