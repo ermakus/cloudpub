@@ -14,7 +14,7 @@ script.list-template(type="text/template")
             tr
                 th.status Status
                 th.service Server Address
-                th.worker Workers 
+                th.worker Services 
                 th.control Launch
         tbody
             <% _.each( items, function(item) { %>
@@ -23,9 +23,9 @@ script.list-template(type="text/template")
                     .state-icon
                         a(href="#", title="<%=item.state%>: <%=item.message%>")
                             img(src="state-<%=item.state%>.png")
-                            .state-hole <%= item.workers && item.workers.length || 0 %>
+                            .state-hole <%= item.children && item.children.length || 0 %>
                     .state-info
-                        h3 <%=item.id%>
+                        h3 <%=item.id %>
                         span <%= item.message %> 
                 td.domain
                     h3 <%= (item.address || "Not Available") %>
@@ -36,7 +36,7 @@ script.list-template(type="text/template")
                             .state-icon-small
                                 img(src="state-<%= service.state %>.png")
                                 input(type="checkbox",name="instance", value="<%= service.id %>")
-                            .state-info-small <%= service.message %>
+                            .state-info-small <%= service.id %>
                         <% });%>
                 td.control
                     <% if(item.state != "up") { %>

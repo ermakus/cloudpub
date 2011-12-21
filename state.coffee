@@ -28,7 +28,7 @@ exports.State = class State
 
     # Init state defaults
     init: ->
-        @_events = {}
+        @events = {}
         @state = 'down'
         @message = 'innocent'
 
@@ -38,10 +38,7 @@ exports.State = class State
         log.info "Save: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
         #console.trace()
         # Save persistend fields
-        _events = @_events
-        delete @['_events']
         nconf.set("object:" + @id, @)
-        @_events = _events
         nconf.set(@entity + ":" + @id, @id)
         nconf.save (err) =>
             cb and cb(err)
@@ -73,12 +70,14 @@ exports.State = class State
             write = log.error
         write.call log, "State: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
         io.emit 'anton', { entity:@entity, state:@state, message:@message }
-        @save cb
+        @emit 'state', @, (err)=>
+            return cb and cb(err) if err
+            @save cb
 
     # Emit event to registered handlers
     emit: (name, event, cb)->
-        if name of @_events
-            async.forEach @_events[name], ((handler, cb) ->
+        if name of @events
+            async.forEach @events[name], ((handler, cb) ->
                 # Load object from store
                 load handler.id, (err, item)->
                     return cb and cb(err) if err
@@ -89,11 +88,18 @@ exports.State = class State
             cb and cb(null)
 
     # Register event handler
+    # name = name of event
     # handler = name of method(event, cb)
-    # Id object id to call handler
+    # id = object id to call handler
     on: (name, handler, id)->
-        @_events[name] ?=[]
-        @_events[name].push {handler, id}
+        @events[name] ?=[]
+        @events[name].push {handler, id}
+
+    # Remove event handler
+    mute: (name, handler, id)->
+        if name of @events
+            @events[name] _.filter @[events].name, (h)->((h.id == id) and (h.handler == handler))
+
 
 # Create enity instance
 exports.create = create = (id, entity, package, cb) ->
@@ -158,8 +164,18 @@ exports.query = query = (entity, params, cb) ->
     json = nconf.get(entity)
     if not json or (_.isArray(json) and json.length == 0)
         json =  {}
+
+    load_resolve = (id, cb)->
+        load id, (err, item)->
+            return cb and cb(err) if err
+            if item.resolve
+                return item.resolve (err)->
+                    cb and cb(err, item)
+            else
+                return cb and cb(null, item)
+
     # Load async each entity by key
-    async.map _.keys(json), load, cb
+    async.map _.keys(json), load_resolve, cb
 
 exports.init = (app, cb)->
     log = io.log

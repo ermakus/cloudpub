@@ -13,6 +13,7 @@ state    = require './state'
 command  = require './command'
 worker   = require './worker'
 ec2      = require './ec2'
+queue    = require './queue'
 appl     = require './app'
 
 
@@ -56,6 +57,7 @@ exports.init = (cb) ->
     async.series [
         async.apply(io.init, app),
         async.apply(state.init, app),
+        async.apply(queue.init, app),
         async.apply(account.init, app),
         async.apply(appl.init, app),
         async.apply(service.init, app),

@@ -24,29 +24,36 @@ exports.App = class App extends group.Group
         # Domain
         @domain = 'cloudpub.us'
 
+
+    service: (id, instanceId, serviceType, cb)->
+        state.load id, (err, service)=>
+            return cb and cb(null, service) if service
+            state.create id, serviceType, (err, service)=>
+                service.on 'state', 'serviceState', @id
+                async.series [
+                    (cb)=> service.setApp(@id,cb),
+                    (cb)=> service.setInstance(instanceId,cb),
+                ], (err) -> cb and cb( err, service )
+
     # Run service on instance
     runService: (instanceId, serviceType, params, cb)->
         log.info "Run service #{serviceType} on #{instanceId}"
-        state.create null, serviceType, (err, service) =>
+        serviceId = @id + '-' + instanceId
+        @service serviceId, instanceId, serviceType, (err, service) =>
             return cb and cb(err) if err
             # Subscribe to state event
-            service.on 'state', 'serviceState', @id
             async.series [
-                (cb)=> service.setApp(@id,cb),
-                (cb)=> service.setInstance(instanceId,cb),
                 (cb)=> service.install(cb),
                 (cb)=> service.startup(cb),
             ], cb
 
-    # Run service on instance
+    # Stop service on instance
     stopService: (serviceId, params, cb)->
-
+        log.info "Stop service #{serviceId}"
         state.load serviceId, (err, service) =>
             return cb and cb(err) if err
-            if service.instance not in params.instance
-                return cb and cb(null)
 
-            ifDelete = (cb)->
+            ifUninstall = (cb)->
                 if params.data == 'delete'
                     service.uninstall(cb)
                 else
@@ -54,7 +61,7 @@ exports.App = class App extends group.Group
 
             async.series [
                 (cb) => service.shutdown(cb),
-                (cb) => ifUninstall(cb),
+                (cb) => ifUninstall(cb)
             ], cb
 
     # Service state event handler
@@ -91,8 +98,10 @@ exports.init = (app, cb)->
 
     app.register 'app'
 
-    state.create 'app-cloudpub', 'app', (err, item) ->
-        return cb and cb(err) if err
-        app.id = 'cloudpub'
-        app.title = 'Cloudpub Node'
-        item.save cb
+    state.load 'app-cloudpub', (err)->
+        if not err then return cb and cb(null)
+        state.create 'app-cloudpub', 'app', (err, item) ->
+            return cb and cb(err) if err
+            app.id = 'cloudpub'
+            app.title = 'Cloudpub Node'
+            item.save cb

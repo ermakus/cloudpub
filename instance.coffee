@@ -55,21 +55,10 @@ exports.init = (app, cb)->
 
     # List of instances
     list = (entity, cb)->
-        # Resolve workers for each instance
-        resolve = (item, cb)->
-            async.map item.children, state.load, (err, items)->
-                item.children = items
-                cb and cb(null, item)
 
-        query = (entity, cb)->
-            state.query entity, (err, items)->
-                return cb and cb(err) if err
-                async.forEach items, resolve, (err)->
-                    cb and cb(err, items)
- 
         async.parallel [
-            async.apply( query, 'instance' ),
-            async.apply( query, 'ec2' )
+            async.apply( state.query, 'instance' ),
+            async.apply( state.query, 'ec2' )
         ], (err, result)->
             return cb and cb(err) if err
             items = []

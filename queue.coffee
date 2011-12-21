@@ -15,26 +15,24 @@ exports.Queue = class Queue extends state.State
         # List of worker IDs
         @workers = []
 
-    clear: (cb)->
-        super (err)=>
-            return cb and cb(err) if err
-            @stopWork cb
-
     start: (cb) ->
         if @workers.length
-            state.load @workers[0], (err, worker) ->
+            state.load @workers[0], (err, worker) =>
                 return cb and cb(err) if err
                 return cb and cb(err) if (worker.state == 'up')
                 log.info "Starting worker #{worker.id}", worker.id
-                worker.start cb
+                worker.start (err)=>
+                    return cb and cb(err) if err
+                    @setState 'maintain', 'Work in progress', cb
         else
-            cb and cb(null)
+            @setState 'up', 'Ready', cb
 
     stopWorker: (id, cb)->
         state.load id, (err, worker) =>
             return cb and cb(err) if err
-            worker.stop (err) =>
-                @workers =  _.without @workers, worker.id
+            worker.clear (err) =>
+                return cb and cb(err) if err
+                @workers =  _.without @workers, id
                 @save cb
 
     stop: (cb)->
@@ -43,7 +41,7 @@ exports.Queue = class Queue extends state.State
 
     # Worker error handler
     failure: (event, cb) ->
-        @setState 'error', "Queue: Worker failed", cb
+        @setState 'error', event.worker.error.message, cb
 
     # Worker success handler
     success: (event, cb) ->

@@ -36,7 +36,10 @@ exports.Group = class Group extends state.State
         async.forEach @children, process, cb
 
     resolve: (cb)->
-        async.map @children, state.load, cb
+        async.map @children, state.load, (err, items)=>
+            return cb and cb(err) if err
+            @children = items
+            cb and cb(null)
 
     # Start service
     start: (cb)->
