@@ -4,7 +4,7 @@ account = require './account'
 state   = require './state'
 
 ENTITY_NEW       = 'new'
-ALLOWED_COMMANDS = ['start','stop']
+ALLOWED_COMMANDS = ['startup','shutdown']
 PUBLIC_KEY_FILE = "/home/anton/.ssh/id_rsa.pub"
 
 try
@@ -13,17 +13,17 @@ catch e
     PUBLIC_KEY = "Not found - please run ssh-keygen"
 
 COMMAND_FORMS =
-    service_start: form(
-        form.validate("id").required().is(/^[a-z0-9\.]+$/)
+    app_startup: form(
+        form.validate("id").required().is(/^[a-z0-9\-\.]+$/)
         form.filter("domain").trim().toLower(),
         form.validate("domain").required().is(/^[a-z0-9\.]+$/)
         form.validate("instance").required()
     )
-    service_stop: form(
-        form.validate("id").required().is(/^[a-z0-9\.]+$/)
+    app_shutdown: form(
+        form.validate("id").required().is(/^[a-z0-9\-\.]+$/)
         form.validate("data").required().is(/^(keep|delete)$/)
     )
-    instance_start: form(
+    instance_startup: form(
         form.validate("id").required().is(/^[a-z0-9\.\-]+$/)
         form.validate("cloud").required().is(/^(ec2|ssh)$/)
         form.filter("user").trim().toLower(),
@@ -31,7 +31,7 @@ COMMAND_FORMS =
         form.filter("address").trim().toLower(),
         form.validate("address").is(/^[a-z0-9\.]+$/)
     )
-    instance_stop: form(
+    instance_shutdown: form(
         form.validate("id").required().is(/^[a-z0-9\.\-]+$/)
         form.validate("mode").required().is(/^(maintain|shutdown)$/)
     )

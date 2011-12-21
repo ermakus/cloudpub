@@ -2,73 +2,52 @@ async   = require 'async'
 _       = require 'underscore'
 account = require './account'
 command = require './command'
+group   = require './group'
 state   = require './state'
-queue   = require './queue'
 
 # Instance class
-exports.Instance = class Instance extends queue.Queue
+exports.Instance = class Instance extends group.Group
 
     init: ->
         super()
 
     configure: (params, cb) ->
-
         @address = params.address
         @user = params.user
-
         if not (@address and @user)
-            return cb and cb( new Error('Invalid address or user' + params.cloud) )
-        
+            return cb and cb( new Error('Invalid address or user') )
         if not params.id
             @id = 'i-' + @address.split('.').join('-')
-        
-        @setState 'maintain', "Configured with #{@user}@#{@address}", cb
+        @setState 'up', "Configured with #{@user}@#{@address}", cb
 
     # Start instance
-    start: (params, cb) ->
-        if typeof(params) == 'function'
-            cb = params
-            params = {}
-        # Super
-        start = queue.Queue.prototype.start
-
+    startup: (params, ccb) ->
         async.series [
+                (cb)=> @stop(cb),
                 (cb)=> @configure(params, cb),
-                (cb)=> @install(params, cb),
-                (cb)=> start.call(@, cb),
-        ], cb
+                (cb)=> @install(cb),
+                (cb)=> @start(cb),
+        ], ccb
 
     # Stop instance
-    stop: (params, cb) ->
-        if typeof(params) == 'function'
-            cb = params
-            params = {}
-
+    shutdown: (params, cb) ->
         ifUninstall = (cb)=>
             if params.mode == 'shutdown'
                 @uninstall params, cb
             else
                 cb(null)
     
-        stop = queue.Queue.prototype.stop
-
         async.series [
-            (cb) => @setState("maintain", "In maintaince mode", cb),
-            (cb) => ifUninstall(cb),
-            (cb) => stop.call(@,cb)
+            (cb)=> @stop(cb),
+            (cb)=> ifUninstall(cb),
+            (cb)=> @setState('maintain','On maintaince', cb),
+            (cb)=> @start(cb),
         ], cb
 
-    submit: (task, params, cb) ->
-        params.address = @address
-        params.user = @user
-        super task, params, cb
+    install: (cb) ->
+        cb and cb(null)
 
-    install: (params, cb) ->
-        state.load 'cloudpub', 'cloudpub', (err, service) =>
-            service.instance = [@id]
-            service.start cb
-
-    uninstall: (params, cb) ->
+    uninstall: (cb) ->
         cb and cb(null)
 
 # Init HTTP request handlers
@@ -78,8 +57,8 @@ exports.init = (app, cb)->
     list = (entity, cb)->
         # Resolve workers for each instance
         resolve = (item, cb)->
-            async.map item.workers, state.load, (err, workers)->
-                item.workers = workers
+            async.map item.children, state.load, (err, items)->
+                item.children = items
                 cb and cb(null, item)
 
         query = (entity, cb)->

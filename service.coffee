@@ -10,104 +10,67 @@ state    = require './state'
 # Default service object
 
 
-exports.Service = class Service extends state.State
+exports.Service = class Service extends queue.Queue
 
     init: ->
         super()
-        # Service display name
-        @name = 'cloudpub'
-
-        # Service domain
-        @domain = 'cloudpub.us'
-
-        # Instance IDs service run on
-        @instance = []
-
+        # Instance ID service run on
+        @instance = undefined
+        # Application ID to run
+        @app = undefined
         # User account to run
-        @user = 'cloudpub'
+        @user = undefined
+        # Domain
+        @domain = undefined
 
-    # Configure service
-    configure: (params, cb)->
-        @domain = params.domain or "#{@id}.#{@user}.cloudpub.us"
-        if _.isArray params.instance
-            @instance = params.instance
-        else
-            if params.instance
-                @instance = [params.instance]
-            else
-                return cb and cb(new Error("Instance node set") )
+    # Set service application
+    setApp: (appId, cb)->
+        state.load appId, (err, app)=>
+            return cb and cb(err) if err
+            @app = appId
+            app.add @id, cb
 
-        @setState 'maintain', "App configured", cb
+    # Set service instance
+    setInstance: (instanceId, cb)->
+        state.load instanceId, (err, instance)=>
+            return cb and cb(err) if err
+            @instance = instanceId
+            @user = instance.user
+            @address = instance.address
+            @home = "/home/#{instance.user}/.cloudpub"
+            instance.add @id, cb
 
+    # Submit task to work queue
+    submit: (task, params, cb)->
 
-    # Start service
-    start: (params, cb)->
-        async.series [
-            ((cb)=>@configure params, cb),
-            ((cb)=>@setState "maintain", "Installing to servers", cb),
-            ((cb)=>@runEach @install, params, cb)
-            ((cb)=>@runEach @startup, params, cb)
-        ], cb
+        if not (@address and @user and @home and @instance and @app)
+            return cb and cb(new Error("Service not initialized"))
 
-    # Stop service
-    stop: (params, cb)->
-        params ?= {}
-        if params.data != 'keep'
-            async.series [
-                ((cb)=>@setState "maintain", "Uninstalling from servers", cb),
-                ((cb)=>@runEach @shutdown, params, cb),
-                ((cb)=>@runEach @uninstall, params, cb)
-            ], cb
-        else
-            async.series [
-                ((cb)=>@setState "maintain", "Maintaince", cb),
-                ((cb)=>@runEach @shutdown, params, cb)
-            ], cb
-
-    # Run command for each instance
-    runEach: (method, params, cb)->
-
-        service = @
-
-        process = (id, cb)->
-            state.load id, (err, instance) ->
-                params.instance = instance
-                method.call service, params, instance, (err)->
-                    cb and cb( err, instance )
-
-        async.forEach @instance, process, cb
-
-    startup: ( params, instance, cb) ->
+        params.address = @address
+        params.user = @user
+        params.home = @home
+        
+        super task, params, cb
+    
+    # Startup handler
+    startup: (cb) ->
         cb and cb(new Error('Not impelemented for this service'))
 
-    shutdown: ( params, instance, cb) ->
+    # Shutdown handler
+    shutdown: (cb) ->
         cb and cb(new Error('Not impelemented for this service'))
 
-    install: ( params, instance, cb) ->
+    # Install handler
+    install: (cb) ->
         cb and cb(new Error('Not impelemented for this service'))
 
-    uninstall: ( params, instance, cb ) ->
+    # Uninstall handler
+    uninstall: (cb) ->
         cb and cb(new Error('Not impelemented for this service'))
 
-
+    
 # Init request handlers here
 exports.init = (app, cb)->
-    # Register default handler
-    list = (entity, cb) ->
-        # Load predefined apps form storage (or create new one)
-        state.query 'cloudpub', (err, items) ->
-                return cb and cb(err) if err
-                # For each service
-                async.map items, ((item, callback)->
-                    # Resolve instances from storage
-                    async.map item.instance, state.load, (err, instance)->
-                        return callback and callback(err, item) if err
-                        item.instance = instance
-                        # Fire item callback and pass resolved item
-                        callback and callback(null, item)
-                ), cb
-
-    app.register 'service', list
-
-    state.create 'cloudpub', 'cloudpub', (err, item) ->
-        item.save cb
+    # List of services
+    app.register 'service', ((entity, cb)->state.query('cloudpub', cb)), ((id, entity, cb)->state.load( id, cb ))
+    cb and cb(null)

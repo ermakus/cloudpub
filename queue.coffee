@@ -50,7 +50,7 @@ exports.Queue = class Queue extends state.State
         log.info "Queue: Worker #{event.worker.id} succeeded"
         @stopWorker event.worker.id, (err)=>
             return cb and cb(err) if err
-                @start cb
+            @start cb
 
     # Create new worker
     submit: ( type, params, cb ) ->

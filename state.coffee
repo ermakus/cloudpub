@@ -146,6 +146,8 @@ exports.load = load = (id, entity, package, cb) ->
         if stored
             _.extend obj, stored
             log.info "Loaded #{package}.#{entity} [#{id}]"
+            if obj.loaded
+                return obj.loaded cb
         cb and cb( null, obj )
 
 # Query states by params and cb( error, [entities] )

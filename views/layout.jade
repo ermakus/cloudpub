@@ -19,7 +19,7 @@ html(lang='en')
     - if(session.uid)
         script(src='/socket.io/socket.io.js')
         script(src='/ZeroClipboard.js')
-    != js('/js/app.js')
+    != js('/js/main.js')
     // CSS
     != css('/css/bootstrap.css')
     != css('/css/app.css')
@@ -42,11 +42,11 @@ html(lang='en')
                   span Login
             - else
               li
+                a(href='/app') Apps
+              li
+                a(href='/service') Services
+              li
                 a(href='/instance') Servers
-              li
-                a(href='/service') Apps
-              li
-                a(href='/worker') Workers
               li
                 a(href='/account')
                     span Account&nbsp;(

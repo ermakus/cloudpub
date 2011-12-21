@@ -13,6 +13,7 @@ state    = require './state'
 command  = require './command'
 worker   = require './worker'
 ec2      = require './ec2'
+appl     = require './app'
 
 
 publicDir = __dirname + '/public'
@@ -56,6 +57,7 @@ exports.init = (cb) ->
         async.apply(io.init, app),
         async.apply(state.init, app),
         async.apply(account.init, app),
+        async.apply(appl.init, app),
         async.apply(service.init, app),
         async.apply(worker.init, app),
         async.apply(domain.init, app),

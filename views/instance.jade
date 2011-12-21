@@ -3,7 +3,7 @@ h1 Servers
 .page
     .loading
 
-a.btn.primary.start-new(href="#") Start New Server
+a.btn.primary.startup-new(href="#") Start New Server
 
 != js('/js/instance.js')
 
@@ -31,24 +31,24 @@ script.list-template(type="text/template")
                     h3 <%= (item.address || "Not Available") %>
                 td.worker
                     ul.state-list
-                        <% _.each(item.workers, function(worker) { if(!worker) worker={'id':'null','state':'error','message':'Invalid'}; %>
+                        <% _.each(item.children, function(service) { %>
                         li
                             .state-icon-small
-                                img(src="state-<%=worker.state%>.png")
-                                input(type="checkbox",name="instance", value="<%= item.id %>")
-                            .state-info-small <%= worker.entity %>: <%= worker.message %>
+                                img(src="state-<%= service.state %>.png")
+                                input(type="checkbox",name="instance", value="<%= service.id %>")
+                            .state-info-small <%= service.message %>
                         <% });%>
                 td.control
                     <% if(item.state != "up") { %>
-                    img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="start")
+                    img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="startup")
                     <% } %>
                     <% if(item.state == "error" || item.state == "up" || item.state == "maintain") { %>
-                    img.btn.command(src="command-stop.png",data-id="<%=item.id%>",data-command="stop")
+                    img.btn.command(src="command-stop.png",data-id="<%=item.id%>",data-command="shutdown")
                     <% } %>
             <% }); %>
 
-script.start-template(type="text/template")
-    .start.modal.hide.fade
+script.startup-template(type="text/template")
+    .startup.modal.hide.fade
         .modal-header
             a.close(href="#") × 
             h3 Start Server
@@ -87,7 +87,7 @@ script.start-template(type="text/template")
             a.btn.primary.execute(href="#") Start
             a.btn.secondary.cancel(href="#") Cancel
 
-script.stop-template(type="text/template")
+script.shutdown-template(type="text/template")
     .modal.hide.fade(style="display:none;")
         .modal-header
             a.close(href="#") × 

@@ -1,10 +1,10 @@
-h1 Services
+h1 Apps
 // Put controls into this div
 .page
     .loading
 
 // Module script
-!= js('/js/service.js')
+!= js('/js/app.js')
 
 // Below is client-side _.templates (use <% %>!)
 // Items list
@@ -12,11 +12,10 @@ script.list-template(type="text/template")
     table.bordered-table.zebra-striped
         thead
             tr
-                th.state Service
-                th.domain App
-                th.domain Server
-                th.worker Workers
-                th.control &nbsp;
+                th.state App
+                th.domain Domain
+                th.worker Services
+                th.control &nbsp; 
         tbody
             <% _.each(items, function(item) { %>
             tr
@@ -30,30 +29,39 @@ script.list-template(type="text/template")
                         span <%= item.message %> 
                 td.domain
                     h3
-                        <%=item.app%>
-                 td.domain
-                    h3
-                        <%=item.instance%>
+                        a(href="http://<%= item.domain %>",target="_new") <%=item.domain%>
                 td.worker
                     ul.state-list
-                        <% _.each(item.workers, function(worker) { %>
+                        <% _.each(item.children, function(child) { %>
                         li
                             .state-icon-small
-                                img(src="state-<%=worker.state%>.png")
-                                input(type="checkbox",name="instance", value="<%= worker.id %>", checked="true")
-                            .state-info-small <%= worker %>
+                                img(src="state-<%=child.state%>.png")
+                                input(type="checkbox",name="service", value="<%= child.id %>", checked="true")
+                            .state-info-small <%= child.id %>
                         <% }); %>
                 td.control
                     <% if(item.state != "up") { %>
-                    img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="start")
+                    img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="startup")
                     <% } if(item.state != "down") { %>
-                    img.btn.command(src="command-stop.png",data-id="<%=item.id%>",data-command="stop")
+                    img.btn.command(src="command-stop.png",data-id="<%=item.id%>",data-command="shutdown")
                     <% } %>
             <% }); %>
 
+// Instances list
+script.instances-template(type="text/template")
+    ul.state-list
+        <% _.each(items, function(item) { %>
+        li
+            .state-icon-small
+                img(src="state-<%=item.state%>.png")
+                input(type="checkbox",name="instance", value="<%= item.id %>")
+            .state-info-small <%= item.address %>
+        <% }); %>
+
+  
 // Start dialog
-script.start-template(type="text/template")
-    .start.modal.hide.fade
+script.startup-template(type="text/template")
+    .startup.modal.hide.fade
         .modal-header
             a.close(href="#") × 
             h3 Start App
@@ -73,7 +81,7 @@ script.start-template(type="text/template")
             a.btn.secondary.cancel(href="#") Cancel
 
 // Stop dialog
-script.stop-template(type="text/template")
+script.shutdown-template(type="text/template")
     .modal.hide.fade
         .modal-header
             a.close(href="#") × 
