@@ -12,7 +12,7 @@ exports.emit = (uid, msg) ->
     if uid of UID2SOCKET
         UID2SOCKET[ uid ].emit('message', msg)
     else
-        log.error "ECan't push event", msg
+        log.warn "Can't push event", msg
 
 exports.init = (app, cb)->
 

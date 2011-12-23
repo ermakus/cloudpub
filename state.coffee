@@ -7,8 +7,6 @@ uuid    = require './uuid'
 
 log = console
 
-CACHE = {}
-
 #
 # Persistent state
 #
@@ -127,6 +125,7 @@ exports.create = create = (id, entity, package, cb) ->
 
 # Load state from module
 exports.load = load = (id, entity, package, cb) ->
+
     if typeof(package) == 'function'
         cb = package
         package = entity
@@ -178,5 +177,9 @@ exports.query = query = (entity, params, cb) ->
     async.map _.keys(json), load_resolve, cb
 
 exports.init = (app, cb)->
+
+    nconf.file
+        file: __dirname + '/settings.conf'
+
     log = io.log
     cb and cb(null)

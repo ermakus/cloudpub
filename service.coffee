@@ -41,7 +41,7 @@ exports.Service = class Service extends queue.Queue
             instance.add @id, cb
 
     # Submit task to work queue
-    submit: (task, params, cb)->
+    submit: (params, cb)->
 
         if not (@address and @user and @home and @instance and @app)
             return cb and cb(new Error("Service not initialized"))
@@ -50,7 +50,7 @@ exports.Service = class Service extends queue.Queue
         params.user = @user
         params.home = @home
         
-        super task, params, cb
+        super params, cb
     
     # Startup handler
     startup: (cb) ->

@@ -1,7 +1,6 @@
 express  = require 'express'
 stylus   = require 'stylus'
 assets   = require 'connect-assets'
-nconf    = require 'nconf'
 async    = require 'async'
 passport = require 'passport'
 
@@ -54,9 +53,6 @@ createApp = ->
     app
 
 exports.init = (cb) ->
-    nconf.file
-        file: __dirname + '/settings.conf'
-
     app = createApp()
     
     async.series [

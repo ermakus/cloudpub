@@ -26,6 +26,7 @@ exports.App = class App extends group.Group
         @domain = 'cloudpub.us'
 
 
+    # Load or create service
     service: (id, instanceId, serviceType, cb)->
         state.load id, (err, service)=>
             return cb and cb(null, service) if service
@@ -70,7 +71,7 @@ exports.App = class App extends group.Group
     # Service state event handler
     serviceState: (event, cb)->
         # Replicate last service state
-        @setState event.state, event.message, cb
+        @updateState cb
     
     # Start service
     startup: (params, cb)->

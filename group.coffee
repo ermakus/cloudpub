@@ -12,10 +12,12 @@ exports.Group = class Group extends state.State
         @children = []
 
 
+    # Add children to list
     add: (id, cb) ->
         @children.push id
         @save cb
 
+    # Remove children from list
     remove: (id, cb) ->
         if id in @children
             @children = _.except @children, id
@@ -35,17 +37,47 @@ exports.Group = class Group extends state.State
 
         async.forEach @children, process, cb
 
+    # Update group state from children states
+    # UP = all children is up
+    # DOWN or ERROR = has down or error children
+    # MAINTAIN = has up or maintain children
+    updateState: (cb)->
+
+        st = 'up'
+        message = null
+
+        checkState = (id, cb)->
+            state.load id, (err, child)->
+                return cb and cb(err) if err
+                if (child.state == 'down') or (child.state == 'error')
+                    st      = child.state
+                    message = child.message
+                    return cb and cb(null)
+                if st == 'up' and child.state == 'maintain'
+                    st   = child.state
+                    message = child.message
+                    return cb and cb(null)
+                if st == 'up' and child.state == 'up'
+                    st   = child.state
+                    message = child.message
+                return cb and cb(null)
+
+        async.forEach @children, checkState, (err)=>
+            return cb and cb(err) if err
+            @setState st, message, cb
+
+    # Resolve children IDs to objects from storage
     resolve: (cb)->
         async.map @children, state.load, (err, items)=>
             return cb and cb(err) if err
             @children = items
             cb and cb(null)
 
-    # Start service
+    # Start children
     start: (cb)->
         @each 'start', cb
 
-    # Stop service
+    # Stop children
     stop: (cb)->
         @each 'stop', cb
 

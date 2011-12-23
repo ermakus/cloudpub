@@ -50,15 +50,15 @@ window.Listing = class Listing
         @view = TEMPLATE(template or 'list')
         @timeout = 15000
         @timer = null
+        @reload()
 
+    hookCommands: ->
         self = @
-        $('.command').live 'click', ->
+        $(@node).find('.command').bind 'click', ->
             id = $(this).attr('data-id')
             command = $(this).attr('data-command')
-            handler = new CommandHandler(entity, command, self.items[id], (err) -> self.reload() )
+            handler = new CommandHandler(self.entity, command, self.items[id], (err) -> self.reload() )
             handler.show()
-        
-        @reload()
 
     # Render template
     render: ->
@@ -66,6 +66,7 @@ window.Listing = class Listing
         html = @view( items:@items )
         $(@node).html html
         $(@node).tablesorter()
+        @hookCommands()
 
     # Reload data
     reload: =>

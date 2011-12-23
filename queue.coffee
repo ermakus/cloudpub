@@ -31,7 +31,7 @@ exports.Queue = class Queue extends state.State
                     return cb and cb(err) if err
                     @setState 'maintain', 'Work in progress', cb
         else
-            @setState 'up', 'Ready', cb
+            return cb and cb(null)
 
     stopWorker: (id, cb)->
         state.load id, (err, worker) =>
@@ -54,12 +54,16 @@ exports.Queue = class Queue extends state.State
         log.info "Queue: Worker #{event.worker.id} succeeded"
         @stopWorker event.worker.id, (err)=>
             return cb and cb(err) if err
+            if _.isObject(event.worker.success)
+                @setState event.worker.success.state, event.worker.success.message, (err)=>
+                    return cb and cb(err) if err
+                    @start cb
             @start cb
 
     # Create new worker
-    submit: ( type, params, cb ) ->
-        log.info "Queue: Submit #{type}:", params
-        state.create null, type, 'worker', (err, worker) =>
+    submit: ( params, cb ) ->
+        log.info "Queue: Submit ", params
+        state.create null, params.task, params.package or 'worker', (err, worker) =>
             return cb and cb(err) if err
             worker.state = 'maintain'
             _.extend worker, params
