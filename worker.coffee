@@ -49,7 +49,7 @@ exports.Worker = class Worker extends state.State
                     else
                         log.error "Worker #{@id} failed", err
         
-        @setState "up", "Worker #{@id} started", cb
+        @setState "up", cb
 
     stop: (cb)->
         if @pid

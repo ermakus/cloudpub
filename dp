@@ -1,0 +1,4 @@
+#!/bin/sh
+FILE=$1
+LINENO=$(expr $2 - 1)
+./node_modules/coffee-script/bin/coffee -c -p $FILE | sed -n "$LINENO,+2 p"

@@ -20,7 +20,7 @@ exports.Group = class Group extends state.State
     # Remove children from list
     remove: (id, cb) ->
         if id in @children
-            @children = _.except @children, id
+            @children = _.without @children, id
             @save cb
         else
             cb and cb(null)
@@ -40,7 +40,7 @@ exports.Group = class Group extends state.State
     # Update group state from children states
     # UP = all children is up
     # DOWN or ERROR = has down or error children
-    # MAINTAIN = has up or maintain children
+    # MAINTAIN = has up and maintain children
     updateState: (cb)->
 
         st = 'up'

@@ -2,34 +2,23 @@ _       = require 'underscore'
 async   = require 'async'
 state   = require './state'
 io      = require './io'
-
+group   = require './group'
 log     = console
 
 #
 # Work queue
 #
-exports.Queue = class Queue extends state.State
-
-    init: ->
-        super()
-        # List of worker IDs
-        @workers = []
-
-    resolve: (cb)->
-        async.map @workers, state.load, (err, items)=>
-            return cb and cb(err) if err
-            @workers = items
-            cb and cb(null)
+exports.Queue = class Queue extends group.Group
 
     start: (cb) ->
-        if @workers.length
-            state.load @workers[0], (err, worker) =>
+        if @children.length
+            state.load @children[0], (err, worker) =>
                 return cb and cb(err) if err
                 return cb and cb(err) if (worker.state == 'up')
                 log.info "Starting worker #{worker.id}", worker.id
                 worker.start (err)=>
                     return cb and cb(err) if err
-                    @setState 'maintain', 'Work in progress', cb
+                    @updateState cb
         else
             return cb and cb(null)
 
@@ -38,12 +27,11 @@ exports.Queue = class Queue extends state.State
             return cb and cb(err) if err
             worker.clear (err) =>
                 return cb and cb(err) if err
-                @workers =  _.without @workers, id
-                @save cb
+                @remove id, cb
 
     stop: (cb)->
         # Clear all workers
-        async.forEach @workers,((id,cb)=>@stopWorker(id,cb)), cb
+        async.forEach @children,((id,cb)=>@stopWorker(id,cb)), cb
 
     # Worker error handler
     failure: (event, cb) ->
@@ -72,9 +60,7 @@ exports.Queue = class Queue extends state.State
             worker.on 'success', 'success', @id
 
             worker.save (err) =>
-                return cb and cb( err ) if err
-                @workers.push worker.id
-                @save (err) =>
+                @add worker.id, (err) =>
                     return cb and cb( err ) if err
                     @start cb
 

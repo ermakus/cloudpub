@@ -33,7 +33,7 @@ exports.Instance = class Instance extends group.Group
     shutdown: (params, cb) ->
         ifUninstall = (cb)=>
             if params.mode == 'shutdown'
-                @uninstall params, cb
+                @uninstall cb
             else
                 cb(null)
     

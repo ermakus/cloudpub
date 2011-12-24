@@ -113,7 +113,8 @@ exports.create = create = (id, entity, package, cb) ->
         return cb and cb( new Error("Can't create null entity") )
 
     module = require('./' + package)
-    entityClass = entity.charAt(0).toUpperCase() + entity.substring(1).toLowerCase()
+
+    entityClass = entity.charAt(0).toUpperCase() + entity.substring(1)
     Entity = module[ entityClass ]
     if not Entity
         cb and cb( new Error("Entity #{entity} not found in #{package}") )
