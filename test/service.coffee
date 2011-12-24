@@ -38,7 +38,8 @@ exports.ServiceTest = class extends checker.Checker
     # Test event emitter
     testEventEmitter: (cb)->
         async.waterfall [
-            (cb)=> @expect('test', cb),
+            (cb)=>
+                @expect('test', cb)
             (cb)=>
                 @application.on('state', 'onState', @id)
                 @application.emit('state', {'state':'test'}, cb)
@@ -61,7 +62,7 @@ exports.ServiceTest = class extends checker.Checker
                 @expect 'maintain', cb
              (cb)=>
                 # 5. Starting
-                @expect 'maintain', cb
+                @expect 'up', cb
              (cb)=>
                 # 6. Complete
                 @expect 'up', cb

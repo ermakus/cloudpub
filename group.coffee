@@ -48,7 +48,8 @@ exports.Group = class Group extends state.State
 
         checkState = (id, cb)->
             state.load id, (err, child)->
-                return cb and cb(err) if err
+                # Ignore non-exist children
+                return cb and cb(null) if err
                 if (child.state == 'down') or (child.state == 'error')
                     st      = child.state
                     message = child.message
@@ -75,9 +76,14 @@ exports.Group = class Group extends state.State
 
     # Start children
     start: (cb)->
-        @each 'start', cb
+        async.series [
+            (cb) => @each('start', cb)
+            (cb) => @updateState(cb)
+        ], cb
 
     # Stop children
     stop: (cb)->
-        @each 'stop', cb
-
+        async.series [
+            (cb) => @each('stop', cb)
+            (cb) => @updateState(cb)
+        ], cb

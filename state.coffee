@@ -156,6 +156,18 @@ exports.load = load = (id, entity, package, cb) ->
                 return obj.loaded cb
         cb and cb( null, obj )
 
+exports.loadOrCreate = loadOrCreate = (id, entity, package, cb )->
+    if typeof(package) == 'function'
+        cb = package
+        package = entity
+    if typeof(entity) == 'function'
+        cb = entity
+        package = entity = null
+    load id, entity, package, (err, obj)->
+        log.info "Load or create: ", err
+        return cb and cb(null, obj) if not err
+        create id, entity, package, cb
+
 # Query states by params and cb( error, [entities] )
 exports.query = query = (entity, params, cb) ->
     if typeof(params) == 'function'

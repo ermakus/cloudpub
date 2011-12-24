@@ -15,7 +15,7 @@ worker   = require './worker'
 ec2      = require './ec2'
 queue    = require './queue'
 appl     = require './app'
-
+suite    = require './suite'
 
 publicDir = __dirname + '/public'
 
@@ -66,4 +66,5 @@ exports.init = (cb) ->
         async.apply(domain.init, app),
         async.apply(instance.init, app),
         async.apply(ec2.init, app),
+        async.apply(suite.init, app),
     ], (err, res) -> cb(err, app)
