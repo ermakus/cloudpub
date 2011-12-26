@@ -8,6 +8,7 @@ exports.Cloudpub = class Cloudpub extends service.Service
             entity:  "shell"
             package: "worker"
             message: "Starting daemon"
+            state:   "maintain"
             command: ["#{@home}/cloudpub/bin/daemon",
                       "-b", "#{@home}/cloudpub",
                       "start", @id, "#{@home}/runtime/bin/node",
@@ -22,6 +23,7 @@ exports.Cloudpub = class Cloudpub extends service.Service
             entity:  "shell"
             package: "worker"
             message: "Stop daemon"
+            state:   "maintain"
             home:    "#{@home}/cloudpub"
             command:["#{@home}/cloudpub/bin/daemon", "stop", @id]
             success:
@@ -36,6 +38,7 @@ exports.Cloudpub = class Cloudpub extends service.Service
                             entity: 'sync'
                             package: "worker"
                             message: "Sync service files"
+                            state:   "maintain"
                             source:'/home/anton/Projects/cloudpub'
                             target: "#{@home}/"
                             success:
@@ -47,6 +50,7 @@ exports.Cloudpub = class Cloudpub extends service.Service
                             entity:  'shell'
                             package: 'worker'
                             message: "Install node.js runtime"
+                            state:   "maintain"
                             command:["#{@home}/cloudpub/bin/install", "node", "#{@home}/runtime"]
                             success:
                                 state:'maintain'
@@ -56,6 +60,8 @@ exports.Cloudpub = class Cloudpub extends service.Service
 
     uninstall: (cb) ->
         @submit({
+            state: 'maintain'
+            message: 'Uninstall service'
             entity:  'shell'
             package: 'worker'
             command:['rm','-rf', @home]

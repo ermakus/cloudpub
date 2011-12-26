@@ -51,22 +51,22 @@ exports.ServiceTest = class extends checker.Checker
         async.waterfall [
              (cb)=>
                 # 1. Sync files...
-                @expect 'maintain', cb
+                @expect 'maintain', 'Sync service files', cb
              (cb)=>
                 # 2. Sync done
-                @expect 'maintain', cb
+                @expect 'maintain', 'Service installed', cb
              (cb)=>
                 # 3. Compiling
-                @expect 'maintain', cb
+                @expect 'maintain', 'Install node.js runtime', cb
              (cb)=>
                 # 4. Compiling done
-                @expect 'maintain', cb
+                @expect 'maintain', 'Runtime compiled', cb
              (cb)=>
                 # 5. Starting
-                @expect 'up', cb
+                @expect 'maintain', 'Starting daemon', cb
              (cb)=>
                 # 6. Complete
-                @expect 'up', cb
+                @expect 'up', 'Online', cb
              (cb)=>
                 @application.on 'state', 'onState', @id
                 @application.startup {
@@ -78,20 +78,17 @@ exports.ServiceTest = class extends checker.Checker
     test3_Shutdown: (cb)->
         async.waterfall [
              (cb)=>
-                # 1. Clear queue
-                @expect 'down', cb
-             (cb)=>
                 # 1. Stop daemon
-                @expect 'maintain', cb
+                @expect 'maintain', 'Stop daemon', cb
              (cb)=>
-                # 3. Done
-                @expect 'down', cb
+                # 1. Daemon stopped
+                @expect 'down', 'Terminated', cb
              (cb)=>
-                # 3. Uninstall
-                @expect 'up', cb
-              (cb)=>
-                # 3. Done
-                @expect 'down', cb
+                # 3. Uninstalling service
+                @expect 'maintain', 'Uninstall service', cb
+             (cb)=>
+                # 3. Uninstalled
+                @expect 'down', 'Service uninstalled', cb
              (cb)=>
                 @application.on 'state', 'onState', @id
                 @application.shutdown {

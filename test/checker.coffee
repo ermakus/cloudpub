@@ -26,25 +26,31 @@ exports.Checker = class Checker extends state.State
                         cb and cb( new Error('Test method not defined') )
             ], cb
 
-    expect: (event, cb)->
-        @expected.push event
+    expect: (state, message, cb)->
+        if typeof( message ) == 'function'
+            cb = message
+            message = undefined
+        @expected.push {state,message}
         @save cb
 
     onState: (event, cb)->
         console.log "======================================================="
-        if not @expected.length or @expected[0] != event.state
-            console.log "Unexpected [" + event.state + "] " + event.message + " (" + event.id + ")"
-            console.log "Expect: ", @expected[0]
-            console.trace()
-            err = new Error("Unexpected event:" + JSON.stringify(event))
-            assert.ifError err
-            @emit 'failure', @, cb
-        else
-            console.log "Expected [" + event.state + "] " + event.message + " (" + event.id + ")"
-            console.log "======================================================="
-            @expected = @expected[1...]
-            @save (err)=>
-                if not @expected.length
-                    @emit 'success', @, cb
-                else
-                    cb and cb(err)
+        
+        if @expected.length
+            exp = @expected[0]
+            if (exp.state != event.state) or ((exp.message != event.message) and (exp.message != undefined))
+                console.log "Unexpected [" + event.state + "] " + event.message + " (" + event.id + ")"
+                console.log "Expect: ", @expected[0]
+                console.trace()
+                err = new Error("Unexpected event:" + JSON.stringify(event))
+                assert.ifError err
+                return @emit 'failure', @, cb
+
+        console.log "Expected [" + event.state + "] " + event.message + " (" + event.id + ")"
+        console.log "======================================================="
+        @expected = @expected[1...]
+        @save (err)=>
+            if not @expected.length
+                @emit 'success', @, cb
+            else
+                cb and cb(err)

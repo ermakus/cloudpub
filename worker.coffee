@@ -50,7 +50,7 @@ exports.Worker = class Worker extends state.State
                     else
                         log.error "Worker #{@id} failed", err
         
-        @setState "up", cb
+        cb and cb(null)
 
     stop: (cb)->
         if @pid
@@ -58,7 +58,7 @@ exports.Worker = class Worker extends state.State
                 process.kill @pid
             catch err
                 log.error "Process with #{@pid} not exists", err
-        @setState "down", "Killed", cb
+        cb and cb(null)
 
 # SSH global options
 SSH = "ssh -i #{SSH_PRIVATE_KEY} -o StrictHostKeyChecking=no -o BatchMode=yes"
@@ -99,7 +99,7 @@ exports.Preproc = class Preproc extends Worker
                     return @emit 'failure', err, @
                 else
                     return @emit 'success', "Done", @
-        @setState 'up', "Preprocessing", cb
+        cb and cb(null)
 
 
 exports.Proxy = class Proxy

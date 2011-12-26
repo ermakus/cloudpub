@@ -13,17 +13,18 @@ exports.Queue = class Queue extends group.Group
     start: (cb) ->
         log.info "Start queue #{@id}", @children
         if @children.length
-            state.load @children[0], (err, worker) =>
-                return cb and cb(err) if err
-                return cb and cb(err) if (worker.state == 'up')
-                log.info "Starting worker #{worker.id}", worker.id
-                worker.setState 'up', (err)=>
-                    return cb and cb(err) if err
-                    worker.start (err)=>
-                        return cb and cb(err) if err
-                        @updateState cb
+            @startWorker @children[0], cb
         else
             @emit 'success', @, cb
+
+    startWorker: (id, cb)->
+        state.load id, (err, worker)=>
+            return cb and cb(err) if err or worker.state == 'up'
+            async.waterfall [
+                (cb) => @setState(worker.state, worker.message, cb)
+                (cb) => worker.setState( 'up', cb )
+                (cb) => worker.start( cb )
+            ], cb
 
     stopWorker: (id, cb)->
         async.waterfall [
@@ -44,9 +45,6 @@ exports.Queue = class Queue extends group.Group
 
     # Worker success handler
     success: (worker, cb) ->
-        if not cb
-            cb = (err)->
-                console.log "Queue success handler error", err
         log.info "Queue: Worker #{worker.id} succeeded"
         @stopWorker worker.id, (err)=>
             return cb and cb(err) if err
@@ -62,13 +60,14 @@ exports.Queue = class Queue extends group.Group
         log.info "Queue: Submit " + JSON.stringify(params)
         state.create params, (err, worker) =>
             return cb and cb(err) if err
-            worker.state = 'maintain'
 
             worker.on 'failure', 'failure', @id
             worker.on 'success', 'success', @id
 
-            worker.save (err) =>
-                @add worker.id, cb
+            async.series [
+                (cb) => worker.save(cb)
+                (cb) => @add(worker.id, cb)
+            ], cb
 
 exports.init = (app, cb)->
     app.register 'queue'
