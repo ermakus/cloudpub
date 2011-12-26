@@ -74,7 +74,7 @@ exports.Group = class Group extends state.State
     resolve: (cb)->
         async.map @children, state.load, (err, items)=>
             return cb and cb(err) if err
-            @children = items
+            @_children = items
             cb and cb(null)
 
     # Start children

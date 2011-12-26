@@ -32,7 +32,7 @@ script.list-template(type="text/template")
                         a(href="http://<%= item.domain %>",target="_new") <%=item.domain%>
                 td.worker
                     ul.state-list
-                        <% _.each(item.children, function(child) { %>
+                        <% _.each(item._children, function(child) { %>
                         li
                             .state-icon-small
                                 img(src="state-<%=child.state%>.png")

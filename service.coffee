@@ -25,6 +25,7 @@ exports.Service = class Service extends queue.Queue
 
     # Set service application
     setApp: (appId, cb)->
+        @on 'state', 'serviceState', appId
         state.load appId, (err, app)=>
             return cb and cb(err) if err
             @app = appId
@@ -32,6 +33,7 @@ exports.Service = class Service extends queue.Queue
 
     # Set service instance
     setInstance: (instanceId, cb)->
+        @on 'state', 'serviceState', instanceId
         state.load instanceId, (err, instance)=>
             return cb and cb(err) if err
             @instance = instanceId

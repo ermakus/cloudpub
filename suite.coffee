@@ -5,6 +5,7 @@ assert = require 'assert'
 main   = require './main'
 state  = require './state'
 queue  = require './queue'
+nconf  = require 'nconf'
 
 exports.setUp = (cb)->
     main.init (err, app)->
@@ -48,7 +49,7 @@ exports.Suite = class Suite extends queue.Queue
             cb and cb(err)
 
 exports.init = (app, cb)->
-    if '--test' in process.argv
+    if nconf.get('test')
 
         list = (cb)->
             state.load 'test-suite', (err, item)->

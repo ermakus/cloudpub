@@ -11,6 +11,18 @@ exports.Instance = class Instance extends group.Group
     init: ->
         super()
 
+    # Service state event handler
+    serviceState: (event, cb)->
+        # Replicate last service state
+        @updateState cb
+ 
+    configureService: (serviceId, params, cb)->
+        state.load serviceId, (err, service)->
+            return cb and cb(err) if err
+            service.user = params.user
+            service.address = params.address
+            service.save cb
+
     configure: (params, cb) ->
         @address = params.address
         @user = params.user
@@ -18,7 +30,7 @@ exports.Instance = class Instance extends group.Group
             return cb and cb( new Error('Invalid address or user') )
         if not params.id
             @id = 'i-' + @address.split('.').join('-')
-        @setState 'up', "Configured with #{@user}@#{@address}", cb
+        async.forEach @children, ((serviceId, cb)=>@configureService( serviceId, params, cb )), cb
 
     # Start instance
     startup: (params, ccb) ->

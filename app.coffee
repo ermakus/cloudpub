@@ -31,7 +31,6 @@ exports.App = class App extends group.Group
         state.load id, (err, service)=>
             return cb and cb(null, service) if service
             state.create id, serviceType, (err, service)=>
-                service.on 'state', 'serviceState', @id
                 async.series [
                     (cb)=> service.setApp(@id,cb)
                     (cb)=> service.setInstance(instanceId,cb)

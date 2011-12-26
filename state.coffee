@@ -163,6 +163,8 @@ exports.load = load = (id, entity, package, cb) ->
             package = stored.package
 
     if id and not stored
+        console.log "Reference not found: ", id
+        console.trace()
         return cb and cb( new Error("Reference not found: [#{id}]") )
  
     create id, entity, package, (err, obj)->
@@ -218,8 +220,19 @@ exports.dumpCache = ->
 
 exports.init = (app, cb)->
 
-    nconf.file
-        file: __dirname + '/settings.conf'
+    nconf.argv()
+
+    nconf.defaults {
+        listen:3000
+        test:false
+    }
+
+    if not nconf.get('test')
+        nconf.file
+            file: __dirname + '/snapshot.json'
+    else
+        nconf.file
+            file: __dirname + '/test-snapshot.json'
 
     log = io.log
     cb and cb(null)
