@@ -5,7 +5,8 @@ exports.Cloudpub = class Cloudpub extends service.Service
        
     startup: (cb) ->
         @submit({
-            task:    "shell"
+            entity:  "shell"
+            package: "worker"
             message: "Starting daemon"
             command: ["#{@home}/cloudpub/bin/daemon",
                       "-b", "#{@home}/cloudpub",
@@ -18,7 +19,8 @@ exports.Cloudpub = class Cloudpub extends service.Service
 
     shutdown: (cb) ->
         @submit({
-            task:    "shell"
+            entity:  "shell"
+            package: "worker"
             message: "Stop daemon"
             home:    "#{@home}/cloudpub"
             command:["#{@home}/cloudpub/bin/daemon", "stop", @id]
@@ -31,7 +33,8 @@ exports.Cloudpub = class Cloudpub extends service.Service
         async.series( [
                 # Sync service files
                 (cb) => @submit({
-                            task: 'sync'
+                            entity: 'sync'
+                            package: "worker"
                             message: "Sync service files"
                             source:'/home/anton/Projects/cloudpub'
                             target: "#{@home}/"
@@ -41,7 +44,8 @@ exports.Cloudpub = class Cloudpub extends service.Service
                         }, cb),
                 # Install service deps
                 (cb) => @submit({
-                            task: 'shell'
+                            entity:  'shell'
+                            package: 'worker'
                             message: "Install node.js runtime"
                             command:["#{@home}/cloudpub/bin/install", "node", "#{@home}/runtime"]
                             success:
@@ -52,7 +56,8 @@ exports.Cloudpub = class Cloudpub extends service.Service
 
     uninstall: (cb) ->
         @submit({
-            task: 'shell'
+            entity:  'shell'
+            package: 'worker'
             command:['rm','-rf', @home]
             success:
                 state:'down'

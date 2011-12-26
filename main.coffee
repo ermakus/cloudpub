@@ -3,19 +3,10 @@ stylus   = require 'stylus'
 assets   = require 'connect-assets'
 async    = require 'async'
 passport = require 'passport'
-
-account  = require './account'
-service  = require './service'
-domain   = require './domain'
-instance = require './instance'
 io       = require './io'
-state    = require './state'
 command  = require './command'
-worker   = require './worker'
-ec2      = require './ec2'
-queue    = require './queue'
-appl     = require './app'
-suite    = require './suite'
+
+MODULES = [ 'state','queue', 'group', 'account', 'command', 'worker', 'service', 'domain', 'instance', 'ec2', 'app', 'suite' ]
 
 publicDir = __dirname + '/public'
 
@@ -52,19 +43,21 @@ createApp = ->
     app.get '/', (req, resp) -> resp.render 'main'
     app
 
+
 exports.init = (cb) ->
-    app = createApp()
     
+    app = createApp()
+
+    load_module = (module, cb)->
+        io.log.info "Init module: #{module}"
+        mod = require "./#{module}"
+        mod.log = io.log
+        if mod.init
+            mod.init app, cb
+        else
+            cb and cb(null)
+        
     async.series [
-        async.apply(io.init, app),
-        async.apply(state.init, app),
-        async.apply(queue.init, app),
-        async.apply(account.init, app),
-        async.apply(appl.init, app),
-        async.apply(service.init, app),
-        async.apply(worker.init, app),
-        async.apply(domain.init, app),
-        async.apply(instance.init, app),
-        async.apply(ec2.init, app),
-        async.apply(suite.init, app),
-    ], (err, res) -> cb(err, app)
+        (cb)-> io.init(app, cb)
+        (cb)-> async.forEachSeries MODULES, load_module, cb
+    ], (err)-> cb and cb(err, app)

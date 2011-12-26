@@ -36,14 +36,15 @@ exports.Worker = class Worker extends state.State
         
         ch.on 'exit', (code) =>
             if code == 0
-                @emit 'success', { message:stdout, worker:@ }, (err)=>
+                @message = stdout
+                @emit 'success', @, (err)=>
                     if err
                         log.error "Worker #{@id} success handler error", err
                     else
                         log.info "Worker #{@id} succeed"
             else
-                err = new Error( stderr )
-                @emit 'failure', { error:err, worker:@ }, (err)=>
+                @message = stderr
+                @emit 'failure', @, (err)=>
                     if err
                         log.error "Worker #{@id} fail handler error", err
                     else

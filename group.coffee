@@ -2,6 +2,8 @@ _       = require 'underscore'
 async   = require 'async'
 state   = require './state'
 
+log = console
+
 # Object group
 exports.Group = class Group extends state.State
 
@@ -20,6 +22,7 @@ exports.Group = class Group extends state.State
     # Remove children from list
     remove: (id, cb) ->
         if id in @children
+            log.info "Remove #{id} from #{@children}"
             @children = _.without @children, id
             @save cb
         else
@@ -31,7 +34,7 @@ exports.Group = class Group extends state.State
         process = (id, cb) ->
             state.load id, (err, instance) ->
                 return cb and cb(err) if err
-                console.log "Call method: #{method} of", instance
+                log.info "Call method: #{method} of #{instance.id}"
                 instance[method] (err)->
                     cb and cb( err, instance )
 
@@ -87,3 +90,7 @@ exports.Group = class Group extends state.State
             (cb) => @each('stop', cb)
             (cb) => @updateState(cb)
         ], cb
+
+init = (app, cb)->
+    log = exports.log
+    cb and cb(null)

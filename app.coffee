@@ -33,8 +33,9 @@ exports.App = class App extends group.Group
             state.create id, serviceType, (err, service)=>
                 service.on 'state', 'serviceState', @id
                 async.series [
-                    (cb)=> service.setApp(@id,cb),
-                    (cb)=> service.setInstance(instanceId,cb),
+                    (cb)=> service.setApp(@id,cb)
+                    (cb)=> service.setInstance(instanceId,cb)
+                    (cb)=> service.save(cb)
                 ], (err) -> cb and cb( err, service )
 
     # Run service on instance
@@ -45,9 +46,10 @@ exports.App = class App extends group.Group
             return cb and cb(err) if err
             # Subscribe to state event
             async.series [
-                (cb)=> service.stop(cb),
-                (cb)=> service.install(cb),
-                (cb)=> service.startup(cb),
+                (cb) => service.stop(cb)
+                (cb) => service.install(cb)
+                (cb) => service.startup(cb)
+                (cb) => service.start(cb)
             ], cb
 
     # Stop service on instance
@@ -63,9 +65,10 @@ exports.App = class App extends group.Group
                     cb and cb(null)
 
             async.series [
-                (cb) => service.stop(cb),
-                (cb) => service.shutdown(cb),
+                (cb) => service.stop(cb)
+                (cb) => service.shutdown(cb)
                 (cb) => ifUninstall(cb)
+                (cb) => service.start(cb)
             ], cb
 
     # Service state event handler

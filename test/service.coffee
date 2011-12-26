@@ -15,6 +15,7 @@ exports.ServiceTest = class extends checker.Checker
             # Save it
             (app, cb)=>
                 @application = app
+                app.events = {}
                 app.save cb
             # Create test instance
             (cb)->
@@ -36,7 +37,7 @@ exports.ServiceTest = class extends checker.Checker
         ], callback
 
     # Test event emitter
-    testEventEmitter: (cb)->
+    test1_TestChecker: (cb)->
         async.waterfall [
             (cb)=>
                 @expect('test', cb)
@@ -46,11 +47,11 @@ exports.ServiceTest = class extends checker.Checker
         ], cb
 
     # Test app startup
-    testStartup: (cb)->
+    test2_Startup: (cb)->
         async.waterfall [
              (cb)=>
                 # 1. Sync files...
-                @expect 'up', cb
+                @expect 'maintain', cb
              (cb)=>
                 # 2. Sync done
                 @expect 'maintain', cb
@@ -70,6 +71,28 @@ exports.ServiceTest = class extends checker.Checker
                 @application.on 'state', 'onState', @id
                 @application.startup {
                     domain: 'localhost'
+                    instance: @instance.id
+                }, cb
+        ], cb    # Test app startup
+
+    test3_Shutdown: (cb)->
+        async.waterfall [
+             (cb)=>
+                # 1. Stop daemon
+                @expect 'maintain', cb
+             (cb)=>
+                # 3. Done
+                @expect 'down', cb
+             (cb)=>
+                # 3. Uninstall
+                @expect 'up', cb
+              (cb)=>
+                # 3. Done
+                @expect 'down', cb
+             (cb)=>
+                @application.on 'state', 'onState', @id
+                @application.shutdown {
+                    data: 'delete'
                     instance: @instance.id
                 }, cb
         ], cb

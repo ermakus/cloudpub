@@ -33,7 +33,7 @@ exports.State = class State
     # Save state
     save: (cb) ->
         return cb and cb(null) unless @id
-        log.info "Save: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
+        log.debug "Save: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
         #console.trace()
         # Save persistend fields
         nconf.set("object:" + @id, @)
@@ -74,11 +74,13 @@ exports.State = class State
 
     # Emit event to registered handlers
     emit: (name, event, cb)->
+        entity = @entity
         if name of @events
             async.forEach @events[name], ((handler, cb) ->
                 # Load object from store
                 load handler.id, (err, item)->
                     return cb and cb(err) if err
+                    log.info "#{entity} emit #{name} to #{handler.id}::#{handler.handler}"
                     # Call handler by name
                     item[handler.handler] event, cb
             ), cb
@@ -99,18 +101,32 @@ exports.State = class State
             @events[name] _.filter @[events].name, (h)->((h.id == id) and (h.handler == handler))
 
 
+CACHE={}
+
 # Create enity instance
 exports.create = create = (id, entity, package, cb) ->
     if typeof(package) == 'function'
         cb = package
         package = entity
     if typeof(entity) == 'function'
-        return cb and cb( new Error("Entity type not set") )
+        cb = entity
+        package = entity = null
+    blueprint = {}
+    if _.isObject(id)
+        blueprint = id
+        id = blueprint.id
+        entity = blueprint.entity or entity
+        package = blueprint.package or package or entity
+    if not (package and entity)
+        return cb and cb( new Error("Entity type or package not set") )
     if not id
         id = uuid.v1()
-    log.info "Create #{package}.#{entity} [#{id}]"
+    log.debug "Create #{package}.#{entity} [#{id}]"
     if not (package and entity)
         return cb and cb( new Error("Can't create null entity") )
+
+    if id of CACHE
+        return cb and cb( null, CACHE[id] )
 
     module = require('./' + package)
 
@@ -122,6 +138,8 @@ exports.create = create = (id, entity, package, cb) ->
         obj = new Entity(id)
         obj.entity = entity
         obj.package = package
+        _.extend obj, blueprint
+        CACHE[ obj.id ] = obj
         cb and cb( null, obj )
 
 # Load state from module
@@ -151,7 +169,7 @@ exports.load = load = (id, entity, package, cb) ->
         return cb and cb(err) if err
         if stored
             _.extend obj, stored
-            log.info "Loaded #{package}.#{entity} [#{id}]"
+            log.debug "Loaded #{package}.#{entity} [#{id}]"
             if obj.loaded
                 return obj.loaded cb
         cb and cb( null, obj )
@@ -188,6 +206,15 @@ exports.query = query = (entity, params, cb) ->
 
     # Load async each entity by key
     async.map _.keys(json), load_resolve, cb
+
+
+exports.dumpCache = ->
+    log.error "============ Local objects =============="
+    for key of CACHE
+        obj = CACHE[key]
+        log.error "#{key} = #{obj.package}.#{obj.entity} [#{obj.state}] #{obj.message}"
+    log.error "============ Local objects =============="
+    debugger;
 
 exports.init = (app, cb)->
 

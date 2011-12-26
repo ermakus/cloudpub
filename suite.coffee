@@ -16,42 +16,36 @@ exports.setUp = (cb)->
 # 
 exports.Suite = class Suite extends queue.Queue
 
-    submitTest: (test, cb)->
-
-        test.on 'success', 'success', @id
-        test.on 'failure', 'failure', @id
-
-        async.series [
-            (cb) => test.save(cb),
-            (cb) => @add( test.id, cb),
-        ], cb
-
-
-    submitEntity: (entity, module, cb)->
+    submitTest: (entity, package, cb)->
         # Submit method wrapper
         startMethod = (method, cb)=>
             if method.indexOf('test') == 0
                 # Create new instance for each test method and submit to queue
-                state.create module + '.' +  entity + '.' + method, entity, module, (err, testObject) =>
-                        return cb and cb(err) if err
-                        testObject.testMethod = method
-                        @submitTest testObject, cb
+                test = {
+                    id:(package + '.' +  entity + '.' + method)
+                    entity:entity
+                    package:package
+                    testMethod:method
+                }
+                @submit test, cb
             else
                 cb( null )
         
-        # Creta entity for introspection
-        state.create null, entity, module, (err, test)=>
+        # Create entity for introspection
+        state.create null, entity, package, (err, test)=>
             return cb and cb(err) if err
             # Iterate over all methods
             async.forEachSeries( _.functions(test), startMethod, cb )
 
-    submit: (params, cb)->
-        async.series [
-            (cb) =>
-                async.forEach params, ((meta, cb) => @submitEntity(meta.entity, meta.module, cb)), cb
-            (cb) =>
-                @start( cb )
-            ], cb
+    submitTests: (params, cb)->
+        async.forEachSeries params, ((meta, cb) => @submitTest(meta.entity, meta.package, cb)), cb
+
+    success: (entity, cb)->
+        super entity, (err) =>
+            if not @children.length
+                exports.log.info "================= Test suite passed =================="
+                process.exit(0)
+            cb and cb(err)
 
 exports.init = (app, cb)->
     if '--test' in process.argv
@@ -63,9 +57,13 @@ exports.init = (app, cb)->
         app.register 'suite', list
 
         async.waterfall [
-            (cb) -> state.loadOrCreate('test-suite', 'suite', cb)
+            (cb) -> state.create('test-suite', 'suite', cb)
             (suite, cb)->
-                suite.submit [entity:'serviceTest',module:'test/service'], cb
+                suite.submitTests [
+                        { entity:'stateTest',   package:'test/state'   }
+                        { entity:'serviceTest', package:'test/service' }
+                ], (err)-> cb( err, suite )
+            (suite, cb) -> suite.start(cb)
         ], cb
     else
         cb(null)

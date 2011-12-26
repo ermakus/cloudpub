@@ -1,5 +1,6 @@
-state = require '../state'
-async = require 'async'
+state  = require '../state'
+async  = require 'async'
+assert = require 'assert'
 
 exports.Checker = class Checker extends state.State
 
@@ -36,13 +37,14 @@ exports.Checker = class Checker extends state.State
             console.log "Expect: ", @expected[0]
             console.trace()
             err = new Error("Unexpected event:" + JSON.stringify(event))
-            @emit 'failure', { error:err, worker:@ }, cb
+            assert.ifError err
+            @emit 'failure', @, cb
         else
             console.log "Expected [" + event.state + "] " + event.message + " (" + event.id + ")"
             console.log "======================================================="
             @expected = @expected[1...]
             @save (err)=>
                 if not @expected.length
-                    @emit 'success', { message:'Test done', worker:@ }, cb
+                    @emit 'success', @, cb
                 else
                     cb and cb(err)
