@@ -78,6 +78,9 @@ exports.ServiceTest = class extends checker.Checker
     test3_Shutdown: (cb)->
         async.waterfall [
              (cb)=>
+                # 1. Clear queue
+                @expect 'down', cb
+             (cb)=>
                 # 1. Stop daemon
                 @expect 'maintain', cb
              (cb)=>

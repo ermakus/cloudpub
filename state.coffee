@@ -36,9 +36,12 @@ exports.State = class State
         log.debug "Save: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
         #console.trace()
         # Save persistend fields
+        ch = @_children
+        @_children = undefined
         nconf.set("object:" + @id, @)
         nconf.set(@entity + ":" + @id, @id)
         nconf.save (err) =>
+            @_children = ch
             cb and cb(err)
 
     # Clear and remove from storage
@@ -68,9 +71,9 @@ exports.State = class State
             write = log.error
         write.call log, "State: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
         io.emit 'anton', { entity:@entity, state:@state, message:@message }
-        @emit 'state', @, (err)=>
+        @save (err)=>
             return cb and cb(err) if err
-            @save cb
+            @emit 'state', @, cb
 
     # Emit event to registered handlers
     emit: (name, event, cb)->

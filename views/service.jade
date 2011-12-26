@@ -36,7 +36,7 @@ script.list-template(type="text/template")
                         <%=item.instance%>
                 td.worker
                     ul.state-list
-                        <% _.each(item.workers, function(worker) { %>
+                        <% _.each(item._children, function(worker) { %>
                         li
                             .state-icon-small
                                 img(src="state-<%=worker.state%>.png")

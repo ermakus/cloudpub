@@ -53,7 +53,12 @@ exports.Service = class Service extends queue.Queue
         params.home = @home
         
         super params, cb
-    
+
+    stop: (cb)->
+        super (err)=>
+            return cb and cb(err) if err or @state == 'down'
+            @setState 'down', 'Service stopped', cb
+
     # Startup handler
     startup: (cb) ->
         cb and cb(new Error('Not impelemented for this service'))

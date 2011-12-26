@@ -190,7 +190,8 @@ window.alert = (msg, classes) ->
         # Assign and check, not equal
         msgs = $('.alert-message:last')
         if msgs.length
-            msg.insertAfter msgs
+            #msg.insertAfter msgs
+            msgs.replaceWith msg
         else
             msg.prependTo container
         msg.alert()

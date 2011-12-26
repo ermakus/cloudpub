@@ -4,6 +4,7 @@ account = require './account'
 command = require './command'
 group   = require './group'
 state   = require './state'
+app     = require './app'
 
 # Instance class
 exports.Instance = class Instance extends group.Group
@@ -17,10 +18,12 @@ exports.Instance = class Instance extends group.Group
         @updateState cb
  
     configureService: (serviceId, params, cb)->
+        exports.log.info "Configure service: #{serviceId}", params
         state.load serviceId, (err, service)->
             return cb and cb(err) if err
             service.user = params.user
             service.address = params.address
+            service.home = "/home/#{params.user}/.cloudpub"
             service.save cb
 
     configure: (params, cb) ->
@@ -30,7 +33,10 @@ exports.Instance = class Instance extends group.Group
             return cb and cb( new Error('Invalid address or user') )
         if not params.id
             @id = 'i-' + @address.split('.').join('-')
-        async.forEach @children, ((serviceId, cb)=>@configureService( serviceId, params, cb )), cb
+        async.series [
+            (cb)=> async.forEach @children, ((serviceId, cb)=>@configureService( serviceId, params, cb )), cb
+            (cb)=> @save(cb)
+        ], cb
 
     # Start instance
     startup: (params, ccb) ->
@@ -57,7 +63,9 @@ exports.Instance = class Instance extends group.Group
         ], cb
 
     install: (cb) ->
-        cb and cb(null)
+        state.load 'app-cloudpub', (err, app)=>
+            return cb and cb(err) if err
+            app.startup {instance:@id}, cb
 
     uninstall: (cb) ->
         cb and cb(null)
