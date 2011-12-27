@@ -3,10 +3,10 @@ form#login-form(action="/login",method="post")
     fieldset
         legend Login
         .clearfix
-            label Account ID
+            label User Name 
             .input
                 input.required(type="text",name="uid")
-                span.help-block Unique ID for your network instance
+                span.help-block User name of your account
         .clearfix
             label Password
             .input
@@ -14,5 +14,9 @@ form#login-form(action="/login",method="post")
                 span.help-block Account password
         .actions
             input.btn.default(type="submit",value="Login")
+        .actions
+            a(href="/google/login")
+                img(src="/google.png",width="32",height="32",style="vertical-align: middle;")
+                span &nbsp; Login with Google account
 
 != js("/js/login.js")

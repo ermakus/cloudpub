@@ -3,10 +3,10 @@ form#register-form(action="/register",method="post")
         legend Create Account
         input(type="hidden", name="next", value=next)
         .clearfix
-            label Account ID
+            label User Name 
             .input
                 input.required(type="text",name="uid")
-                span.help-block Unique ID for your network instance
+                span.help-block Unique user name for your account
         .clearfix
             label E-Mail
             .input
@@ -24,5 +24,9 @@ form#register-form(action="/register",method="post")
                 span.help-block Reepat password one more time
         .actions
             input.btn.primary(type="submit",value="Create")
+        .actions
+            a(href="/google/login")
+                img(src="/google.png",width="32",height="32",style="vertical-align: middle;")
+                span &nbsp; Login with Google account
 
 != js("/js/register.js")

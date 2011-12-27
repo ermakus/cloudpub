@@ -74,8 +74,6 @@ exports.handler = handler = (entity, factory)->
 
     return (req, resp)->
 
-        if not (acc = account.find req.session.uid)
-            return resp.send 'Invalid account ID', 500
         if not (req.params.command in ALLOWED_COMMANDS)
             return resp.send 'Invalid command', 500
         if not req.params.id
@@ -104,7 +102,7 @@ exports.register = (app)->
         item ?= (params, entity, cb) -> state.load( params.id, entity, cb )
     
         # HTML page view
-        app.get '/' + entity, (req, resp)->
+        app.get '/' + entity, account.force_login, (req, resp)->
             resp.render entity, {pubkey:PUBLIC_KEY}
 
         # API query handler

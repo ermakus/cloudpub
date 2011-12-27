@@ -2,10 +2,10 @@ form#account-form(action="/account",method="post")
     fieldset
         legend Your Account
         .clearfix
-            label Account ID
+            label User Name
             .input
-                input.disabled(type="text",name="uid", value=account.uid, disabled="true")
-                span.help-block Unique ID for your network instance
+                input.disabled(type="text",name="uid", value=account.login, disabled="true")
+                span.help-block Unique user name for your account
         .clearfix
             label E-Mail
             .input

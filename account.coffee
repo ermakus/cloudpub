@@ -1,81 +1,62 @@
 form     = require 'express-form'
+hasher   = require 'password-hash'
 passport = require 'passport'
-nconf    = require 'nconf'
-passport = require 'passport'
+crypto   = require 'crypto'
+state    = require './state'
 
-passwd   = require './passwd'
+LocalStrategy  = require('passport-local').Strategy
+GoogleStrategy = require('passport-google').Strategy
 
-LocalStrategy = require('passport-local').Strategy
+FORCE_USER=false
+AFTER_LOGIN='/app'
+USER_PREFIX='user-'
 
-passport.use new LocalStrategy( {
-    usernameField: 'uid',
-    passwordField: 'password'
-  },
-  (username, password, done)->
-      console.log "Auth #{username}"
-      return done(null, {id:username})
-)
+exports.Account = class Account extends state.State
+
+sha1 = (text)->
+    h = crypto.createHash 'sha1'
+    h.update text
+    return h.digest 'hex'
+
+authorize = (username, password, done) ->
+    state.load USER_PREFIX + username, (err, user)->
+        if err or not hasher.verify(password, user.password)
+            exports.log.error "Auth of #{username} failed"
+            return done(null, false)
+        else
+            exports.log.info "Auth of #{username} succeed"
+            return done(null, user)
+
+google_authorize = (userid, profile, done) ->
+    userid = sha1 userid
+    state.loadOrCreate USER_PREFIX + userid, 'account', (err, user)->
+        user.email = profile.emails[0].value
+        user.login = profile.displayName
+        user.save (err)->
+            done(err, user)
+
+passport.use new LocalStrategy({ usernameField: 'uid', passwordField: 'password'}, authorize )
+
+passport.use new GoogleStrategy({
+    returnURL: 'http://localhost:3000/google/done',
+    realm: 'http://localhost:3000/'}, google_authorize )
+
 
 passport.serializeUser (user, done)->
-    done(null, user.id)
+    user.save done
 
 passport.deserializeUser (id, done)->
-    done(null, {id})
-
-MEGANON='anton'
-
-AFTER_LOGIN = '/app'
-
-cache = []
-
-class Account
-
-    constructor: (@posix) ->
-        @uid = @posix.username
-        @home = "/home/#{@uid}"
-        @email = nconf.get("user:#{@uid}:email")
-
-    save: (cb) ->
-        nconf.set("user:#{@uid}:email", @email )
-        nconf.save cb
-
-# Reload PAM users cache
-exports.reload = (cb)->
-    passwd.getAll (usr)->
-        cache = (usr or []).map (u) -> new Account(u)
-        cb and cb(null, cache)
-
-# Find user by UID in cache
-exports.find = (uid)->
-    for u in cache
-        if u.uid == uid then return u
-    null
-
-# Check if user exists in cache
-exports.exists = (uid)-> exports.find(uid) != null
-    
-# Create PAM user
-exports.create = (params, cb)->
-    passwd.add params.uid, params.passwd, {createHome:true,sudo:true}, (code)->
-        if code != 0 then return cb and cb( new Error("Can't create user") )
-        exports.reload (err) ->
-            account = exports.find( params.uid )
-            account.email = params.email
-            account.save cb
-
-# PAM auth: Curently stub is here
-exports.auth = (uid, password, cb) ->
-    cb and cb( new Error('Invalid password or username') )
+    state.load USER_PREFIX + id, done
 
 exports.ensure_login = (req, resp, next) ->
-    req.session.uid ?= MEGANON
+    req.session.uid ?= FORCE_USER
     if req.session.uid
         next()
     else
         next( new Error('User not authorized') )
 
 exports.force_login = (req, resp, next) ->
-    req.session.uid ?= MEGANON
+    req.session.uid ?= FORCE_USER
     if req.session.uid
         next()
     else
@@ -84,18 +65,14 @@ exports.force_login = (req, resp, next) ->
 # Init view and user cache
 exports.init = (app, cb)->
 
-    validate_uid = (uid) ->
-        if exports.exists uid
-            throw new Error('Account with this ID already taken')
-
     validate_uid_form = form(
         form.filter("uid").trim().toLower(),
-        form.validate("uid").required().is(/^[a-z0-9_]+$/).custom( validate_uid ),
+        form.validate("uid").required().is(/^[a-z0-9_]+$/)
     )
 
     validate_register_form = form(
         form.filter("uid").trim().toLower(),
-        form.validate("uid").required().is(/^[a-z0-9_]+$/).custom( validate_uid ),
+        form.validate("uid").required().is(/^[a-z0-9_]+$/),
         form.filter("email").trim(),
         form.validate("email").required().isEmail(),
         form.validate("password").required()
@@ -113,27 +90,45 @@ exports.init = (app, cb)->
         form.validate("password")
     )
 
-    app.get '/validate/uid', validate_uid_form, (req, resp) ->
-        resp.send JSON.stringify if not req.form.isValid then req.form.errors.join('<br/>') else true
-
     app.get '/register', (req, resp) ->
         next = req.param('next', AFTER_LOGIN )
-        resp.render 'register', {next:next}
+        resp.render 'register', {next}
+
+
+    app.get '/validate/uid', validate_uid_form, (req, resp) ->
+        if not req.form.isValid
+            return resp.send( JSON.strngify req.form.errors.join("\n") )
+        else
+            state.load USER_PREFIX + req.form.uid, (err, user)->
+                if not err
+                    resp.send JSON.stringify "Account already exist"
+                else
+                    resp.send JSON.stringify true
 
     app.post '/register', validate_register_form, (req, resp) ->
         next = req.param('next', AFTER_LOGIN)
         if not req.form.isValid
-            resp.render 'register', { error:req.form.errors.join('<br/>'), next:next }
+            resp.render 'register', { error:req.form.errors.join('\n'), next }
         else
-            exports.create req.form, (err, user)->
-                if err
-                    resp.render 'register', { error:err, next:next }
+            state.load USER_PREFIX + req.form.uid, (err, user)->
+                if not err
+                    return resp.send "Account already exist"
                 else
-                    req.session.uid = req.form.uid
-                    resp.redirect next
+                    state.create USER_PREFIX + req.form.uid, "account", (err, account)->
+                        if err
+                            resp.render 'register', { error:err, next:next }
+                        else
+                            req.session.uid  = account.id
+                            req.session.login = account.login
+                            account.login    = req.form.uid
+                            account.password = hasher.generate req.form.password
+                            account.email = req.form.email
+                            account.save (err)->
+                                resp.redirect next
 
     app.get '/login', (req, resp) ->
         next = req.param('next', AFTER_LOGIN )
+        req.session.next = next
         if req.session.uid
             resp.redirect next
         else
@@ -143,14 +138,17 @@ exports.init = (app, cb)->
 
         nextPage = req.param('next', AFTER_LOGIN )
         if not req.form.isValid
-            resp.render 'login', {error:req.form.errors.join('<br/>'), next:nextPage}
+            resp.render 'login', {error:req.form.errors.join("\n"), next:nextPage}
         else
             auth = passport.authenticate 'local', {
                 successRedirect: nextPage,
                 failureRedirect: '/login'
             }, (err, user)->
-                console.log "User logged in", user
+                return next(err) if err
+                if not user
+                    return resp.render 'login', {error:"Invalid user name or password"}
                 req.session.uid = user.id
+                req.session.login = user.login
                 resp.redirect nextPage
 
             return auth( req, resp, next )
@@ -161,14 +159,31 @@ exports.init = (app, cb)->
         resp.redirect '/login'
 
     app.get '/account', exports.force_login, (req, resp)->
-        resp.render 'account', account:exports.find( req.session.uid )
+        state.load req.session.uid, (error, account)->
+            resp.render 'account', {account, error}
 
     app.post '/account', exports.ensure_login, validate_account_form, (req, resp)->
-        account = exports.find( req.session.uid )
-        if not req.form.isValid
-            resp.render 'account', {error:req.form.errors.join(' * '), account}
-        else
-            account.email = req.form.email
-            account.save (error) -> resp.render 'account', {account,error}
+        state.load req.session.uid, (error, account)->
+            if error then return resp.render 'account', {error}
+            if not req.form.isValid
+                resp.render 'account', {error:req.form.errors.join(' * '), account}
+            else
+                if req.form.password
+                    account.password = hasher.generate req.form.password
+                account.email = req.form.email
+                account.save (error) -> resp.render 'account', {account,error}
 
-    exports.reload cb
+    app.get '/google/login', passport.authenticate('google')
+
+    app.get '/google/done', (req, resp, next)->
+        auth = passport.authenticate('google', {}, (err, user)->
+            return next(err) if err
+            if not user
+                return resp.render 'login', {error:"Google account error"}
+            req.session.uid = user.id
+            req.session.login = user.login
+            resp.redirect req.session?.next or AFTER_LOGIN
+        )
+        auth req, resp, next
+
+    cb and cb(null)

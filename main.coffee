@@ -38,8 +38,6 @@ createApp = ->
 
     app.register = command.register( app )
 
-
-
     app.get '/', (req, resp) -> resp.render 'main'
     app
 

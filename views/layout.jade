@@ -50,7 +50,7 @@ html(lang='en')
               li
                 a(href='/account')
                     span Account&nbsp;(
-                    b= session.uid
+                    b= session.login
                     span )
               li
                 a(href='/logout')
@@ -63,4 +63,4 @@ html(lang='en')
     != body
 
   - if(typeof(error) !== 'undefined' && error)
-    script $(function(){ show_error("#{error}") })
+    script $(function(){ error("#{error}") })
