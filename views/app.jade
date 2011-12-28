@@ -14,6 +14,16 @@ h1 Apps
         .clearfix
             input.btn.primary.create-submit(type="submit", value="Create App")
 
+.popover
+    ol
+        li a folder containing a program described by a package.json file
+        li a gzipped tarball containing (1)
+        li a url that resolves to (2)
+        li a [name]@[version] that is published on the registry with (3)
+        li a [name]@[tag] that points to (4)
+        li a [name] that has a "latest" tag satisfying (5)
+        li a git url that, when cloned, results in (1).
+
 // Module script
 != js('/js/app.js')
 
@@ -36,7 +46,7 @@ script.list-template(type="text/template")
                             img(src="state-<%=item.state%>.png")
                             .state-hole <%= item.workers && item.workers.length || 0 %>
                     .state-info
-                        h3 <%=item.name%>
+                        h3 <%=item.source%>
                         span <%= item.message %> 
                 td.domain
                     h3

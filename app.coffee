@@ -1,9 +1,9 @@
 fs      = require 'fs'
 _       = require 'underscore'
 async   = require 'async'
-
-group = require './group'
-state = require './state'
+account = require './account'
+group   = require './group'
+state   = require './state'
 
 log = console
 
@@ -100,6 +100,14 @@ exports.App = class App extends group.Group
         
         async.forEach @children, ((serviceId, cb) => @stopService(serviceId, params, cb)), cb
 
+create_app = (url, acc, cb)->
+    state.loadOrCreate account.sha1( url ), 'app', (err, app)->
+        return cb and cb(err) if err
+        app.source = url
+        app.account = acc
+        app.save (err)->
+            cb and cb(err, app)
+
 # Init request handlers here
 exports.init = (app, cb)->
 
@@ -110,8 +118,10 @@ exports.init = (app, cb)->
     app.post '/api/create/app', (req, resp)->
         url = req.param('url')
         if not url
-            resp.send 'URL is required', 500
-        else
+            return resp.send 'URL is required', 500
+        
+        create_app url, req.session.uid, (err, app)->
+            if err then return resp.send err, 500
             resp.send true
 
     state.load 'app-cloudpub', (err)->

@@ -1,17 +1,16 @@
 {
-    "name": "cloudpub"
-  , "version": "0.1"
-  , "private": true
-  , "dependencies": {
-      "coffee-script": "1.1.x"
-    , "express": "2.5.x" 
-    , "express-form": "0.5.x" 
-    , "jade": "0.x.x"
-    , "connect-assets": "2.1.x"
-    , "stylus": "*"
-    , "nib": "*"
-  }
-  , "devDependencies": {
-  }
-  , "engine": "node ~> 0.6.x"
+  "author": "Anton Ermak <anton@ermak.us> (http://ermak.us)",
+  "name": "cloudpub",
+  "description": "Easy cloud management tool",
+  "version": "0.1.0",
+  "homepage": "http://cloudpub.us",
+  "repository": {
+    "url": ""
+  },
+  "main": "server.js",
+  "engines": {
+    "node": "~0.6.5"
+  },
+  "dependencies": {},
+  "devDependencies": {}
 }

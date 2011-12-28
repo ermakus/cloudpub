@@ -35,7 +35,7 @@ exports.Account = class Account extends group.Group
         cb and cb(null)
 
 # SHA1 helper function
-sha1 = (text)->
+exports.sha1 = sha1 = (text)->
     h = crypto.createHash 'sha1'
     h.update text
     return h.digest 'hex'
