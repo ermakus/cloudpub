@@ -197,7 +197,6 @@ exports.loadOrCreate = loadOrCreate = (id, entity, package, cb )->
         cb = entity
         package = entity = null
     load id, entity, package, (err, obj)->
-        log.info "Load or create: ", err
         return cb and cb(null, obj) if not err
         create id, entity, package, cb
 

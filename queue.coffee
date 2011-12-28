@@ -45,7 +45,9 @@ exports.Queue = class Queue extends group.Group
     # Worker error handler
     workerFailure: (worker, cb) ->
         log.error "Queue: Worker #{worker.id} failed"
-        @setState 'error', worker.message, cb
+        worker.setState 'error', (err)=>
+            return cb and cb(err) if err
+            @setState 'error', worker.message, cb
 
     # Worker success handler
     workerSuccess: (worker, cb) ->
