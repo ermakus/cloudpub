@@ -40,6 +40,12 @@ exports.InstanceTest = class extends checker.Checker
     test2_InstanceShutdown: (cb)->
         async.waterfall [
              (cb)=>
+                # 0. Online
+                @expect 'up', 'Online', cb
+             (cb)=>
+                # 1. Stop daemon
+                @expect 'maintain', 'Stop daemon', cb
+             (cb)=>
                 # 1. Stop daemon
                 @expect 'maintain', 'Stop daemon', cb
              (cb)=>

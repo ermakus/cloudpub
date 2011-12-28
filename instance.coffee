@@ -54,18 +54,17 @@ exports.Instance = class Instance extends group.Group
 
     # Stop instance
     shutdown: (params, cb) ->
-        if params.mode == 'shutdown'
-            # Shutdown
-            # Uninstall master app
-            @uninstall cb
-        else
-            # Maintaince
-            # Put shutdown task to each service queue and run
-            async.series [
-                (cb)=>@stop(cb)
-                (cb)=>@each 'shutdown', cb
-                (cb)=>@start(cb)
-            ], cb
+        async.series [
+            (cb)=>@stop(cb)
+            (cb)=>@each 'shutdown', cb
+            (cb)=>
+                if params.mode == 'shutdown'
+                    @on 'state', 'uninstallState', @id
+                    @each 'uninstall', cb
+                else
+                    cb and cb(null)
+            (cb)=>@start(cb)
+        ], cb
 
     # Install master appication
     install: (cb) ->
@@ -73,13 +72,6 @@ exports.Instance = class Instance extends group.Group
             return cb and cb(err) if err
             app.mute 'state', 'uninstallState', @id
             app.startup {instance:@id, account:@account}, cb
-
-    # Uninstall application and commit suicide
-    uninstall: (cb) ->
-        state.load 'app-cloudpub', (err, app)=>
-            return cb and cb(err) if err
-            app.on 'state', 'uninstallState', @id
-            app.shutdown {instance:@id, account:@account, data:'delete'}, cb
 
     # App uninstall state handler
     uninstallState: (app, cb)->
