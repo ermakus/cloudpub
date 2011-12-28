@@ -7,7 +7,7 @@ exports.StateTest = class extends checker.Checker
 
     # Test event emitter
     test1_StateCreate: (cb)->
-        testObj = {id:'ID',entity:'queue'}
+        testObj = {id:'test-queue',entity:'queue'}
         state.create testObj, (err, item)=>
             assert.ifError err
             assert.ok item

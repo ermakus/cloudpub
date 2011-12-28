@@ -45,7 +45,6 @@ exports.App = class App extends group.Group
         serviceId = @id + '-' + instanceId + '-' + accountId
         @service serviceId, accountId, instanceId, serviceType, (err, service) =>
             return cb and cb(err) if err
-            exports.log.error "XXXXXXXXXXXXXXXXXXXX CREATE SERVICE", service
             # Subscribe to state event
             async.series [
                 (cb) => service.stop(cb)

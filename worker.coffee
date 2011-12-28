@@ -52,13 +52,14 @@ exports.Worker = class Worker extends state.State
         
         cb and cb(null)
 
+    # Kill process and delete worker
     stop: (cb)->
-        if @pid
+        if (@state=='up') and @pid
             try
                 process.kill @pid
             catch err
-                log.error "Process with #{@pid} not exists", err
-        cb and cb(null)
+                log.warn "Process with #{@pid} does not exists"
+        @clear cb
 
 # SSH global options
 SSH = "ssh -i #{SSH_PRIVATE_KEY} -o StrictHostKeyChecking=no -o BatchMode=yes"

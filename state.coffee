@@ -36,12 +36,11 @@ exports.State = class State
         log.debug "Save: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
         #console.trace()
         # Save persistend fields
-        ch = @_children
         @_children = undefined
+        CACHE[ @id ] = @
         nconf.set("object:" + @id, @)
         nconf.set(@entity + ":" + @id, @id)
         nconf.save (err) =>
-            @_children = ch
             cb and cb(err)
 
     # Clear and remove from storage
@@ -67,9 +66,9 @@ exports.State = class State
             @message = message
     
         write = log.info
-        if @state == 'maintain'
+        if @state == 'down'
             write = log.warn
-        if @state in ['down','error']
+        if @state == 'error'
             write = log.error
         write.call log, "State: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
         @save (err)=>
@@ -118,7 +117,7 @@ exports.State = class State
             @events[name] = _.filter( @events[name], (h)->((h.id == id) and (h.handler == handler)) )
 
 
-CACHE={}
+exports.cache = CACHE = {}
 
 # Create enity instance
 exports.create = create = (id, entity, package, cb) ->
@@ -156,7 +155,6 @@ exports.create = create = (id, entity, package, cb) ->
         obj.entity = entity
         obj.package = package
         _.extend obj, blueprint
-        CACHE[ obj.id ] = obj
         cb and cb( null, obj )
 
 # Load state from module
@@ -180,8 +178,6 @@ exports.load = load = (id, entity, package, cb) ->
             package = stored.package
 
     if id and not stored
-        console.log "Reference not found: ", id
-        console.trace()
         return cb and cb( new Error("Reference not found: [#{id}]") )
  
     create id, entity, package, (err, obj)->
@@ -226,14 +222,6 @@ exports.query = query = (entity, params, cb) ->
     # Load async each entity by key
     async.map _.keys(json), load_resolve, cb
 
-
-exports.dumpCache = ->
-    log.error "============ Local objects =============="
-    for key of CACHE
-        obj = CACHE[key]
-        log.error "#{key} = #{obj.package}.#{obj.entity} [#{obj.state}] #{obj.message}"
-    log.error "============ Local objects =============="
-    debugger;
 
 exports.init = (app, cb)->
 

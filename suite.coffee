@@ -1,11 +1,12 @@
 # Runner for event-based tests
-async  = require 'async'
-_      = require 'underscore'
-assert = require 'assert'
-main   = require './main'
-state  = require './state'
-queue  = require './queue'
-nconf  = require 'nconf'
+async   = require 'async'
+_       = require 'underscore'
+assert  = require 'assert'
+main    = require './main'
+state   = require './state'
+queue   = require './queue'
+checker = require './test/checker'
+nconf   = require 'nconf'
 
 exports.setUp = (cb)->
     main.init (err, app)->
@@ -16,6 +17,10 @@ exports.setUp = (cb)->
 # Will run all testXXX methods from @testModule.@testEntity
 # 
 exports.Suite = class Suite extends queue.Queue
+
+    init: ->
+        super()
+        @count = 0
 
     submitTest: (entity, package, cb)->
         # Submit method wrapper
@@ -28,6 +33,7 @@ exports.Suite = class Suite extends queue.Queue
                     package:package
                     testMethod:method
                 }
+                @count += 1
                 @submit test, cb
             else
                 cb( null )
@@ -44,10 +50,13 @@ exports.Suite = class Suite extends queue.Queue
     workerSuccess: (entity, cb)->
         super entity, (err) =>
             if not @children.length
-                process.nextTick ->
-                    exports.log.info "================= Test suite passed =================="
+                process.nextTick =>
+                    checker.dumpCache()
+                    exports.log.info "Test suite done. #{@count} test(s) executed."
                     process.exit(0)
-            cb and cb(err)
+                @clear cb
+            else
+                cb and cb(null)
 
 exports.init = (app, cb)->
     if nconf.get('test')
@@ -62,8 +71,8 @@ exports.init = (app, cb)->
             (cb) -> state.create('test-suite', 'suite', cb)
             (suite, cb)->
                 suite.submitTests [
-                        { entity:'stateTest',   package:'test/state'   }
-                        { entity:'serviceTest', package:'test/service' }
+                        { entity:'stateTest',    package:'test/state'   }
+                        { entity:'instanceTest', package:'test/instance' }
                 ], (err)-> cb( err, suite )
             (suite, cb) -> suite.start(cb)
         ], cb

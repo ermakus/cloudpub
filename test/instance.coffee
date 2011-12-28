@@ -3,20 +3,10 @@ state = require '../state'
 async = require 'async'
 checker = require './checker'
 
-exports.ServiceTest = class extends checker.Checker
+exports.InstanceTest = class extends checker.Checker
 
-    # Test event emitter
-    test1_TestChecker: (cb)->
-        async.waterfall [
-            (cb)=>
-                @expect('test', cb)
-            (cb)=>
-                @application.on('state', 'onState', @id)
-                @application.emit('state', {'state':'test'}, cb)
-        ], cb
-
-    # Test app startup
-    test2_AppStartup: (cb)->
+    # Test instance startup
+    test1_InstanceStartup: (cb)->
         async.waterfall [
              (cb)=>
                 # 1. Sync files...
@@ -37,15 +27,17 @@ exports.ServiceTest = class extends checker.Checker
                 # 6. Complete
                 @expect 'up', 'Online', cb
              (cb)=>
-                @application.on 'state', 'onState', @id
-                @application.startup {
-                    domain: 'localhost'
+                @instance.on 'state', 'onState', @id
+                @instance.startup {
+                    user: 'anton'
+                    address: '127.0.0.1'
                     instance: @instance.id
                     account: @account.id
                 }, cb
-        ], cb    # Test app startup
+        ], cb
 
-    test3_AppShutdown: (cb)->
+    # Test instance shutdown
+    test2_InstanceShutdown: (cb)->
         async.waterfall [
              (cb)=>
                 # 1. Stop daemon
@@ -57,14 +49,15 @@ exports.ServiceTest = class extends checker.Checker
                 # 3. Uninstalling service
                 @expect 'maintain', 'Uninstall service', cb
              (cb)=>
-                # 3. Uninstalled
+                # 2. And uninstalled (todo: fix order)
                 @expect 'down', 'Service uninstalled', cb
              (cb)=>
-                @application.on 'state', 'onState', @id
-                @application.shutdown {
-                    data: 'delete'
-                    instance: @instance.id
-                    account: @account.id
+                # 3. Deleted 
+                @expect 'down', 'Server deleted', cb
+             (cb)=>
+                @instance.on 'state', 'onState', @id
+                @instance.shutdown {
+                    mode: 'shutdown'
                 }, cb
         ], cb
 

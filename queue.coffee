@@ -10,6 +10,7 @@ log     = console
 #
 exports.Queue = class Queue extends group.Group
 
+    # Start executing of workers in queue
     start: (cb) ->
         log.info "Start queue #{@id}", @children
         if @children.length
@@ -17,6 +18,7 @@ exports.Queue = class Queue extends group.Group
         else
             @emit 'success', @, cb
 
+    # Start worker with specific ID
     startWorker: (id, cb)->
         state.load id, (err, worker)=>
             return cb and cb(err) if err or worker.state == 'up'
@@ -26,13 +28,15 @@ exports.Queue = class Queue extends group.Group
                 (cb) => worker.start( cb )
             ], cb
 
+    # Stop and delete worker
     stopWorker: (id, cb)->
         async.waterfall [
                 (cb) -> state.load( id, cb )
-                (worker, cb) -> worker.clear( cb )
+                (worker, cb) -> worker.stop( cb )
                 (cb) => @remove(id, cb)
             ], cb
 
+    # Stop and delete all workers
     stop: (cb)->
         log.info "Stop queue #{@id}"
         # Clear all workers
