@@ -107,6 +107,13 @@ exports.init = (app, cb)->
 
     app.register 'app'
 
+    app.post '/api/create/app', (req, resp)->
+        url = req.param('url')
+        if not url
+            resp.send 'URL is required', 500
+        else
+            resp.send true
+
     state.load 'app-cloudpub', (err)->
         if not err then return cb and cb(null)
         state.create 'app-cloudpub', 'app', (err, item) ->

@@ -3,6 +3,17 @@ h1 Apps
 .page
     .loading
 
+.alert-message.block-message.info
+    h3 Create new application
+    form.create(method="post", action="/api/create/app")
+        .clearfix
+            label Source URL 
+            .input
+                input.required.url.span12(type="text",name="url")
+                span.help-block GIT repository to get application source
+        .clearfix
+            input.btn.primary.create-submit(type="submit", value="Create App")
+
 // Module script
 != js('/js/app.js')
 

@@ -9,6 +9,7 @@ html(lang='en')
         script(src='http://html5shim.googlecode.com/svn/trunk/html5.js')
     // Javascript
     != js('/js/jquery.js')
+    != js('/js/jquery.form.js')
     != js('/js/jquery.validate.js')
     != js('/js/jquery.tablesorter.min.js')
     != js('/js/bootstrap-modal.js')
@@ -60,6 +61,7 @@ html(lang='en')
     .inner
       h1 &nbsp;
   #body.container
+    .alerts
     != body
 
   - if(typeof(error) !== 'undefined' && error)

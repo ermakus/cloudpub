@@ -177,7 +177,7 @@ window.sysalert = window.alert
 window.alert = (msg, classes) ->
     if not msg
         msg = "null"
-    container = $('#body')
+    container = $('.alerts')
     if typeof(msg) != 'string'
         msg = msg.statusText or JSON.stringify msg
 
@@ -188,7 +188,7 @@ window.alert = (msg, classes) ->
             msg = '<pre>' + msg + '</pre>'
         msg = $("<div class='alert-message fade in #{classes}'><a href='#' class='close'>×</a><p>#{msg}</p></div>")
         # Assign and check, not equal
-        msgs = $('.alert-message:last')
+        msgs = $('.alerts .alert-message:last')
         if msgs.length
             #msg.insertAfter msgs
             msgs.replaceWith msg

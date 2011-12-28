@@ -1,4 +1,4 @@
-1. Kill process on stop
+1. Associate entities with account
 3. Service factory
 4. Start app - server selections
 5. Start/stop service
@@ -9,5 +9,7 @@
 9. Pass domain to slave
 10. Generate nginx config and restart nginx
 
+
+FIXED 1. Kill process on stop
 FIXED 7. Route events over account
 FIXED 2. Worker on start and on finish messaging
