@@ -11,7 +11,13 @@ exports.Instance = class Instance extends group.Group
 
     init: ->
         super()
-
+        # Server address
+        @address = undefined
+        # SSH user
+        @user = undefined
+        # Owner account
+        @account = undefined
+        
     # Service state event handler
     serviceState: (event, cb)->
         # Replicate last service state
@@ -27,6 +33,7 @@ exports.Instance = class Instance extends group.Group
             service.save cb
 
     configure: (params, cb) ->
+        @account = params.account
         @address = params.address
         @user = params.user
         if not (@address and @user)
@@ -41,34 +48,40 @@ exports.Instance = class Instance extends group.Group
     # Start instance
     startup: (params, ccb) ->
         async.series [
-                (cb)=> @stop(cb),
                 (cb)=> @configure(params, cb),
                 (cb)=> @install(cb),
-                (cb)=> @start(cb),
         ], ccb
 
     # Stop instance
     shutdown: (params, cb) ->
-        ifUninstall = (cb)=>
-            if params.mode == 'shutdown'
-                @uninstall cb
-            else
-                cb(null)
-    
-        async.series [
-            (cb)=> @stop(cb),
-            (cb)=> ifUninstall(cb),
-            (cb)=> @setState('maintain','On maintaince', cb),
-            (cb)=> @start(cb),
-        ], cb
+        if params.mode == 'shutdown'
+            @uninstall cb
+        else
+            async.series [
+                (cb)=>@setState('maintain','On maintaince', cb)
+                (cb)=>@stop(cb)
+            ], cb
 
     install: (cb) ->
         state.load 'app-cloudpub', (err, app)=>
             return cb and cb(err) if err
-            app.startup {instance:@id}, cb
+            app.startup {instance:@id, account:@account}, cb
 
     uninstall: (cb) ->
-        cb and cb(null)
+        state.load 'app-cloudpub', (err, app)=>
+            return cb and cb(err) if err
+            app.on 'state', 'uninstallState', @id
+            app.shutdown {instance:@id, account:@account, data:'delete'}, cb
+
+    uninstallState: (app, cb)->
+        if app.state != 'down' or app.message != 'Service uninstalled' then return cb(null)
+        process.nextTick =>
+            async.series [
+                (cb) => @setState 'down', 'Server deleted', cb
+                (cb) => app.each 'clear', cb
+                (cb) => @clear(cb)
+            ], cb
+        cb(null)
 
 # Init HTTP request handlers
 exports.init = (app, cb)->

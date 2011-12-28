@@ -41,7 +41,7 @@ exports.Suite = class Suite extends queue.Queue
     submitTests: (params, cb)->
         async.forEachSeries params, ((meta, cb) => @submitTest(meta.entity, meta.package, cb)), cb
 
-    success: (entity, cb)->
+    workerSuccess: (entity, cb)->
         super entity, (err) =>
             if not @children.length
                 exports.log.info "================= Test suite passed =================="

@@ -16,14 +16,20 @@ exports.StateTest = class extends checker.Checker
             @emit 'success', @, cb
 
     callback: (event, cb)->
-        @called = true
+        @called1 = true
+        assert.equal event, @
+        cb( null )
+
+    ref_callback: (event, cb)->
+        @called2 = true
         assert.equal event, @
         cb( null )
 
     test2_EventEmitter: (cb)->
-        @on 'callback', 'callback', @id
+        @on 'callback', 'ref_callback', @id
         @emit 'callback', @, (err)=>
             assert.ifError err
-            assert.ok @called
+            assert.ok @called1
+            assert.ok @called2
             @emit 'success', @, cb
 

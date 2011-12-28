@@ -1,10 +1,12 @@
 1. Kill process on stop
-2. Worker on start and on finish messaging
 3. Service factory
 4. Start app - server selections
 5. Start/stop service
 6. Subscribe/unsubscribe over socket.io
-7. Route events over account
 8. Service configuration
 7. App configuration
+8. Add provider to account
 
+
+FIXED 7. Route events over account
+FIXED 2. Worker on start and on finish messaging

@@ -50,11 +50,15 @@ script.list-template(type="text/template")
 // Instances list
 script.instances-template(type="text/template")
     ul.state-list
+        <%  if(_.isEmpty(items)) { %>
+        li
+            a.important(href="/instance") Click here to register server(s)
+        <% } %>
         <% _.each(items, function(item) { %>
         li
             .state-icon-small
                 img(src="state-<%=item.state%>.png")
-                input(type="checkbox",name="instance", value="<%= item.id %>")
+                input.required(type="checkbox",name="instance", value="<%= item.id %>")
             .state-info-small <%= item.address %>
         <% }); %>
 

@@ -47,6 +47,7 @@ exports.State = class State
     # Clear and remove from storage
     clear: (cb) ->
         if @id
+            log.info "Delete object #{@id}"
             nconf.clear('object:' + @id)
             nconf.clear( @entity + ":" + @id )
             @id = undefined
@@ -70,7 +71,6 @@ exports.State = class State
         if @state in ['down','error']
             write = log.error
         write.call log, "State: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
-        io.emit 'anton', { entity:@entity, state:@state, message:@message }
         @save (err)=>
             return cb and cb(err) if err
             @emit 'state', @, cb
@@ -78,17 +78,30 @@ exports.State = class State
     # Emit event to registered handlers
     emit: (name, event, cb)->
         entity = @entity
-        if name of @events
-            async.forEach @events[name], ((handler, cb) ->
-                # Load object from store
-                load handler.id, (err, item)->
-                    return cb and cb(err) if err
-                    log.info "#{entity} emit #{name} to #{handler.id}::#{handler.handler}"
-                    # Call handler by name
-                    item[handler.handler] event, cb
-            ), cb
-        else
-            cb and cb(null)
+        # Helper load to call event listener
+        call_handler = (handler, cb) ->
+            # Load object from store
+            load handler.id, (err, item)->
+                return cb and cb(err) if err
+                log.info "#{entity} emit #{name} to #{handler.id}::#{handler.handler}"
+                # Call handler by name
+                item[handler.handler] event, cb
+
+        async.series [
+            # Call this.name function if defined
+            (cb) =>
+                if typeof( @[name] ) == 'function'
+                    @[name](event, cb)
+                else
+                    cb(null)
+            # Load listeners and dispatch event to
+            (cb) =>
+                if name of @events
+                    async.forEach @events[name], call_handler, cb
+                else
+                    cb(null)
+        # Stupid coffee parser required this here
+        ], (err) -> cb(err)
 
     # Register event handler
     # name = name of event

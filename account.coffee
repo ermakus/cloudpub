@@ -2,7 +2,9 @@ form     = require 'express-form'
 hasher   = require 'password-hash'
 passport = require 'passport'
 crypto   = require 'crypto'
+io       = require './io'
 state    = require './state'
+group    = require './group'
 
 LocalStrategy  = require('passport-local').Strategy
 GoogleStrategy = require('passport-google').Strategy
@@ -11,13 +13,34 @@ FORCE_USER=false
 AFTER_LOGIN='/app'
 USER_PREFIX='user-'
 
-exports.Account = class Account extends state.State
+exports.log = console
 
+# User account class
+
+exports.Account = class Account extends group.Group
+
+    init: ->
+        super()
+        # User name
+        @login = undefined
+        # Salted hashed password
+        @password = undefined
+        # Authorization provider
+        @provider = 'local'
+
+    # Service state change handler
+    serviceState: (event, cb)->
+        exports.log.info 'Account event'
+        io.emit @id, {state:event.state, message:event.message}
+        cb and cb(null)
+
+# SHA1 helper function
 sha1 = (text)->
     h = crypto.createHash 'sha1'
     h.update text
     return h.digest 'hex'
 
+# Authorize user with local account
 authorize = (username, password, done) ->
     state.load USER_PREFIX + username, (err, user)->
         if err or not hasher.verify(password, user.password)
@@ -27,6 +50,7 @@ authorize = (username, password, done) ->
             exports.log.info "Auth of #{username} succeed"
             return done(null, user)
 
+# Authorize user with Google
 google_authorize = (userid, profile, done) ->
     userid = sha1 userid
     state.loadOrCreate USER_PREFIX + userid, 'account', (err, user)->
@@ -35,19 +59,23 @@ google_authorize = (userid, profile, done) ->
         user.save (err)->
             done(err, user)
 
+# Local auth strategy
 passport.use new LocalStrategy({ usernameField: 'uid', passwordField: 'password'}, authorize )
 
+# Google auth strategy
 passport.use new GoogleStrategy({
     returnURL: 'http://localhost:3000/google/done',
     realm: 'http://localhost:3000/'}, google_authorize )
 
-
+# User serialize callback
 passport.serializeUser (user, done)->
     user.save done
 
+# User deserialize callback
 passport.deserializeUser (id, done)->
     state.load USER_PREFIX + id, done
 
+# Middleware to block unauthorized user
 exports.ensure_login = (req, resp, next) ->
     req.session.uid ?= FORCE_USER
     if req.session.uid
@@ -55,6 +83,7 @@ exports.ensure_login = (req, resp, next) ->
     else
         next( new Error('User not authorized') )
 
+# Middleware to redirect unauthorized user to login page
 exports.force_login = (req, resp, next) ->
     req.session.uid ?= FORCE_USER
     if req.session.uid
@@ -62,9 +91,10 @@ exports.force_login = (req, resp, next) ->
     else
         resp.redirect '/login?next=' + req.path
 
-# Init view and user cache
+# Init module views
 exports.init = (app, cb)->
 
+    # Input validation forms
     validate_uid_form = form(
         form.filter("uid").trim().toLower(),
         form.validate("uid").required().is(/^[a-z0-9_]+$/)
@@ -90,11 +120,12 @@ exports.init = (app, cb)->
         form.validate("password")
     )
 
+    # Register page
     app.get '/register', (req, resp) ->
         next = req.param('next', AFTER_LOGIN )
         resp.render 'register', {next}
 
-
+    # Validate login
     app.get '/validate/uid', validate_uid_form, (req, resp) ->
         if not req.form.isValid
             return resp.send( JSON.strngify req.form.errors.join("\n") )
@@ -105,6 +136,7 @@ exports.init = (app, cb)->
                 else
                     resp.send JSON.stringify true
 
+    # Register handler
     app.post '/register', validate_register_form, (req, resp) ->
         next = req.param('next', AFTER_LOGIN)
         if not req.form.isValid
@@ -126,6 +158,7 @@ exports.init = (app, cb)->
                             account.save (err)->
                                 resp.redirect next
 
+    # Login page
     app.get '/login', (req, resp) ->
         next = req.param('next', AFTER_LOGIN )
         req.session.next = next
@@ -134,6 +167,7 @@ exports.init = (app, cb)->
         else
             resp.render 'login', {next}
 
+    # Login handler
     app.post '/login', validate_login_form, (req, resp, next) ->
 
         nextPage = req.param('next', AFTER_LOGIN )
@@ -153,15 +187,18 @@ exports.init = (app, cb)->
 
             return auth( req, resp, next )
 
+    # Logout handler
     app.get '/logout', (req, resp)->
         req.session.destroy()
         req.logOut()
         resp.redirect '/login'
 
+    # Edit account form
     app.get '/account', exports.force_login, (req, resp)->
         state.load req.session.uid, (error, account)->
             resp.render 'account', {account, error}
 
+    # Edit account handler
     app.post '/account', exports.ensure_login, validate_account_form, (req, resp)->
         state.load req.session.uid, (error, account)->
             if error then return resp.render 'account', {error}
@@ -173,6 +210,7 @@ exports.init = (app, cb)->
                 account.email = req.form.email
                 account.save (error) -> resp.render 'account', {account,error}
 
+    # Google authorization
     app.get '/google/login', passport.authenticate('google')
 
     app.get '/google/done', (req, resp, next)->

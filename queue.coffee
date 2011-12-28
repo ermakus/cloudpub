@@ -39,12 +39,12 @@ exports.Queue = class Queue extends group.Group
         async.forEach @children,((id,cb)=>@stopWorker(id,cb)), cb
 
     # Worker error handler
-    failure: (worker, cb) ->
+    workerFailure: (worker, cb) ->
         log.error "Queue: Worker #{worker.id} failed"
         @setState 'error', worker.message, cb
 
     # Worker success handler
-    success: (worker, cb) ->
+    workerSuccess: (worker, cb) ->
         log.info "Queue: Worker #{worker.id} succeeded"
         @stopWorker worker.id, (err)=>
             return cb and cb(err) if err
@@ -61,8 +61,8 @@ exports.Queue = class Queue extends group.Group
         state.create params, (err, worker) =>
             return cb and cb(err) if err
 
-            worker.on 'failure', 'failure', @id
-            worker.on 'success', 'success', @id
+            worker.on 'failure', 'workerFailure', @id
+            worker.on 'success', 'workerSuccess', @id
 
             async.series [
                 (cb) => worker.save(cb)

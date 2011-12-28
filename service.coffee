@@ -14,28 +14,39 @@ exports.Service = class Service extends queue.Queue
 
     init: ->
         super()
+        # Owner account
+        @account = undefined
         # Instance ID service run on
         @instance = undefined
         # Application ID to run
         @app = undefined
-        # User account to run
+        # Posix user to run
         @user = undefined
-        # Domain
-        @domain = undefined
+        # Service domain
+        @domain = 'localhost'
+        # Service port
+        @port = 4000
+
+    setAccount: (accountId, cb)=>
+        state.load accountId, (err, account)=>
+            return cb and cb(err) if err
+            @on 'state', 'serviceState', accountId
+            @account = accountId
+            account.add @id, cb
 
     # Set service application
     setApp: (appId, cb)->
-        @on 'state', 'serviceState', appId
         state.load appId, (err, app)=>
             return cb and cb(err) if err
+            @on 'state', 'serviceState', appId
             @app = appId
             app.add @id, cb
 
     # Set service instance
     setInstance: (instanceId, cb)->
-        @on 'state', 'serviceState', instanceId
         state.load instanceId, (err, instance)=>
             return cb and cb(err) if err
+            @on 'state', 'serviceState', instanceId
             @instance = instanceId
             @user = instance.user
             @address = instance.address

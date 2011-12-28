@@ -47,6 +47,7 @@ exec_command = (entity, factory, req,resp) ->
         req.form = session:req.session
     
     req.form.id = req.params.id
+    req.form.account = req.session.uid
 
     factory req.form, entity, (err, obj) ->
         if err

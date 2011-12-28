@@ -12,7 +12,7 @@ exports.Cloudpub = class Cloudpub extends service.Service
             command: ["#{@home}/cloudpub/bin/daemon",
                       "-b", "#{@home}/cloudpub",
                       "start", @id, "#{@home}/runtime/bin/node",
-                      "#{@home}/cloudpub/server.js", 4000]
+                      "#{@home}/cloudpub/server.js", "--listen", 4000]
             success:
                 state:'up'
                 message: 'Online'

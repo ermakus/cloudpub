@@ -2,7 +2,6 @@ fs      = require 'fs'
 _       = require 'underscore'
 async   = require 'async'
 
-io    = require './io'
 group = require './group'
 state = require './state'
 
@@ -27,21 +26,22 @@ exports.App = class App extends group.Group
 
 
     # Load or create service
-    service: (id, instanceId, serviceType, cb)->
+    service: (id, accountId, instanceId, serviceType, cb)->
         state.load id, (err, service)=>
             return cb and cb(null, service) if service
             state.create id, serviceType, (err, service)=>
                 async.series [
                     (cb)=> service.setApp(@id,cb)
                     (cb)=> service.setInstance(instanceId,cb)
+                    (cb)=> service.setAccount(accountId,cb)
                     (cb)=> service.save(cb)
                 ], (err) -> cb and cb( err, service )
 
     # Run service on instance
-    runService: (instanceId, serviceType, params, cb)->
+    runService: (accountId, instanceId, serviceType, params, cb)->
         log.info "Run service #{serviceType} on #{instanceId}"
-        serviceId = @id + '-' + instanceId
-        @service serviceId, instanceId, serviceType, (err, service) =>
+        serviceId = @id + '-' + instanceId + '-' + accountId
+        @service serviceId, accountId, instanceId, serviceType, (err, service) =>
             return cb and cb(err) if err
             # Subscribe to state event
             async.series [
@@ -86,7 +86,7 @@ exports.App = class App extends group.Group
             params.instance = [params.instance]
 
         serviceType = 'cloudpub'
-        async.forEach params.instance, ((instanceId, cb) => @runService(instanceId, serviceType, params, cb)), cb
+        async.forEach params.instance, ((instanceId, cb) => @runService(params.account, instanceId, serviceType, params, cb)), cb
 
     # Stop service
     shutdown: (params, cb)->
@@ -100,7 +100,7 @@ exports.App = class App extends group.Group
 # Init request handlers here
 exports.init = (app, cb)->
 
-    log = io.log
+    log = exports.log
 
     app.register 'app'
 
