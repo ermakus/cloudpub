@@ -47,6 +47,7 @@ exports.State = class State
     # Clear and remove from storage
     clear: (cb) ->
         if @id
+            delete CACHE[@id]
             log.info "Delete object #{@id}"
             nconf.clear('object:' + @id)
             nconf.clear( @entity + ":" + @id )
@@ -114,7 +115,7 @@ exports.State = class State
     # Remove event handler
     mute: (name, handler, id)->
         if name of @events
-            @events[name] _.filter @[events].name, (h)->((h.id == id) and (h.handler == handler))
+            @events[name] = _.filter( @events[name], (h)->((h.id == id) and (h.handler == handler)) )
 
 
 CACHE={}

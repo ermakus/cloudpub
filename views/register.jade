@@ -25,8 +25,8 @@ form#register-form(action="/register",method="post")
         .actions
             input.btn.primary(type="submit",value="Create")
         .actions
-            a(href="/google/login")
+            a.btn(href="/google/login")
                 img(src="/google.png",width="32",height="32",style="vertical-align: middle;")
-                span &nbsp; Login with Google account
+                span &nbsp; Register with Google account
 
 != js("/js/register.js")

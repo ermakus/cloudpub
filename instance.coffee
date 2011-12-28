@@ -65,6 +65,7 @@ exports.Instance = class Instance extends group.Group
     install: (cb) ->
         state.load 'app-cloudpub', (err, app)=>
             return cb and cb(err) if err
+            app.mute 'state', 'uninstallState', @id
             app.startup {instance:@id, account:@account}, cb
 
     uninstall: (cb) ->
@@ -78,7 +79,7 @@ exports.Instance = class Instance extends group.Group
         process.nextTick =>
             async.series [
                 (cb) => @setState 'down', 'Server deleted', cb
-                (cb) => app.each 'clear', cb
+                (cb) => @each 'clear', cb
                 (cb) => @clear(cb)
             ], cb
         cb(null)

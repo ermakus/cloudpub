@@ -65,6 +65,23 @@ exports.Service = class Service extends queue.Queue
         
         super params, cb
 
+
+    unsubscribe: (cb)->
+        myid = @id
+
+        unsubscribe_by_id = (id, cb)->
+            state.load id, (err, item)->
+                return cb and cb(err) if err
+                item.mute 'state', 'serviceState', myid
+                item.remove myid, cb
+
+        async.forEach [@app,@account,@instance], unsubscribe_by_id, cb
+
+    clear: (cb)->
+        clear = queue.Queue.prototype.clear
+        @unsubscribe (err)=>
+            clear.call @, cb
+
     # Startup handler
     startup: (cb) ->
         cb and cb(new Error('Not impelemented for this service'))

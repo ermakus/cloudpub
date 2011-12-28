@@ -1,19 +1,20 @@
 .main-page
-    .facts
+    .hero-unit
         h1 
             span(style="color: green;") Cloud
             span(style="color: darkred;") Pub
             img(src="/logo.png", width="50")
-        h2 The easy cloud management service
+        p The easy cloud management service
+    .facts
             ul
                 li 
-                    a.fact(href="/instance") Register servers
+                    a.fact(href="/instance") 1. Add servers
                 li
-                    a.fact(href="/service") Select applications
+                    a.fact(href="/app") 2. Select applications
                 li 
-                    a.fact(href="/worker") Run applications on servers in one click
+                    a.fact(href="/service") 3. Run applications on servers in one click
                 li 
-                    a.fact(href="/instance") Grow and scale
+                    a.fact(href="/instance") 4. Grow and scale
     .demos
             a.enter(href="/service")
                 img(src='/command-start-big.png')

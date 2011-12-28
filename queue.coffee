@@ -51,9 +51,11 @@ exports.Queue = class Queue extends group.Group
             if _.isObject(worker.success)
                 @setState worker.success.state, worker.success.message, (err)=>
                     return cb and cb(err) if err
-                    @start cb
+                    process.nextTick => @start ((err) -> if err then exports.log.error "Start queue error: ", err)
+                    cb and cb(null)
             else
-                @start cb
+                process.nextTick => @start ((err) -> if err then exports.log.error "Start queue error: ", err)
+                cb and cb(null)
 
     # Create new worker
     submit: ( params, cb ) ->

@@ -28,9 +28,11 @@ exports.App = class App extends group.Group
     # Load or create service
     service: (id, accountId, instanceId, serviceType, cb)->
         state.load id, (err, service)=>
-            return cb and cb(null, service) if service
+            return cb and cb(null, service) if not err
             state.create id, serviceType, (err, service)=>
+                return cb and cb(err) if err
                 async.series [
+                    (cb)=> service.save(cb)
                     (cb)=> service.setApp(@id,cb)
                     (cb)=> service.setInstance(instanceId,cb)
                     (cb)=> service.setAccount(accountId,cb)
@@ -43,6 +45,7 @@ exports.App = class App extends group.Group
         serviceId = @id + '-' + instanceId + '-' + accountId
         @service serviceId, accountId, instanceId, serviceType, (err, service) =>
             return cb and cb(err) if err
+            exports.log.error "XXXXXXXXXXXXXXXXXXXX CREATE SERVICE", service
             # Subscribe to state event
             async.series [
                 (cb) => service.stop(cb)
@@ -95,6 +98,7 @@ exports.App = class App extends group.Group
             params = {}
         params ?= {}
         params.instance ?= []
+        
         async.forEach @children, ((serviceId, cb) => @stopService(serviceId, params, cb)), cb
 
 # Init request handlers here

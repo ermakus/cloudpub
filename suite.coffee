@@ -44,8 +44,9 @@ exports.Suite = class Suite extends queue.Queue
     workerSuccess: (entity, cb)->
         super entity, (err) =>
             if not @children.length
-                exports.log.info "================= Test suite passed =================="
-                process.exit(0)
+                process.nextTick ->
+                    exports.log.info "================= Test suite passed =================="
+                    process.exit(0)
             cb and cb(err)
 
 exports.init = (app, cb)->
