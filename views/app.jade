@@ -70,7 +70,7 @@ script.instances-template(type="text/template")
         li
             .state-icon-small
                 img(src="state-<%=item.state%>.png")
-                input.required(type="checkbox",name="instance", value="<%= item.id %>")
+                input.required(type="checkbox",name="instance",value="<%= item.id %>",checked="true")
             .state-info-small <%= item.address %>
         <% }); %>
 
@@ -92,18 +92,21 @@ script.startup-template(type="text/template")
                     .clearfix
                         label Source
                         .input
-                            input.required.urlpopover(type="text",name="url",value="<%= item.source%>")
+                            input.required.urlpopover(type="text",name="source",value="<%= item.source%>")
                             span.help-block
                                 span Provide name or URL of the &nbsp;
-                                a(href="http://npmjs.org/", target="new") npm
+                                a(href="http://npmjs.org/", target="new",rel='twipsy',title='Node.js package manager') npm
                                 span &nbsp;compatible package that containing a&nbsp;
-                                a(href="http://npmjs.org/doc/json.html", target="new") package.json
+                                a(href="http://npmjs.org/doc/json.html", target="new", rel='twipsy',title='File containing app configuration and dependencies') package.json
                                 span &nbsp;manifest.
                     .clearfix
                         label Domain Name
                         .input
                             input.required.domain(type="text",name="domain",value="<%= item.domain%>")
-                            span.help-block Select domain name for this service
+                            span.help-block
+                                span Select domain name for this app.
+                                br
+                                span Use [Your Domain].cloudpub.us or any domain you have.
                 #servers
                     .clearfix
                         label Server to run

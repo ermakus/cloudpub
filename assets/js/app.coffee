@@ -5,13 +5,19 @@ $ ->
         # App defaults
         item =
             id: 'new'
+            domain: 'app.cloudpub.us'
 
         handler = new CommandHandler( 'app', 'startup', item, (err)-> listing.reload())
         handler.show()
 
     listing = new Listing('.page', 'app')
     listing.startUpdate()
+
+    # On startup modal dialog
     $('.startup').live 'shown', ->
+        instances = new Listing('#items', 'instance', 'instances')
+
+        # Server list validation
         $('form.modal-body').validate({
             messages:
                 instance: 'At least one server is required'
@@ -34,14 +40,14 @@ $ ->
 
         })
 
-        instances = new Listing('#items', 'instance', 'instances')
-        $('.tabs').pills()
-
+        # Dialog tabs
+        $('.tabs').tabs()
+        # Help tooltips
+        $('a[rel=twipsy]').twipsy()
+        # Source help
         $('.urlpopover').popover {
             title: -> "A source is"
             content: -> $('.popover').html()
             html: true
-            placement:'left'
-            trigger: 'focus'
+            placement:'right'
         }
-

@@ -6,7 +6,7 @@ exports.Npm = class Npm extends service.Service
 
     configure: (params, cb)->
         @source = params.source or @source
-        if not @source return cb and cb(new Error('Source not set'))
+        if not @source then return cb and cb(new Error('Source not set'))
         super params, cb
 
     startup: (cb) ->

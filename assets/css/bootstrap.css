@@ -2245,7 +2245,7 @@ button.btn::-moz-focus-inner, input[type=submit].btn::-moz-focus-inner {
   margin-left: 5px;
 }
 .modal .popover, .modal .twipsy {
-  z-index: 12000;
+  z-index: 100000;
 }
 .twipsy {
   display: block;
@@ -2253,7 +2253,7 @@ button.btn::-moz-focus-inner, input[type=submit].btn::-moz-focus-inner {
   visibility: visible;
   padding: 5px;
   font-size: 11px;
-  z-index: 1000;
+  z-index: 100000;
   filter: alpha(opacity=80);
   -khtml-opacity: 0.8;
   -moz-opacity: 0.8;

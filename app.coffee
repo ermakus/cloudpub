@@ -20,55 +20,38 @@ exports.App = class App extends serviceGroup.ServiceGroup
         # Domain
         @domain = 'cloudpub.us'
 
+    # Create service JSON info from params and instance ID
+    makeService: (params, instanceId, cb)->
+        exports.log.info "Install #{@id} on instance #{instanceId}"
+        state.load instanceId, (err, instance)=>
+            cb and cb(err, {
+                id:'node-' + @id + '-' + instance.id
+                entity:'npm'
+                package:'npm'
+                account:params.account
+                app:@id
+                instance:instance.id
+                address:instance.address
+                user:instance.user
+            })
+
     startup: (params, cb)->
+        # Take parent prototype
+        startup = serviceGroup.ServiceGroup.prototype.startup
+
+        # One checkbox passed as string, so make it array
         if _.isString(params.instance)
             params.instance = [params.instance]
 
-
-        super({}, cb)
-
-installOnInstance = (app, instance, cb)->
-    exports.log.info "Install #{app.id} on instance #{instance.id}"
-    
-    params = {
-        id:'node-' + app.id
-        entity:'npm'
-        account:app.account
-        app:app.id
-        instance:instance.id
-        address:instance.address
-        user:instance.user
-    }
-    
-    app.startService params, params, cb
-
-createApp = (url, acc, cb)->
-    state.loadOrCreate account.sha1( url ), 'app', (err, app)->
-        return cb and cb(err) if err
-        app.message = 'Installing to servers'
-        app.source = url
-        app.account = acc
-        app.save (err)->
-            cb and cb(err, app) if err
-            state.query 'instance', (err, instanses)->
-                cb and cb(err, app) if err
-                async.forEach instanses, async.apply(installOnInstance, app), (err)->
-                    cb and cb(err, app)
+        # Create service for each instance
+        async.map params.instance, ((id, cb)=>@makeService(params, id, cb)), (err, services)=>
+            return cb and cb(err) if err
+            params.services = services
+            delete params['instance']
+            # Call parent inside anonymous function. Sooo suxx
+            startup.call @, params, cb
 
 # Init request handlers here
 exports.init = (app, cb)->
-
-    log = exports.log
-
     app.register 'app'
-
-    app.post '/api/create/app', (req, resp)->
-        url = req.param('url')
-        if not url
-            return resp.send 'Source is required', 500
-        
-        createApp url, req.session.uid, (err, app)->
-            if err then return resp.send err, 500
-            resp.send true
-
     cb and cb(null)
