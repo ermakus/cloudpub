@@ -99,12 +99,12 @@ script.shutdown-template(type="text/template")
                     ul.inputs-list
                         li
                             label
-                                input(type="radio", checked="true", name="mode", value="maintain")
+                                input(type="radio", checked="true", name="data", value="keep")
                                 b Put to maintaince mode
                                 span.help-block Stop all workers but keep data
                         li
                             label
-                                input(type="radio", name="mode", value="shutdown")
+                                input(type="radio", name="data", value="delete")
                                 span.red Complete Remove
                                 span.help-block Delete all data and remove server
         .modal-footer

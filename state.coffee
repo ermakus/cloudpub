@@ -165,8 +165,13 @@ exports.load = load = (id, entity, package, cb) ->
     if typeof(entity) == 'function'
         cb = entity
         package = entity = null
-
+    
     stored = null
+    
+    if _.isObject(id)
+        stored = id
+        id = stored.id
+
     if id
         stored = nconf.get("object:" + id)
 

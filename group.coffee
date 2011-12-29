@@ -17,13 +17,14 @@ exports.Group = class Group extends state.State
     # Add children to list
     add: (id, cb) ->
         if id in @children then return cb and cb(null)
+        exports.log.info "Add #{id} to #{@id}"
         @children.push id
         @save cb
 
     # Remove children from list
     remove: (id, cb) ->
         if id in @children
-            exports.log.info "Remove #{id} from #{@children}"
+            exports.log.info "Remove #{id} from #{@id}"
             @children = _.without @children, id
             @save cb
         else

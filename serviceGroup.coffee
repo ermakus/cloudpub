@@ -16,6 +16,7 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
             return cb and cb(err) if err
             # Subscribe to state event
             async.series [
+                (cb) => service.save(cb)
                 (cb) => @add(service.id, cb)
                 (cb) => service.configure(params, cb)
                 (cb) => service.stop(cb)
@@ -78,7 +79,10 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
         exports.log.info "Shutdown service group #{@id}"
         if params.data == 'delete'
             @on 'state', 'uninstallState', @id
-        async.forEach @children, ((serviceId, cb)=>@stopService( serviceId, params, cb )), cb
+        if @children.length
+            async.forEach @children, ((serviceId, cb)=>@stopService( serviceId, params, cb )), cb
+        else
+            @emit 'state', {state:'down',message:'Service uninstalled'}, cb
 
     # Service state event handler
     serviceState: (event, cb)->

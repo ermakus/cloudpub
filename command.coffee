@@ -33,7 +33,7 @@ COMMAND_FORMS =
     )
     instance_shutdown: form(
         form.validate("id").required().is(/^[a-z0-9\.\-]+$/)
-        form.validate("mode").required().is(/^(maintain|shutdown)$/)
+        form.validate("data").required().is(/^(keep|delete)$/)
     )
 
 # Execute command in HTTP request

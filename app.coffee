@@ -24,16 +24,35 @@ exports.App = class App extends serviceGroup.ServiceGroup
         if _.isString(params.instance)
             params.instance = [params.instance]
 
-        params.services = [{entity:'cloudpub'}]
-        super(params. cb)
 
-create_app = (url, acc, cb)->
+        super({}, cb)
+
+installOnInstance = (app, instance, cb)->
+    exports.log.info "Install #{app.id} on instance #{instance.id}"
+    
+    params = {
+        id:'installer-' + app.id
+        entity:'service'
+        account:app.account
+        app:app.id
+        instance:instance.id
+        address:instance.address
+        user:instance.user
+    }
+    
+    app.startService params, params, cb
+
+createApp = (url, acc, cb)->
     state.loadOrCreate account.sha1( url ), 'app', (err, app)->
         return cb and cb(err) if err
         app.source = url
         app.account = acc
         app.save (err)->
-            cb and cb(err, app)
+            cb and cb(err, app) if err
+            state.query 'instance', (err, instanses)->
+                cb and cb(err, app) if err
+                async.forEach instanses, async.apply(installOnInstance, app), (err)->
+                    cb and cb(err, app)
 
 # Init request handlers here
 exports.init = (app, cb)->
@@ -47,14 +66,8 @@ exports.init = (app, cb)->
         if not url
             return resp.send 'Source is required', 500
         
-        create_app url, req.session.uid, (err, app)->
+        createApp url, req.session.uid, (err, app)->
             if err then return resp.send err, 500
             resp.send true
 
-    state.load 'app-cloudpub', (err)->
-        if not err then return cb and cb(null)
-        state.create 'app-cloudpub', 'app', (err, item) ->
-            return cb and cb(err) if err
-            app.id = 'cloudpub'
-            app.title = 'Cloudpub Node'
-            item.save cb
+    cb and cb(null)

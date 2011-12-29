@@ -25,6 +25,27 @@ exports.Service = class Service extends queue.Queue
         # Service port
         @port = account.PORT
 
+
+    # Configure service and attach to groups
+    configure: (params, cb)->
+
+        @account  = params.account or @account
+        @address  = params.address or @address
+        @user     = params.user or @user
+        @instance = params.instance or @instance
+        @app      = params.app or @app
+        @home     = "/home/#{@user}/.cloudpub"
+
+        if not (@address and @user and @instance)
+            return cb and cb(new Error("Service not configured"))
+
+        async.series [
+            (cb)=> @attachTo(@account,cb)
+            (cb)=> @attachTo(@instance,cb)
+            (cb)=> @attachTo(@app,cb)
+            (cb)=> @save(cb)
+        ], cb
+
     # Submit task to work queue
     submit: (params, cb)->
 
@@ -68,33 +89,13 @@ exports.Service = class Service extends queue.Queue
             return cb and cb(err) if err
             clear.call @, cb
 
-    # Configure service and attach to groups
-    configure: (params, cb)->
-
-        if not (params.address and params.user and params.instance)
-            return cb and cb(new Error("Service not initialized"))
-
-        @account  = params.account
-        @address  = params.address
-        @user     = params.user
-        @instance = params.instance
-        @app      = params.app
-        @home     = "/home/#{@user}/.cloudpub/"
-
-        async.series [
-            (cb)=> @attachTo(@account,cb)
-            (cb)=> @attachTo(@instance,cb)
-            (cb)=> @attachTo(@app,cb)
-            (cb)=> @save(cb)
-        ], cb
-
     # Startup handler
     startup: (cb) ->
         cb and cb(new Error('Not impelemented for this service'))
 
     # Shutdown handler
     shutdown: (cb) ->
-        cb and cb(new Error('Not impelemented for this service'))
+        cb and cb(null)
 
     # Install handler
     install: (cb) ->
@@ -102,7 +103,7 @@ exports.Service = class Service extends queue.Queue
 
     # Uninstall handler
     uninstall: (cb) ->
-        cb and cb(new Error('Not impelemented for this service'))
+        cb and cb(null)
 
 # Init request handlers here
 exports.init = (app, cb)->
