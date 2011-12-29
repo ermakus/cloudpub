@@ -31,8 +31,8 @@ installOnInstance = (app, instance, cb)->
     exports.log.info "Install #{app.id} on instance #{instance.id}"
     
     params = {
-        id:'installer-' + app.id
-        entity:'service'
+        id:'node-' + app.id
+        entity:'npm'
         account:app.account
         app:app.id
         instance:instance.id
@@ -45,6 +45,7 @@ installOnInstance = (app, instance, cb)->
 createApp = (url, acc, cb)->
     state.loadOrCreate account.sha1( url ), 'app', (err, app)->
         return cb and cb(err) if err
+        app.message = 'Installing to servers'
         app.source = url
         app.account = acc
         app.save (err)->

@@ -116,7 +116,7 @@ window.CommandHandler = class CommandHandler
     # Show command dialog
     show: ->
         # Validate form before show
-        @validate()
+        # @validate()
         # Show dialog
         @dlg.modal
             backdrop: true

@@ -2317,7 +2317,7 @@ button.btn::-moz-focus-inner, input[type=submit].btn::-moz-focus-inner {
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 1000;
+  z-index: 100000;
   padding: 5px;
   display: none;
 }
