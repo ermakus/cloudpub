@@ -69,7 +69,7 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
     # See configure for accepted params
     startup: (params, cb) ->
         exports.log.info "Startup service group #{@id}"
-        @mute 'state', 'uninstallState', @id
+        @mute 'success', 'suicide', @id
         async.forEach params.services or @children, ((serviceId, cb)=>@startService( serviceId, params, cb )), cb
 
     # Stop service group
@@ -77,12 +77,21 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
     # data = (keep|delete) Keep or delete data and group itself after shutdown
     shutdown: (params, cb) ->
         exports.log.info "Shutdown service group #{@id}"
-        if params.data == 'delete'
-            @on 'state', 'uninstallState', @id
-        if @children.length
-            async.forEach @children, ((serviceId, cb)=>@stopService( serviceId, params, cb )), cb
-        else
-            @emit 'state', {state:'down',message:'Service uninstalled'}, cb
+        async.series [
+            # Subscribe to suicide handler
+            (cb)=>
+                if params.data == 'delete'
+                    @on 'success', 'suicide', @id
+                    @save cb
+                else
+                    cb(null)
+            # Stop all services
+            (cb)=>
+                if @children.length
+                    async.forEach @children, ((serviceId, cb)=>@stopService( serviceId, params, cb )), cb
+                else
+                    @emit 'success', @, cb
+        ], cb
 
     # Service state event handler
     serviceState: (event, cb)->
@@ -91,9 +100,7 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
  
     # Service state handler called when uninstall. 
     # Commits suicide after work complete
-    uninstallState: (app, cb)->
-        # TODO: fix ugly state detection below
-        if app.state != 'down' or app.message != 'Service uninstalled' then return cb(null)
+    suicide: (app, cb)->
         # Delete object on next tick
         process.nextTick =>
             async.series [

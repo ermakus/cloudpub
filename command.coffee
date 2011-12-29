@@ -41,11 +41,8 @@ exec_command = (entity, factory, req,resp) ->
     # Create new entity if special ID
     if req.params.id == ENTITY_NEW
         req.params.id = null
-    if req.form
-        req.form.session = req.session
-    else
-        req.form = session:req.session
-    
+
+    req.form ||= {}
     req.form.id = req.params.id
     req.form.account = req.session.uid
 

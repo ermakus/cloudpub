@@ -44,17 +44,20 @@ exports.Group = class Group extends state.State
 
     # Update group state from children states
     # UP = all children is up
-    # DOWN or ERROR = has down or error children
-    # MAINTAIN = has up and maintain children
+    # DOWN = all children is down
+    # ERROR = at least 1 child error
+    # MAINTAIN = any other
     updateState: (cb)->
 
         states   = {up:0,maintain:0,down:0,error:0}
         messages = {up:[],maintain:[],down:[],error:[]}
+        workers  = 0
 
         checkState = (id, cb)->
             state.load id, (err, child)->
                 # Ignore non-exist children
                 return cb and cb(null) if err
+                workers += child.children?.length or 0
                 states[ child.state ] += 1
                 messages[ child.state ].push child.message
                 cb and cb(null)
@@ -72,7 +75,13 @@ exports.Group = class Group extends state.State
             
             message = messages[st][0]
 
-            @setState st, message, cb
+            if workers == 0
+                exports.log.info "Group #{@id} succeeded"
+                @emit 'success', @, (err)=>
+                    return cb and cb(err) if err
+                    @setState st, message, cb
+            else
+                @setState st, message, cb
 
     # Resolve children IDs to objects from storage
     resolve: (cb)->

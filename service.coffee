@@ -62,7 +62,6 @@ exports.Service = class Service extends queue.Queue
     attachTo: (targetId, cb)->
         return cb and cb(null) if not targetId
         exports.log.info "Attach service to #{targetId}"
-        @mute 'state', 'serviceState', targetId
         @on 'state', 'serviceState', targetId
         async.waterfall [
             (cb)=> state.load(targetId, cb)
@@ -91,7 +90,7 @@ exports.Service = class Service extends queue.Queue
 
     # Startup handler
     startup: (cb) ->
-        cb and cb(new Error('Not impelemented for this service'))
+        cb and cb(null)
 
     # Shutdown handler
     shutdown: (cb) ->
@@ -99,11 +98,11 @@ exports.Service = class Service extends queue.Queue
 
     # Install handler
     install: (cb) ->
-        cb and cb(new Error('Not impelemented for this service'))
+        cb and cb(null)
 
     # Uninstall handler
     uninstall: (cb) ->
-        cb and cb(null)
+        @updateState cb
 
 # Init request handlers here
 exports.init = (app, cb)->

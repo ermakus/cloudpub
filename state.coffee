@@ -108,6 +108,7 @@ exports.State = class State
     # handler = name of method(event, cb)
     # id = object id to call handler
     on: (name, handler, id)->
+        @mute name, handler, id
         @events[name] ?=[]
         @events[name].push {handler, id}
 
