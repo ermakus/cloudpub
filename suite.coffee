@@ -47,16 +47,13 @@ exports.Suite = class Suite extends queue.Queue
     submitTests: (params, cb)->
         async.forEachSeries params, ((meta, cb) => @submitTest(meta.entity, meta.package, cb)), cb
 
-    workerSuccess: (entity, cb)->
-        super entity, (err) =>
-            if not @children.length
-                process.nextTick =>
-                    checker.dumpCache()
-                    exports.log.info "Test suite done. #{@count} test(s) executed."
-                    process.exit(0)
-                @clear cb
-            else
-                cb and cb(null)
+    success: (entity, cb)->
+        setTimeout =>
+            checker.dumpCache()
+            exports.log.info "Test suite done. #{@count} test(s) executed."
+            process.exit(0)
+        , 100
+        @clear cb
 
 exports.init = (app, cb)->
     if nconf.get('test')

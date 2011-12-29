@@ -114,8 +114,7 @@ exports.State = class State
     # Remove event handler
     mute: (name, handler, id)->
         if name of @events
-            @events[name] = _.filter( @events[name], (h)->((h.id == id) and (h.handler == handler)) )
-
+            @events[name] = _.filter( @events[name], (h)->( not ((h.id == id) and (h.handler == handler)) ) )
 
 exports.cache = CACHE = {}
 

@@ -40,12 +40,6 @@ exports.InstanceTest = class extends checker.Checker
     test2_InstanceShutdown: (cb)->
         async.waterfall [
              (cb)=>
-                # 0. Online
-                @expect 'up', 'Online', cb
-             (cb)=>
-                # 1. Stop daemon
-                @expect 'maintain', 'Stop daemon', cb
-             (cb)=>
                 # 1. Stop daemon
                 @expect 'maintain', 'Stop daemon', cb
              (cb)=>
@@ -59,11 +53,11 @@ exports.InstanceTest = class extends checker.Checker
                 @expect 'down', 'Service uninstalled', cb
              (cb)=>
                 # 3. Deleted 
-                @expect 'down', 'Server deleted', cb
+                @expect 'down', 'Deleted', cb
              (cb)=>
                 @instance.on 'state', 'onState', @id
                 @instance.shutdown {
-                    mode: 'shutdown'
+                    data: 'delete'
                 }, cb
         ], cb
 

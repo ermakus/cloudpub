@@ -4,19 +4,24 @@ h1 Apps
     .loading
 
 .alert-message.block-message.info
-    h3 Create new application
+    h3 Install new application
     form.create(method="post", action="/api/create/app")
         .clearfix
-            label Source URL 
+            label Source
             .input
                 input.required.url.span12(type="text",name="url")
-                span.help-block GIT repository to get application source
+                span.help-block
+                    span Provide name or URL of the &nbsp;
+                    a(href="http://npmjs.org/", target="new") npm
+                    span &nbsp;compatible package that containing a&nbsp;
+                    a(href="http://npmjs.org/doc/json.html", target="new") package.json
+                    span &nbsp;manifest.
         .clearfix
             input.btn.primary.create-submit(type="submit", value="Create App")
 
 .popover
     ol
-        li a folder containing a program described by a package.json file
+        li a folder on servers that containing a program described by a package.json file
         li a gzipped tarball containing (1)
         li a url that resolves to (2)
         li a [name]@[version] that is published on the registry with (3)
@@ -63,7 +68,7 @@ script.list-template(type="text/template")
                 td.control
                     <% if(item.state != "up") { %>
                     img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="startup")
-                    <% } if(item.state != "down") { %>
+                    <% } if(item.state != "DISABLED-down") { %>
                     img.btn.command(src="command-stop.png",data-id="<%=item.id%>",data-command="shutdown")
                     <% } %>
             <% }); %>

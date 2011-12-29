@@ -1,13 +1,11 @@
-async   = require 'async'
-_       = require 'underscore'
-account = require './account'
-command = require './command'
-group   = require './group'
-state   = require './state'
-app     = require './app'
+async        = require 'async'
+_            = require 'underscore'
+account      = require './account'
+serviceGroup = require './serviceGroup'
+state        = require './state'
 
 # Instance class
-exports.Instance = class Instance extends group.Group
+exports.Instance = class Instance extends serviceGroup.ServiceGroup
 
     init: ->
         super()
@@ -17,74 +15,19 @@ exports.Instance = class Instance extends group.Group
         @user = undefined
         # Owner account
         @account = undefined
-        
-    # Service state event handler
-    serviceState: (event, cb)->
-        # Replicate last service state
-        @updateState cb
- 
-    configureService: (serviceId, params, cb)->
-        exports.log.info "Configure service: #{serviceId}", params
-        state.load serviceId, (err, service)->
-            return cb and cb(err) if err
-            service.user = params.user
-            service.address = params.address
-            service.home = "/home/#{params.user}/.cloudpub"
-            service.save cb
 
-    configure: (params, cb) ->
+    startup: (params, cb) ->
         @account = params.account
         @address = params.address
-        @user = params.user
+        @user    = params.user
         if not (@address and @user)
             return cb and cb( new Error('Invalid address or user') )
         if not params.id
             @id = 'i-' + @address.split('.').join('-')
-        async.series [
-            (cb)=> async.forEach @children, ((serviceId, cb)=>@configureService( serviceId, params, cb )), cb
-            (cb)=> @save(cb)
-        ], cb
-
-    # Start instance
-    startup: (params, ccb) ->
-        async.series [
-                (cb)=> @configure(params, cb),
-                (cb)=> @install(cb),
-        ], ccb
-
-    # Stop instance
-    shutdown: (params, cb) ->
-        async.series [
-            (cb)=>@stop(cb)
-            (cb)=>@each 'shutdown', cb
-            (cb)=>
-                if params.mode == 'shutdown'
-                    @on 'state', 'uninstallState', @id
-                    @each 'uninstall', cb
-                else
-                    cb and cb(null)
-            (cb)=>@start(cb)
-        ], cb
-
-    # Install master appication
-    install: (cb) ->
-        state.load 'app-cloudpub', (err, app)=>
-            return cb and cb(err) if err
-            app.mute 'state', 'uninstallState', @id
-            app.startup {instance:@id, account:@account}, cb
-
-    # App uninstall state handler
-    uninstallState: (app, cb)->
-        # TODO: fix ugly state detection below
-        if app.state != 'down' or app.message != 'Service uninstalled' then return cb(null)
-        # Delete object on next tick
-        process.nextTick =>
-            async.series [
-                (cb) => @setState 'down', 'Server deleted', cb
-                (cb) => @each 'clear', cb
-                (cb) => @clear(cb)
-            ], cb
-        cb(null)
+        params.services = [
+            { entity:'cloudpub', package:'cloudpub' }
+        ]
+        super(params, cb)
 
 # Init HTTP request handlers
 exports.init = (app, cb)->

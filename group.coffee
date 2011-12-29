@@ -16,6 +16,7 @@ exports.Group = class Group extends state.State
 
     # Add children to list
     add: (id, cb) ->
+        if id in @children then return cb and cb(null)
         @children.push id
         @save cb
 
@@ -38,7 +39,7 @@ exports.Group = class Group extends state.State
                 instance[method] (err)->
                     cb and cb( err, instance )
 
-        async.forEach @children, process, cb
+        async.forEachSeries @children, process, cb
 
     # Update group state from children states
     # UP = all children is up

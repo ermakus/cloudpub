@@ -1,7 +1,13 @@
 require('coffee-script');
 var app = require('./main');
-var nconf = require('nconf');
+var account = require('./account');
 
 app.init( function(err, server) {
-    if(err) console.log(err); else server.listen( nconf.get('listen') || 3000 );
+    if(err) {
+        console.log(err)
+    }
+    else {
+        account.log.info("Server started on " + account.DOMAIN + ":" + account.PORT );
+        server.listen( account.PORT );
+    }
 });

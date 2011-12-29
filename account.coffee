@@ -2,9 +2,14 @@ form     = require 'express-form'
 hasher   = require 'password-hash'
 passport = require 'passport'
 crypto   = require 'crypto'
+nconf    = require 'nconf'
 io       = require './io'
 state    = require './state'
 group    = require './group'
+
+
+exports.DOMAIN = DOMAIN = nconf.get('ext-domain') or nconf.get('domain') or 'localhost'
+exports.PORT   = PORT   = nconf.get('ext-listen') or nconf.get('listen') or 3000
 
 LocalStrategy  = require('passport-local').Strategy
 GoogleStrategy = require('passport-google').Strategy
@@ -64,8 +69,8 @@ passport.use new LocalStrategy({ usernameField: 'uid', passwordField: 'password'
 
 # Google auth strategy
 passport.use new GoogleStrategy({
-    returnURL: 'http://localhost:3000/google/done',
-    realm: 'http://localhost:3000/'}, google_authorize )
+    returnURL: "http://#{DOMAIN}:#{PORT}/google/done",
+    realm: "http://#{DOMAIN}:#{PORT}/"}, google_authorize )
 
 # User serialize callback
 passport.serializeUser (user, done)->
@@ -223,5 +228,6 @@ exports.init = (app, cb)->
             resp.redirect req.session?.next or AFTER_LOGIN
         )
         auth req, resp, next
+
 
     cb and cb(null)
