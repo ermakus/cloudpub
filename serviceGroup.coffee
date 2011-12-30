@@ -65,6 +65,7 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
         if not params.services
             return cb and cb(new Error("Services list not passed"))
         async.series [
+            (cb)=> @save(cb)
             (cb)=> async.forEach params.services, ((serviceId, cb)=>@configureService( serviceId, params, cb )), cb
             (cb)=> @save(cb)
         ], cb
