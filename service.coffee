@@ -18,6 +18,8 @@ exports.Service = class Service extends queue.Queue
         @instance = undefined
         # Application ID to run
         @app = undefined
+        # Address of server to run
+        @address = undefined
         # Posix user to run
         @user = undefined
         # Service domain
@@ -28,22 +30,28 @@ exports.Service = class Service extends queue.Queue
 
     # Configure service and attach to groups
     configure: (params, cb)->
+        exports.log.info "Configure service #{@id}:", params
 
         @account  = params.account or @account
+        if not @account then return cb and cb(new Error("Account not set"))
+
         @address  = params.address or @address
+        if not @address then return cb and cb(new Error("Address not set"))
+
         @user     = params.user or @user
+        if not @user then return cb and cb(new Error("User not set"))
+
         @instance = params.instance or @instance
+        if not @instance then return cb and cb(new Error("Instance not set"))
+
         @app      = params.app or @app
         @home     = "/home/#{@user}/.cloudpub"
 
-        if not (@address and @user and @instance)
-            return cb and cb(new Error("Service not configured"))
-
         async.series [
+            (cb)=> @save(cb)
             (cb)=> @attachTo(@account,cb)
             (cb)=> @attachTo(@instance,cb)
             (cb)=> @attachTo(@app,cb)
-            (cb)=> @save(cb)
         ], cb
 
     # Submit task to work queue

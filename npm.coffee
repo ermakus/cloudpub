@@ -42,7 +42,8 @@ exports.Npm = class Npm extends service.Service
             package: "worker"
             message: "Installing app: #{@source}"
             state:   "maintain"
-            target: "#{@home}/"
+            home: @home
+            target: "#{@home}/" # rsync slash important
             command:['npm','install', @source]
             success:
                 state:'up'
@@ -55,6 +56,7 @@ exports.Npm = class Npm extends service.Service
             message: "Uninstall app: #{@source}"
             entity:  'shell'
             package: 'worker'
+            home: @home
             command:['npm','uninstall', @source]
             success:
                 state:'down'

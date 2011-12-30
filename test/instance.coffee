@@ -36,8 +36,48 @@ exports.InstanceTest = class extends checker.Checker
                 }, cb
         ], cb
 
+    test3_AppStartup: (cb)->
+        async.waterfall [
+             (cb)=>
+                @expect 'maintain', 'Installing app: test', cb
+             (cb)=>
+                @expect 'up', 'App installed', cb
+             (cb)=>
+                @expect 'maintain', 'Starting daemon', cb
+             (cb)=>
+                @expect 'up', 'Online', cb
+             (cb)=>
+                @app.on 'state', 'onState', @id
+                @app.startup {
+                    source: 'test'
+                    domain: 'localhost'
+                    instance: @instance.id
+                    account: @account.id
+                }, cb
+        ], cb
+
+    test4_AppShutdown: (cb)->
+        async.waterfall [
+             (cb)=>
+                @expect 'maintain', 'Stop daemon', cb
+             (cb)=>
+                @expect 'down', 'Terminated', cb
+             (cb)=>
+                @expect 'maintain', 'Uninstall app: test', cb
+             (cb)=>
+                @expect 'down', 'Service uninstalled', cb
+             (cb)=>
+                @expect 'down', 'Deleted', cb
+             (cb)=>
+                @app.on 'state', 'onState', @id
+                @app.shutdown {
+                    data: 'delete'
+                }, cb
+        ], cb
+
+
     # Test instance shutdown
-    test2_InstanceShutdown: (cb)->
+    test5_InstanceShutdown: (cb)->
         async.waterfall [
              (cb)=>
                 # 1. Stop daemon

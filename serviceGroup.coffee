@@ -10,29 +10,27 @@ state    = require './state'
 exports.ServiceGroup = class ServiceGroup extends group.Group
 
     # Run service by ID or JSON
-    startService: (serviceId, params, cb)->
-        exports.log.info "Run service #{serviceId} with params ", params
-        state.loadOrCreate serviceId, 'service', (err, service) =>
+    startService: (serviceId, cb)->
+        exports.log.info "Start service #{serviceId}"
+        state.load serviceId, 'service', (err, service) =>
             return cb and cb(err) if err
             # Subscribe to state event
             async.series [
                 (cb) => service.save(cb)
-                (cb) => @add(service.id, cb)
-                (cb) => service.configure(params, cb)
                 (cb) => service.stop(cb)
                 (cb) => service.install(cb)
                 (cb) => service.startup(cb)
                 (cb) => service.start(cb)
-            ], cb
+            ], (err)-> cb( null, service.id )
 
     # Stop service by ID
-    stopService: (serviceId, params, cb)->
+    stopService: (serviceId, doUninstall, cb)->
         exports.log.info "Stop service #{serviceId}"
         state.load serviceId, (err, service) =>
             return cb and cb(err) if err
 
             ifUninstall = (cb)->
-                if params.data == 'delete'
+                if doUninstall
                     service.uninstall(cb)
                 else
                     cb and cb(null)
@@ -46,10 +44,13 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
 
     # Configure single service
     configureService: (serviceId, params, cb)->
-        exports.log.info "Configure service: #{serviceId}", params
-        state.load serviceId, (err, service)->
-            return cb and cb(err) if err
-            service.configure params, cb
+        async.waterfall [
+            (cb) -> state.loadOrCreate(serviceId, cb)
+            (service, cbb) ->
+                service.configure params, (err) ->
+                    cbb(err, service)
+            (service, cb) => @add(service.id, cb)
+        ], cb
 
     # Configure service group
     # Accepted params:
@@ -60,8 +61,11 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
     # app      = App ID of service
     # instance = Instance ID of service
     configure: (params, cb) ->
+        exports.log.info "Configure service group #{@id}"
+        if not params.services
+            return cb and cb(new Error("Services list not passed"))
         async.series [
-            (cb)=> async.forEach @children, ((serviceId, cb)=>@configureService( serviceId, params, cb )), cb
+            (cb)=> async.forEach params.services, ((serviceId, cb)=>@configureService( serviceId, params, cb )), cb
             (cb)=> @save(cb)
         ], cb
 
@@ -70,17 +74,22 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
     startup: (params, cb) ->
         exports.log.info "Startup service group #{@id}"
         @mute 'success', 'suicide', @id
-        async.forEach params.services or @children, ((serviceId, cb)=>@startService( serviceId, params, cb )), cb
+        async.series [
+            (cb) => @configure params, cb
+            (cb) => async.forEach @children, ((serviceId, cb)=>@startService( serviceId, cb )), cb
+            (cb) => @save(cb)
+        ], cb
 
     # Stop service group
     # Accepted params:
     # data = (keep|delete) Keep or delete data and group itself after shutdown
     shutdown: (params, cb) ->
         exports.log.info "Shutdown service group #{@id}"
+        doUninstall = params.data == 'delete'
         async.series [
             # Subscribe to suicide handler
             (cb)=>
-                if params.data == 'delete'
+                if doUninstall
                     @on 'success', 'suicide', @id
                     @save cb
                 else
@@ -88,7 +97,7 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
             # Stop all services
             (cb)=>
                 if @children.length
-                    async.forEach @children, ((serviceId, cb)=>@stopService( serviceId, params, cb )), cb
+                    async.forEach @children, ((serviceId, cb)=>@stopService( serviceId, doUninstall, cb )), cb
                 else
                     @emit 'success', @, cb
         ], cb

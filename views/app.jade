@@ -131,12 +131,12 @@ script.shutdown-template(type="text/template")
                         li
                             label
                                 input(type="radio", checked="true", name="data", value="keep")
-                                b Keep application data
-                                span.help-block You can restart application later
+                                b Keep app data
+                                span.help-block You can restart app later
                         li
                             label
                                 input(type="radio", name="data", value="delete")
-                                span.red Complete delete all application data
+                                span.red Uninstall app
                                 span.help-block This cannot be undone! Use this with caution.
         .modal-footer
             a.btn.primary.execute(href="#") Stop App

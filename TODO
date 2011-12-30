@@ -1,6 +1,6 @@
+0. Bug with source field and refresh after delete
 1. Associate entities with account
 3. Service factory
-4. Start app - server selections
 5. Start/stop service
 6. Subscribe/unsubscribe over socket.io
 8. Service configuration
@@ -9,6 +9,7 @@
 9. Pass domain to slave
 10. Generate nginx config and restart nginx
 
+4. Start app - server selections
 
 FIXED 1. Kill process on stop
 FIXED 7. Route events over account

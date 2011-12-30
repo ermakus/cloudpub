@@ -87,10 +87,10 @@ exports.Checker = class Checker extends state.State
         async.waterfall [
             # Load test app
             (cb)->
-                state.loadOrCreate('app-cloudpub', 'app', cb)
+                state.loadOrCreate('test-app', 'app', cb)
             # Save it
             (app, cb)=>
-                @application = app
+                @app = app
                 app.events = {}
                 app.save cb
             # Load test instance
@@ -105,7 +105,7 @@ exports.Checker = class Checker extends state.State
                 inst.save cb
             # Load test account 
             (cb)->
-                state.loadOrCreate 'user-test', 'account', cb
+                state.loadOrCreate 'test-suer', 'account', cb
             # Save it
             (acc, cb)=>
                 @account = acc

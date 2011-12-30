@@ -16,7 +16,7 @@ exports.Instance = class Instance extends serviceGroup.ServiceGroup
         # Owner account
         @account = undefined
 
-    startup: (params, cb) ->
+    configure: (params, cb) ->
         @account = params.account
         @address = params.address
         @user    = params.user

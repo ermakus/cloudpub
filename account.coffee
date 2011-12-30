@@ -59,6 +59,7 @@ authorize = (username, password, done) ->
 google_authorize = (userid, profile, done) ->
     userid = sha1 userid
     state.loadOrCreate USER_PREFIX + userid, 'account', (err, user)->
+        user.provider = 'google'
         user.email = profile.emails[0].value
         user.login = profile.displayName
         user.save (err)->

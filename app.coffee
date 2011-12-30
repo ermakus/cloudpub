@@ -10,46 +10,59 @@ exports.App = class App extends serviceGroup.ServiceGroup
 
     init: ->
         super()
-        @name = "Master Node"
         # Instance ID service run on
         @instance = undefined
-        # Application ID to run
-        @app = undefined
-        # User account to run
-        @user = undefined
         # Domain
-        @domain = 'cloudpub.us'
+        @domain = undefined
+        # Source
+        @account = undefined
+        # List of instancies app run
+        @instancies = []
 
     # Create service JSON info from params and instance ID
-    makeService: (params, instanceId, cb)->
+    makeService: (instanceId, cb)->
         exports.log.info "Install #{@id} on instance #{instanceId}"
         state.load instanceId, (err, instance)=>
             cb and cb(err, {
                 id:'node-' + @id + '-' + instance.id
                 entity:'npm'
                 package:'npm'
-                account:params.account
+                account:@account
                 app:@id
                 instance:instance.id
                 address:instance.address
                 user:instance.user
             })
 
-    startup: (params, cb)->
-        # Take parent prototype
-        startup = serviceGroup.ServiceGroup.prototype.startup
+    # Configure app from form data
+    # params.account always passed if user authorized
+    configure: (params, cb)->
+        @source = params.source
+        if not @source
+            return cb and cb(new Error("Source not set"))
+        @account = params.account
+        if not @account
+            return cb and cb(new Error("Account not set"))
 
-        # One checkbox passed as string, so make it array
+        params.instance ||= []
+        # Single checkbox passed as string, so make it array
         if _.isString(params.instance)
             params.instance = [params.instance]
+        @instancies = params.instance
+        if _.isEmpty(@instancies)
+            return cb and cb(new Error("Instancies not selected"))
+        params.instance = undefined
 
-        # Create service for each instance
-        async.map params.instance, ((id, cb)=>@makeService(params, id, cb)), (err, services)=>
+        # Take parent prototype to call later
+        configureSuper = serviceGroup.ServiceGroup.prototype.configure
+
+        async.map @instancies, ((id,cb)=>@makeService(id,cb)), (err, services)=>
             return cb and cb(err) if err
+            # Pass services as children to statup
             params.services = services
-            delete params['instance']
             # Call parent inside anonymous function. Sooo suxx
-            startup.call @, params, cb
+            configureSuper.call @, params, cb
+
 
 # Init request handlers here
 exports.init = (app, cb)->
