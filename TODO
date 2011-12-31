@@ -2,15 +2,10 @@
 1. Associate entities with account
 3. Service factory
 5. Start/stop service
-6. Subscribe/unsubscribe over socket.io
 8. Service configuration
 7. App configuration
 8. Add provider to account
 9. Pass domain to slave
 10. Generate nginx config and restart nginx
-
+11. Reserve domain name
 4. Start app - server selections
-
-FIXED 1. Kill process on stop
-FIXED 7. Route events over account
-FIXED 2. Worker on start and on finish messaging

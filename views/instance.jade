@@ -104,12 +104,12 @@ script.shutdown-template(type="text/template")
                             label
                                 input(type="radio", checked="true", name="data", value="keep")
                                 b Put to maintaince mode
-                                span.help-block Stop all workers but keep data
+                                span.help-block Stop all services but keep data
                         li
                             label
                                 input(type="radio", name="data", value="delete")
                                 span.red Complete Remove
-                                span.help-block Delete all data and remove server
+                                span.help-block Delete all data and remove server from list
         .modal-footer
             a.btn.primary.execute(href="#") Stop Server
             a.btn.secondary.cancel(href="#") Cancel

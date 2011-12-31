@@ -18,7 +18,7 @@ a.btn.primary.startup-new(href="#") Create New App
 // Module script
 != js('/js/app.js')
 
-// Below is client-side _.templates (use <% %>!)
+// Below is client-side _.templates (use <% %> and other identation!)
 // Items list
 script.list-template(type="text/template")
     table.bordered-table.zebra-striped
@@ -35,7 +35,7 @@ script.list-template(type="text/template")
                     .state-icon
                         a(href="#", title="<%=item.state%>: <%=item.message%>")
                             img(src="state-<%=item.state%>.png")
-                            .state-hole <%= item.workers && item.workers.length || 0 %>
+                            .state-hole <%= item.children && item.children.length || 0 %>
                     .state-info
                         h3 <%=item.source%>
                         span <%= item.message %> 
@@ -54,9 +54,8 @@ script.list-template(type="text/template")
                 td.control
                     <% if(item.state != "up") { %>
                     img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="startup")
-                    <% } if(item.state != "DISABLED-down") { %>
-                    img.btn.command(src="command-stop.png",data-id="<%=item.id%>",data-command="shutdown")
                     <% } %>
+                    img.btn.command(src="command-stop.png",data-id="<%=item.id%>",data-command="shutdown")
             <% }); %>
 
 // Instances list
@@ -72,7 +71,9 @@ script.instances-template(type="text/template")
             .state-icon-small
                 img(src="state-<%=item.state%>.png")
                 input.required(type="checkbox",name="instance",value="<%= item.id %>",checked="true")
-            .state-info-small <%= item.address %>
+            .state-info-small
+                input(type="radio", name="master")
+                span.instance-address &nbsp;<%= item.address %>
         <% }); %>
 
   
@@ -105,15 +106,20 @@ script.startup-template(type="text/template")
                         .input
                             input.required.domain(type="text",name="domain",value="<%= item.domain%>")
                             span.help-block
-                                span Select domain name for this app.
-                                br
-                                span Use [Your Domain].cloudpub.us or any domain you have.
+                                div Select domain name for this app.
+                                div Use [Your Domain].cloudpub.us or enter your domain name and point it to master server.
                 #servers
                     .clearfix
                         label Server to run
                         .input
                             #items
-                            span.help-block Server(s) to run app on. If more then one server selected, load balancing will be performed.
+                            span.help-block
+                                span Select server(s) to run app on by "
+                                input(type="checkbox",disabled="true") 
+                                span " and master server by "
+                                input(type="radio",disabled="true")
+                                span "
+                                div If multiple servers selected, HTTP load balancing will be performed by master server.
         .modal-footer
             a.btn.primary.execute(href="#") Start App
             a.btn.secondary.cancel(href="#") Cancel
