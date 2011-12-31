@@ -79,6 +79,8 @@ exports.Shell = class Shell extends Worker
         if not @address then return cb and cb(new Error("Remote address not set"))
         if not @command then return cb and cb(new Error("Shell command not set"))
         cmd = SSH.split(' ').concat("-l", @user, @address)
+        if @home
+            cmd.concat ['cd', @home, '&&']
         cmd = cmd.concat(@command)
         @exec cmd, cb
 

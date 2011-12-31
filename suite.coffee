@@ -22,15 +22,17 @@ exports.Suite = class Suite extends queue.Queue
         super()
         @count = 0
 
-    submitTest: (entity, package, cb)->
+    submitTest: (name, cb)->
+        entity = name + 'Test'
+        package = 'test/' + name
         # Submit method wrapper
         startMethod = (method, cb)=>
             if method.indexOf('test') == 0
                 # Create new instance for each test method and submit to queue
                 test = {
                     id:(package + '.' +  entity + '.' + method)
-                    entity:entity
-                    package:package
+                    entity
+                    package
                     testMethod:method
                 }
                 @count += 1
@@ -45,7 +47,7 @@ exports.Suite = class Suite extends queue.Queue
             async.forEachSeries( _.functions(test), startMethod, cb )
 
     submitTests: (params, cb)->
-        async.forEachSeries params, ((meta, cb) => @submitTest(meta.entity, meta.package, cb)), cb
+        async.forEachSeries params, ((name, cb) => @submitTest(name, cb)), cb
 
     success: (entity, cb)->
         setTimeout =>
@@ -68,8 +70,11 @@ exports.init = (app, cb)->
             (cb) -> state.create('test-suite', 'suite', cb)
             (suite, cb)->
                 suite.submitTests [
-                        { entity:'stateTest',    package:'test/state'   }
-                        { entity:'instanceTest', package:'test/instance' }
+                        'state'
+                        'instanceStart'
+                        'appStart'
+                        'appStop'
+                        'instanceStop'
                 ], (err)-> cb( err, suite )
             (suite, cb) -> suite.start(cb)
         ], cb

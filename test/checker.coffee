@@ -95,7 +95,7 @@ exports.Checker = class Checker extends state.State
                 app.save cb
             # Load test instance
             (cb)->
-                state.loadOrCreate 'i-127-0-0-1', 'instance', cb
+                state.loadOrCreate 'test-instance', 'instance', cb
             # Save it
             (inst, cb)=>
                 @instance = inst
@@ -105,7 +105,7 @@ exports.Checker = class Checker extends state.State
                 inst.save cb
             # Load test account 
             (cb)->
-                state.loadOrCreate 'test-suer', 'account', cb
+                state.loadOrCreate 'test-user', 'account', cb
             # Save it
             (acc, cb)=>
                 @account = acc

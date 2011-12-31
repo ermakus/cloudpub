@@ -6,7 +6,8 @@ passport = require 'passport'
 io       = require './io'
 command  = require './command'
 
-MODULES = [ 'state', 'queue', 'group', 'account', 'command', 'worker', 'service', 'serviceGroup', 'domain', 'instance', 'ec2', 'app', 'suite', 'npm' ]
+MODULES = [ 'state', 'queue', 'group', 'account', 'command', 'worker', 'service',
+            'serviceGroup', 'domain', 'instance', 'ec2', 'app', 'suite', 'npm', 'registry' ]
 
 publicDir = __dirname + '/public'
 
