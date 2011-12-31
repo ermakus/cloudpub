@@ -22,11 +22,9 @@ exports.Instance = class Instance extends serviceGroup.ServiceGroup
         @user    = params.user
         if not (@address and @user)
             return cb and cb( new Error('Invalid address or user') )
-        if not params.id
-            @id = 'i-' + @address.split('.').join('-')
         params.instance = @id
         params.services = [
-            { id:'slave-' + @id, entity:'cloudpub', package:'cloudpub' }
+            { id:'runtime-' + @id, entity:'runtime', package:'runtime' }
         ]
         super(params, cb)
 

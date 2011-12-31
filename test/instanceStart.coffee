@@ -1,6 +1,7 @@
+async = require 'async'
+fs    = require 'fs'
 main  = require '../main'
 state = require '../state'
-async = require 'async'
 checker = require './checker'
 
 exports.InstanceStartTest = class extends checker.Checker

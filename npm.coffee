@@ -1,7 +1,7 @@
 async = require 'async'
 service = require './service'
 
-# NPM package manager service
+# This class implements npm packaged service
 exports.Npm = class Npm extends service.Service
 
     configure: (params, cb)->
@@ -15,9 +15,8 @@ exports.Npm = class Npm extends service.Service
             package: "worker"
             message: "Starting daemon"
             state:   "maintain"
-            command: ["#{@home}/cloudpub/bin/daemon",
-                      "-b", "#{@home}/cloudpub",
-                      "start", @id, "#{@home}/runtime/bin/node"]
+            home: @home
+            command: ["npm", "-g", "--prefix", @home, "start", @source]
             success:
                 state:'up'
                 message: 'Online'
@@ -29,8 +28,8 @@ exports.Npm = class Npm extends service.Service
             package: "worker"
             message: "Stop daemon"
             state:   "maintain"
-            home:    "#{@home}/cloudpub"
-            command:["#{@home}/cloudpub/bin/daemon", "stop", @id]
+            home: @home
+            command:["npm", "-g", "--prefix", @home, "stop", @source]
             success:
                 state:   'down'
                 message: 'Terminated'
@@ -43,8 +42,7 @@ exports.Npm = class Npm extends service.Service
             message: "Installing app: #{@source}"
             state:   "maintain"
             home: @home
-            target: "#{@home}/" # rsync slash important
-            command:['npm','install', @source]
+            command:['npm', "-g", "--prefix", @home, 'install', @source]
             success:
                 state:'up'
                 message: 'App installed'
@@ -57,7 +55,7 @@ exports.Npm = class Npm extends service.Service
             entity:  'shell'
             package: 'worker'
             home: @home
-            command:['npm','uninstall', @source]
+            command:['npm', "-g", "--prefix", @home, 'uninstall', @source]
             success:
                 state:'down'
                 message: 'Service uninstalled'

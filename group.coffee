@@ -48,6 +48,7 @@ exports.Group = class Group extends state.State
     # ERROR = at least 1 child error
     # MAINTAIN = any other
     updateState: (cb)->
+        exports.log.info "Update group #{@id} state"
 
         states   = {up:0,maintain:0,down:0,error:0}
         messages = {up:[],maintain:[],down:[],error:[]}
@@ -75,13 +76,22 @@ exports.Group = class Group extends state.State
             
             message = messages[st][0]
 
-            if workers == 0
-                exports.log.info "Group #{@id} succeeded"
-                @emit 'success', @, (err)=>
-                    return cb and cb(err) if err
-                    @setState st, message, cb
-            else
-                @setState st, message, cb
+            async.series [
+                (cb)=>
+                    if workers == 0
+                        exports.log.info "Group #{@id} success"
+                        @emit('success', @, cb)
+                    else
+                        cb(null)
+                (cb)=>
+                    if st == 'error'
+                        exports.log.info "Group #{@id} failure"
+                        @emit('failure', @, cb)
+                    else
+                        cb(null)
+                (cb)=>
+                    @setState(st, message, cb)
+            ], cb
 
     # Resolve children IDs to objects from storage
     resolve: (cb)->

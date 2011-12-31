@@ -48,7 +48,7 @@ exports.Worker = class Worker extends state.State
                     if err
                         log.error "Worker #{@id} fail handler error", err
                     else
-                        log.error "Worker #{@id} failed", err
+                        log.error "Worker #{@id} failed"
         
         cb and cb(null)
 
@@ -80,7 +80,7 @@ exports.Shell = class Shell extends Worker
         if not @command then return cb and cb(new Error("Shell command not set"))
         cmd = SSH.split(' ').concat("-l", @user, @address)
         if @home
-            cmd.concat ['cd', @home, '&&']
+            cmd = cmd.concat ['cd', @home, '&&']
         cmd = cmd.concat(@command)
         @exec cmd, cb
 

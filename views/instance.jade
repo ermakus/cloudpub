@@ -13,7 +13,7 @@ script.list-template(type="text/template")
         thead
             tr
                 th.status Status
-                th.service Server Address
+                th.service User
                 th.worker Services 
                 th.control Launch
         tbody
@@ -25,18 +25,17 @@ script.list-template(type="text/template")
                             img(src="state-<%=item.state%>.png")
                             .state-hole <%= item._children && item._children.length || 0 %>
                     .state-info
-                        h3 <%=item.id %>
-                        span <%= item.message %> 
+                        h3 <%= item.address || "IP not available"%>
+                        span(title="<%= item.message %>") <%= item.message %> 
                 td.domain
-                    h3 <%= (item.address || "Not Available") %>
+                    h3 <%= (item.user || "Not Available") %>
                 td.worker
                     ul.state-list
                         <% _.each(item._children, function(service) { %>
                         li
                             .state-icon-small
                                 img(src="state-<%= service.state %>.png")
-                                input(type="checkbox",name="instance", value="<%= service.id %>")
-                            .state-info-small <%= service.id %>
+                            .state-info-small <%= service.description || service.source %>
                         <% });%>
                 td.control
                     <% if(item.state != "up") { %>
@@ -58,13 +57,17 @@ script.startup-template(type="text/template")
                     li
                         label
                             input.cloud(type="radio", name="cloud", value="ec2")
-                            b Take server from Amazon EC2 cloud
-                            span.help-block You will pay for usage by Amazon price
+                            b Take server from the cloud 
+                            span.help-block
+                                span You will pay for resources by 
+                                a(href="/price",target="new") price
                     li
                         label
                             input.cloud(type="radio", checked="true", name="cloud", value="ssh")
                             span Add your own server by SSH
-                            span.help-block You need to have SSH user account and ability to add the public key
+                            span.help-block
+                                div You need to have SSH user account and ability to add the public key
+                                div.red Currently tested on Ubuntu only
             .clearfix.custom
                     label Server address
                     .input
@@ -74,7 +77,7 @@ script.startup-template(type="text/template")
                     label SSH login
                     .input
                         input.custom-input.required.login(type="text",name="user",value="<%= item.user %>")
-                        span.help-block Specify user account for node setup
+                        span.help-block Specify user account for setup runtime.
             .clearfix.custom
                     label
                         div SSH public key

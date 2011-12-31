@@ -40,6 +40,9 @@ exports.App = class App extends serviceGroup.ServiceGroup
         @source = params.source
         if not @source
             return cb and cb(new Error("Source not set"))
+        @domain = params.source
+        if not @domain
+            return cb and cb(new Error("Domain not set"))
         @account = params.account
         if not @account
             return cb and cb(new Error("Account not set"))

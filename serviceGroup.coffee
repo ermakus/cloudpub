@@ -75,6 +75,7 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
     startup: (params, cb) ->
         exports.log.info "Startup service group #{@id}"
         @mute 'success', 'suicide', @id
+        @mute 'failure', 'suicide', @id
         async.series [
             (cb) => @configure params, cb
             (cb) => async.forEach @children, ((serviceId, cb)=>@startService( serviceId, cb )), cb
@@ -91,6 +92,7 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
             # Subscribe to suicide handler
             (cb)=>
                 if doUninstall
+                    @on 'failure', 'suicide', @id
                     @on 'success', 'suicide', @id
                     @save cb
                 else
@@ -111,11 +113,12 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
     # Service state handler called when uninstall. 
     # Commits suicide after work complete
     suicide: (app, cb)->
+        exports.log.info "Suicide service group: #{@id}"
         # Delete object on next tick
         process.nextTick =>
             async.series [
-                (cb) => @setState 'down', 'Deleted', cb
                 (cb) => @each 'clear', cb
+                (cb) => @setState 'down', 'Deleted', cb
                 (cb) => @clear(cb)
             ], cb
         cb(null)

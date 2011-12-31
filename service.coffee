@@ -57,12 +57,11 @@ exports.Service = class Service extends queue.Queue
     # Submit task to work queue
     submit: (params, cb)->
 
-        if not (@address and @user and @home and @instance)
+        if not (@address and @user)
             return cb and cb(new Error("Service not configured"))
 
         params.address = @address
         params.user    = @user
-        params.home    = @home
         
         super params, cb
     

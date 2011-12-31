@@ -1,18 +1,21 @@
 async = require 'async'
 service = require './service'
 
-exports.Cloudpub = class Cloudpub extends service.Service
-       
+exports.Runtime = class Runtime extends service.Service
+    
+    init: ->
+        super()
+        @description = 'Cloud Runtime'
+
     startup: (cb) ->
         @submit({
             entity:  "shell"
             package: "worker"
             message: "Starting daemon"
             state:   "maintain"
-            command: ["#{@home}/cloudpub/bin/daemon",
-                      "-b", "#{@home}/cloudpub",
-                      "start", @id, "#{@home}/runtime/bin/node",
-                      "#{@home}/cloudpub/server.js", "--listen", 4000]
+            command: ["#{@home}/bin/daemon",
+                      "-b", @home,
+                      "start", @id, "#{@home}/sbin/nginx"]
             success:
                 state:'up'
                 message: 'Online'
@@ -24,8 +27,8 @@ exports.Cloudpub = class Cloudpub extends service.Service
             package: "worker"
             message: "Stop daemon"
             state:   "maintain"
-            home:    "#{@home}/cloudpub"
-            command:["#{@home}/cloudpub/bin/daemon", "stop", @id]
+            home:    @home
+            command:["#{@home}/bin/daemon", "stop", @id]
             success:
                 state:   'down'
                 message: 'Terminated'
@@ -39,7 +42,7 @@ exports.Cloudpub = class Cloudpub extends service.Service
                             package: "worker"
                             message: "Sync service files"
                             state:   "maintain"
-                            source:'/home/anton/Projects/cloudpub'
+                            source: __dirname + "/bin"
                             target: "#{@home}/"
                             success:
                                 state:'maintain'
@@ -51,7 +54,7 @@ exports.Cloudpub = class Cloudpub extends service.Service
                             package: 'worker'
                             message: "Install node.js runtime"
                             state:   "maintain"
-                            command:["#{@home}/cloudpub/bin/install", "node", "#{@home}/runtime"]
+                            command:["#{@home}/bin/install", @home]
                             success:
                                 state:'maintain'
                                 message: 'Runtime compiled'

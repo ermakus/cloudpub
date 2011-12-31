@@ -63,8 +63,9 @@ script.list-template(type="text/template")
 script.instances-template(type="text/template")
     ul.state-list
         <%  if(_.isEmpty(items)) { %>
+        input.required(type="hidden",name="instance")
         li
-            a.important(href="/instance") Click here to register server(s)
+            a.important(href="/instance") Click here to add server first
         <% } %>
         <% _.each(items, function(item) { %>
         li

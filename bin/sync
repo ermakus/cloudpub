@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -e
 usage() {
 cat << EOF
 usage: $0 [options] source destination
@@ -66,5 +66,6 @@ if [ "$ADDRESS" = "localhost" ] ; then
     cp -a $SOURCE $TARGET
 else
     echo "Remote sync $SOURCE to $TARGET"
+    $SSH $SSH_OPTS $USER@$ADDRESS mkdir -p $TARGET
     $RSYNC -ae  "$SSH $SSH_OPTS" $SOURCE $USER@$ADDRESS:$TARGET
 fi
