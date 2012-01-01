@@ -1,11 +1,12 @@
-0. Bug with source field and refresh after delete
-1. Associate entities with account
-3. Service factory
-5. Start/stop service
-8. Service configuration
-7. App configuration
-8. Add provider to account
-9. Pass domain to slave
-10. Generate nginx config and restart nginx
-11. Reserve domain name
-4. Start app - server selections
+Fix bugs with source field and refresh after delete
+Associate entities with account
+Service factory
+Start/stop service
+Service configuration
+App configuration
+Add provider to account
+Pass domain to slave
+Generate nginx config and restart nginx
+Reserve domain name
+Buy ec2 instance over devpay
+Start app - server selections
