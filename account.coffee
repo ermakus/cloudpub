@@ -8,7 +8,7 @@ state    = require './state'
 group    = require './group'
 
 exports.DOMAIN = DOMAIN = nconf.get('ext-domain') or nconf.get('domain') or 'localhost'
-exports.PORT   = PORT   = nconf.get('ext-listen') or nconf.get('listen') or 3000
+exports.PORT   = PORT   = nconf.get('ext-listen') or nconf.get('listen') or 4000
 
 LocalStrategy  = require('passport-local').Strategy
 GoogleStrategy = require('passport-google').Strategy

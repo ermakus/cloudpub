@@ -17,14 +17,13 @@ By default cloudpub use plain JSON files to store cluster state.
 
 Start
 -----
-
 > node server.js
 
 or
 
 > npm start -g cloudpub
 
-then open web interface on http://localhost:3000
+then open web interface on http://localhost:4000
 
 License
 -------

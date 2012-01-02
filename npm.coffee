@@ -42,7 +42,7 @@ exports.Npm = class Npm extends service.Service
             message: "Installing app: #{@source}"
             state:   "maintain"
             home: @home
-            command:["./bin/node", './bin/npm', "-g", "--prefix", @home, 'install', @source]
+            command:["./bin/node", './bin/npm', "--force", "-g", "--prefix", @home, 'install', @source]
             success:
                 state:'up'
                 message: 'App installed'
