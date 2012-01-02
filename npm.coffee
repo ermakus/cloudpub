@@ -15,8 +15,10 @@ exports.Npm = class Npm extends service.Service
             package: "worker"
             message: "Starting daemon"
             state:   "maintain"
-            home: @home
-            command: ["./bin/node", "./bin/npm", "-g", "--prefix", @home, "start", @source]
+            home:    @home
+            command: ["#{@home}/bin/daemon",
+                      "-b", @home,
+                      "start", @id, "./bin/node", "./bin/npm", "-g", "--prefix", @home, "start", @source ]
             success:
                 state:'up'
                 message: 'Online'
@@ -28,8 +30,8 @@ exports.Npm = class Npm extends service.Service
             package: "worker"
             message: "Stop daemon"
             state:   "maintain"
-            home: @home
-            command:["./bin/node", "./bin/npm", "-g", "--prefix", @home, "stop", @source]
+            home:    @home
+            command:["#{@home}/bin/daemon", "stop", @id]
             success:
                 state:   'down'
                 message: 'Terminated'
