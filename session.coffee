@@ -1,24 +1,22 @@
+_       = require 'underscore'
 async   = require 'async'
 express = require 'express'
 state   = require './state'
 
 defaultCallback = ->
 
-# Session object
+# Session object as base for all sessions
 exports.Session = class Session extends state.State
 
     init: ->
         super()
         @expires = new Date()
-        # Session data as object
-        @data = undefined
-
+        @sessionData = undefined
         
     # Clear session if expired
     clearIfExpired: (cb)->
-        expires = if 'string' == typeof(@expires) then new Date(@expires) else @expires
-        if (expires and (new Date() > expires))
-            exports.log.warn "Session #{@id} is expired: ", expires
+        if (@expires and (Date.now() > @expires))
+            exports.log.warn "Session #{@id} is expired: ", @expires
             @clear cb
         else
             cb(null)
@@ -33,13 +31,14 @@ exports.SessionStore = class SessionStore extends express.session.Store
     get: (sid, cb = defaultCallback) ->
         state.load "session-" + sid, 'session', (err, session)->
             return cb() if err
-            cb( null, session.data )
+            cb( null, session.sessionData )
     
     set: (sid, data, cb = defaultCallback) ->
-        state.loadOrCreate "session-" + sid, 'session', (err, session)->
+        state.loadOrCreate "session-" + sid, 'session', (err, session)=>
             return cb(err) if err
-            session.data = data
-            session.expires = new Date( data.cookie._expires )
+            if data && data.cookie && data.cookie.expires
+                @expires = Date.parse(data.cookie.expires)
+            session.sessionData = data
             session.save cb
     
     destroy: (sid, cb = defaultCallback) ->
@@ -53,7 +52,6 @@ exports.SessionStore = class SessionStore extends express.session.Store
             cb null, (session.id for session in sessions)
     
     clearExpired: (cb = defaultCallback) ->
-
         state.query 'session', (err, sessions)->
             return cb and cb(err) if err
             async.forEach sessions, ((session, cb)->session.clearIfExpired(cb)), cb
