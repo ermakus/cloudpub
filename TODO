@@ -1,12 +1,11 @@
-Fix bugs with source field and refresh after delete
-Associate entities with account
+Service configuration
 Service factory
 Start/stop service
-Service configuration
 App configuration
-Add provider to account
 Pass domain to slave
 Generate nginx config and restart nginx
 Reserve domain name
+Fix bug with refresh after delete
+Generate PK for account
 Buy ec2 instance over devpay
-Start app - server selections
+cloudpub-redis module

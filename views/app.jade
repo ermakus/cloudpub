@@ -72,7 +72,6 @@ script.instances-template(type="text/template")
                 img(src="state-<%=item.state%>.png")
                 input.required(type="checkbox",name="instance",value="<%= item.id %>",checked="true")
             .state-info-small
-                input(type="radio", name="master")
                 span.instance-address &nbsp;<%= item.address %>
         <% }); %>
 
@@ -114,12 +113,9 @@ script.startup-template(type="text/template")
                         .input
                             #items
                             span.help-block
-                                span Select server(s) to run app on by "
-                                input(type="checkbox",disabled="true") 
-                                span " and master server by "
-                                input(type="radio",disabled="true")
-                                span "
-                                div If multiple servers selected, HTTP load balancing will be performed by master server.
+                                span Select server(s) to run app
+                                div If multiple servers selected, round-robin HTTP load balancing will be performed.
+                                div Use servers in UP (green) state to avoid errors.
         .modal-footer
             a.btn.primary.execute(href="#") Start App
             a.btn.secondary.cancel(href="#") Cancel
