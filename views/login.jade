@@ -3,9 +3,9 @@ form#login-form(action="/login",method="post")
     fieldset
         legend Login
         .clearfix
-            label User Name 
+            label E-Mail 
             .input
-                input.required(type="text",name="uid")
+                input.required.email(type="text",name="email")
                 span.help-block User name of your account
         .clearfix
             label Password

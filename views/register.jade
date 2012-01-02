@@ -3,15 +3,10 @@ form#register-form(action="/register",method="post")
         legend Create Account
         input(type="hidden", name="next", value=next)
         .clearfix
-            label User Name 
-            .input
-                input.required(type="text",name="uid")
-                span.help-block Unique user name for your account
-        .clearfix
-            label E-Mail
+            label E-Mail 
             .input
                 input.required.email(type="text",name="email")
-                span.help-block Account administrator E-Mail address
+                span.help-block Your E-Mail address
         .clearfix 
             label Password
             .input

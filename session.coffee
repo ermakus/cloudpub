@@ -36,8 +36,8 @@ exports.SessionStore = class SessionStore extends express.session.Store
     set: (sid, data, cb = defaultCallback) ->
         state.loadOrCreate "session-" + sid, 'session', (err, session)=>
             return cb(err) if err
-            if data && data.cookie && data.cookie.expires
-                @expires = Date.parse(data.cookie.expires)
+            if data && data.cookie && data.cookie._expires
+                @expires = Date.parse(data.cookie._expires)
             session.sessionData = data
             session.save cb
     

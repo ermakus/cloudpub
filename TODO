@@ -1,4 +1,5 @@
 Service configuration
+Put object to separate indexes (eluminate prefixes)
 Service factory
 Start/stop service
 App configuration

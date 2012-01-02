@@ -2,14 +2,9 @@ form#account-form(action="/account",method="post")
     fieldset
         legend Your Account
         .clearfix
-            label User Name
-            .input
-                input.disabled(type="text",name="uid", value=account.login, disabled="true")
-                span.help-block Unique user name for your account
-        .clearfix
             label E-Mail
             .input
-                input.required.email(type="text",name="email", value=account.email)
+                input.required.email(type="text",name="email", value=account.email, disabled="true")
                 span.help-block Account administrator E-Mail address
         .clearfix 
             label Password

@@ -21,7 +21,11 @@ exports.Worker = class Worker extends state.State
 
         log.info "Exec " + (run.join " ")
         
-        ch = spawn run[0], run[1...]
+        options = {
+            env: _.clone( process.env )
+        }
+
+        ch = spawn run[0], run[1...], options
 
         @pid = ch.pid
 
@@ -80,7 +84,8 @@ exports.Shell = class Shell extends Worker
         if not @command then return cb and cb(new Error("Shell command not set"))
         cmd = SSH.split(' ').concat("-l", @user, @address)
         if @home
-            cmd = cmd.concat ['cd', @home, '&&']
+            cmd = cmd.concat ["export", "PATH=#{@home}/bin:$PATH", '&&', 'cd', @home, '&&']
+
         cmd = cmd.concat(@command)
         @exec cmd, cb
 
