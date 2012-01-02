@@ -5,7 +5,7 @@ exports.Runtime = class Runtime extends service.Service
     
     init: ->
         super()
-        @description = 'Cloud Runtime'
+        @name = 'cloudpub-runtime'
 
     startup: (cb) ->
         @submit({

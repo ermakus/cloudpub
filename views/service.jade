@@ -13,7 +13,6 @@ script.list-template(type="text/template")
         thead
             tr
                 th.state Service
-                th.domain App
                 th.domain Server
                 th.worker Work Queue
                 th.control &nbsp;
@@ -26,14 +25,11 @@ script.list-template(type="text/template")
                             img(src="state-<%=item.state%>.png")
                             .state-hole <%= item.workers && item.workers.length || 0 %>
                     .state-info
-                        h3 <%=item.entity %>
+                        h3 <%=item.name || item.source %>
                         span <%= item.message %> 
-                td.domain
-                    h3
-                        <%=item.app%>
                  td.domain
                     h3
-                        <%=item.instance%>
+                        a(href="http://<%=item.address%>") <%=item.address%>
                 td.worker
                     ul.state-list
                         <% _.each(item._children, function(worker) { %>
@@ -46,9 +42,8 @@ script.list-template(type="text/template")
                 td.control
                     <% if(item.state != "up") { %>
                     img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="startup")
-                    <% } if(item.state != "down") { %>
-                    img.btn.command(src="command-stop.png",data-id="<%=item.id%>",data-command="shutdown")
                     <% } %>
+                    img.btn.command(src="command-stop.png",data-id="<%=item.id%>",data-command="shutdown")
             <% }); %>
 
 // Start dialog
@@ -60,7 +55,7 @@ script.startup-template(type="text/template")
         form.modal-body
             .clearfix
         .modal-footer
-            a.btn.primary.execute(href="#") Restart Service
+            a.btn.primary.execute(href="#") Start Service
             a.btn.secondary.cancel(href="#") Cancel
 
 // Stop dialog

@@ -9,7 +9,11 @@ exports.Npm = class Npm extends service.Service
         if not @source then return cb and cb(new Error('Source not set'))
         super params, cb
 
-    startup: (cb) ->
+    startup: (params, cb) ->
+        if typeof(params) == 'function'
+            cb = params
+            params = {}
+
         @submit({
             entity:  "shell"
             package: "worker"
@@ -24,18 +28,26 @@ exports.Npm = class Npm extends service.Service
                 message: 'Online'
         }, cb)
 
-    shutdown: (cb) ->
-        @submit({
-            entity:  "shell"
-            package: "worker"
-            message: "Stop daemon"
-            state:   "maintain"
-            home:    @home
-            command:["#{@home}/bin/daemon", "stop", @id]
-            success:
-                state:   'down'
-                message: 'Terminated'
-        }, cb)
+    shutdown: (params, cb) ->
+        if typeof(params) == 'function'
+            cb = params
+            params = {}
+
+        async.series [
+            (cb) => @stop( cb )
+            (cb) => @submit({
+                    entity:  "shell"
+                    package: "worker"
+                    message: "Stop daemon"
+                    state:   "maintain"
+                    home:    @home
+                    command:["#{@home}/bin/daemon", "stop", @id]
+                    success:
+                        state:   'down'
+                        message: 'Terminated'
+                }, cb)
+            (cb) => @start( cb )
+        ], cb
 
     install: (cb) ->
         @submit({

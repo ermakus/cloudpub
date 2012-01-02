@@ -3,7 +3,7 @@ h1 Apps
 .page
     .loading
 
-a.btn.primary.startup-new(href="#") Create New App
+a.btn.primary.startup-new(href="#") Install App
 
 .popover
     ol
@@ -48,8 +48,7 @@ script.list-template(type="text/template")
                         li
                             .state-icon-small
                                 img(src="state-<%=child.state%>.png")
-                                input(type="checkbox",name="service", value="<%= child.id %>", checked="true")
-                            .state-info-small <%= child.id %>
+                            .state-info-small <%= child.message %>
                         <% }); %>
                 td.control
                     <% if(item.state != "up") { %>
@@ -70,9 +69,9 @@ script.instances-template(type="text/template")
         li
             .state-icon-small
                 img(src="state-<%=item.state%>.png")
-                input.required(type="checkbox",name="instance",value="<%= item.id %>",checked="true")
+                input.required(id="<%= item.id %>",type="checkbox",name="instance",value="<%= item.id %>",checked="true")
             .state-info-small
-                span.instance-address &nbsp;<%= item.address %>
+                label.instance-address(for="<%= item.id %>") &nbsp;<%= item.address %>
         <% }); %>
 
   
