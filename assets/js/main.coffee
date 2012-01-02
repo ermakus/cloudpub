@@ -195,7 +195,8 @@ window.alert = (msg, classes) ->
         else
             msg.prependTo container
         msg.alert()
-        setTimeout (-> msg.find('.close').click() ), 10000
+        if classes != 'error'
+            setTimeout (-> msg.find('.close').click() ), 10000
 
 
 

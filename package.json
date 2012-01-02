@@ -17,6 +17,7 @@
   "dependencies": {
     "async":"*",
     "underscore":"*",
+    "zlib":">=1.0.5",
     "aws-lib":">= 0.0.5",
     "coffee-script":">= 1.1.3",
     "connect":">= 1.8.2",
