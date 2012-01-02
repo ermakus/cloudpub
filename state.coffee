@@ -205,6 +205,15 @@ exports.loadOrCreate = loadOrCreate = (id, entity, package, cb )->
         return cb and cb(null, obj) if not err
         create id, entity, package, cb
 
+exports.loadWithChildren = loadWithChildren = (id, cb)->
+    load id, (err, item)->
+        return cb and cb(err) if err
+        if item.resolve
+            return item.resolve (err)->
+                cb and cb(err, item)
+        else
+            return cb and cb(null, item)
+
 # Query states by params and cb( error, [entities] )
 exports.query = query = (entity, params, cb) ->
     if typeof(params) == 'function'
@@ -214,17 +223,8 @@ exports.query = query = (entity, params, cb) ->
     if not json or (_.isArray(json) and json.length == 0)
         json =  {}
 
-    load_resolve = (id, cb)->
-        load id, (err, item)->
-            return cb and cb(err) if err
-            if item.resolve
-                return item.resolve (err)->
-                    cb and cb(err, item)
-            else
-                return cb and cb(null, item)
-
     # Load async each entity by key
-    async.map _.keys(json), load_resolve, cb
+    async.map _.keys(json), loadWithChildren, cb
 
 
 exports.init = (app, cb)->

@@ -111,8 +111,13 @@ exports.Service = class Service extends queue.Queue
     uninstall: (cb) ->
         @updateState cb
 
+listServices = (entity, params, cb)->
+    state.load params.account, (err, account)->
+        return cb and cb(err) if err
+        async.map account.children, state.loadWithChildren, cb
+
 # Init request handlers here
 exports.init = (app, cb)->
     # List of services
-    app.register 'service', ((entity, cb)->state.query('cloudpub', cb)), ((id, entity, cb)->state.load( id, cb ))
+    app.register 'service', listServices, ((id, entity, cb)->state.load( id, cb ))
     cb and cb(null)

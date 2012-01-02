@@ -67,7 +67,17 @@ exports.App = class App extends serviceGroup.ServiceGroup
             configureSuper.call @, params, cb
 
 
+# List apps for account
+listApp = (entity, params, cb)->
+    # Load account and services
+    state.loadWithChildren params.account, (err, account)->
+        # Collect unique apps from services
+        apps = _.uniq( service.app for service in account._children)
+        apps = _.compact apps
+        # Load each and return
+        async.map apps, state.loadWithChildren, cb
+
 # Init request handlers here
 exports.init = (app, cb)->
-    app.register 'app'
+    app.register 'app', listApp
     cb and cb(null)

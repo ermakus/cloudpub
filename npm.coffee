@@ -16,7 +16,7 @@ exports.Npm = class Npm extends service.Service
             message: "Starting daemon"
             state:   "maintain"
             home: @home
-            command: ["npm", "-g", "--prefix", @home, "start", @source]
+            command: ["./bin/npm", "-g", "--prefix", @home, "start", @source]
             success:
                 state:'up'
                 message: 'Online'
@@ -29,7 +29,7 @@ exports.Npm = class Npm extends service.Service
             message: "Stop daemon"
             state:   "maintain"
             home: @home
-            command:["npm", "-g", "--prefix", @home, "stop", @source]
+            command:["./bin/npm", "-g", "--prefix", @home, "stop", @source]
             success:
                 state:   'down'
                 message: 'Terminated'
@@ -42,7 +42,7 @@ exports.Npm = class Npm extends service.Service
             message: "Installing app: #{@source}"
             state:   "maintain"
             home: @home
-            command:['npm', "-g", "--prefix", @home, 'install', @source]
+            command:['./bin/npm', "-g", "--prefix", @home, 'install', @source]
             success:
                 state:'up'
                 message: 'App installed'
@@ -55,7 +55,7 @@ exports.Npm = class Npm extends service.Service
             entity:  'shell'
             package: 'worker'
             home: @home
-            command:['npm', "-g", "--prefix", @home, 'uninstall', @source]
+            command:['./bin/npm', "-g", "--prefix", @home, 'uninstall', @source]
             success:
                 state:'down'
                 message: 'Service uninstalled'

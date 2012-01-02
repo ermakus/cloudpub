@@ -68,7 +68,7 @@ exec_command = (entity, factory, req,resp) ->
             resp.send obj
 
 #
-# Return closure of entity command handler
+# Return anonymous function to handle API command
 #
 exports.handler = handler = (entity, factory)->
 
@@ -91,7 +91,7 @@ exports.handler = handler = (entity, factory)->
 
 
 
-# Return closure to create CRUD REST handlers
+# Return anonymous function that used to create CRUD REST API handlers
 exports.register = (app)->
 
     # Register entity CRUD handlers
@@ -107,7 +107,10 @@ exports.register = (app)->
 
         # API query handler
         app.get '/api/' + entity, account.ensure_login, (req, resp)->
-            list entity, (err, data)->
+            params = {}
+            # Pass current account ID to query params
+            params.account = req.session.uid
+            list entity, params, (err, data)->
                 if err
                     resp.send err.message, 500
                 else

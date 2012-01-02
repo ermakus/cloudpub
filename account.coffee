@@ -7,7 +7,6 @@ io       = require './io'
 state    = require './state'
 group    = require './group'
 
-
 exports.DOMAIN = DOMAIN = nconf.get('ext-domain') or nconf.get('domain') or 'localhost'
 exports.PORT   = PORT   = nconf.get('ext-listen') or nconf.get('listen') or 3000
 
@@ -21,7 +20,7 @@ USER_PREFIX='user-'
 exports.log = console
 
 # User account class
-
+# Children is services
 exports.Account = class Account extends group.Group
 
     init: ->

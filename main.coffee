@@ -5,13 +5,14 @@ async    = require 'async'
 passport = require 'passport'
 io       = require './io'
 command  = require './command'
+session  = require './session'
 
-MODULES = [ 'state', 'queue', 'group', 'account', 'command', 'worker', 'service',
+MODULES = [ 'state', 'session', 'queue', 'group', 'account', 'command', 'worker', 'service',
             'serviceGroup', 'domain', 'instance', 'ec2', 'app', 'suite', 'npm', 'registry' ]
 
 publicDir = __dirname + '/public'
 
-MemoryStore = express.session.MemoryStore
+SessionStore = session.SessionStore
 
 
 createApp = ->
@@ -25,7 +26,7 @@ createApp = ->
     app.use(passport.initialize())
     app.use(passport.session())
 
-    app.sessionStore = new MemoryStore()
+    app.sessionStore = new SessionStore()
 
     # Session backend
     app.use express.session

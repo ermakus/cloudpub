@@ -28,21 +28,18 @@ exports.Instance = class Instance extends serviceGroup.ServiceGroup
         ]
         super(params, cb)
 
+# List instancies for account
+listInstances = (entity, params, cb)->
+    # Load account and services
+    state.loadWithChildren params.account, (err, account)->
+        # Collect unique apps from services
+        apps = _.uniq( service.instance for service in account._children)
+        apps = _.compact apps
+        # Load each and return
+        async.map apps, state.loadWithChildren, cb
+
 # Init HTTP request handlers
 exports.init = (app, cb)->
-
-    # List of instances
-    list = (entity, cb)->
-
-        async.parallel [
-            async.apply( state.query, 'instance' ),
-            async.apply( state.query, 'ec2' )
-        ], (err, result)->
-            return cb and cb(err) if err
-            items = []
-            for item in result
-                items = items.concat item
-            cb and cb(null, items)
 
     # Create or load instance
     item = (params, entity, cb) ->
@@ -51,6 +48,6 @@ exports.init = (app, cb)->
         state.load params.id, entity, cb
 
     # Register CRUD handler
-    app.register 'instance', list, item
+    app.register 'instance', listInstances, item
 
     cb and cb( null )
