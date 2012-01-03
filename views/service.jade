@@ -23,7 +23,7 @@ script.list-template(type="text/template")
                     .state-icon
                         a(href="#", title="<%=item.state%>: <%=item.message%>")
                             img(src="state-<%=item.state%>.png")
-                            .state-hole <%= item.workers && item.workers.length || 0 %>
+                            .state-hole <%= item.children && item.children.length || 0 %>
                     .state-info
                         h3 <%=item.name || item.source %>
                         span <%= item.message %> 
@@ -36,7 +36,6 @@ script.list-template(type="text/template")
                         li
                             .state-icon-small
                                 img(src="state-<%=worker.state%>.png")
-                                input(type="checkbox",name="instance", value="<%= worker.id %>", checked="true")
                             .state-info-small <%= worker.message %>
                         <% }); %>
                 td.control

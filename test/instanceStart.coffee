@@ -1,3 +1,4 @@
+settings = require '../settings'
 async = require 'async'
 fs    = require 'fs'
 main  = require '../main'
@@ -30,7 +31,7 @@ exports.InstanceStartTest = class extends checker.Checker
              (cb)=>
                 @instance.on 'state', 'onState', @id
                 @instance.startup {
-                    user: 'anton'
+                    user: settings.USERNAME
                     address: '127.0.0.1'
                     instance: @instance.id
                     account: @account.id

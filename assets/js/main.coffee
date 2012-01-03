@@ -89,6 +89,8 @@ window.Listing = class Listing
                     maintain: 'info'
                 style = styles[data.state] or 'warning'
                 alert data.message, style
+                # Push event to google analytics
+                if _gaq then _gaq.push(['_trackEvent', data.state, data.message])
                 @reload()
 
     # Stop auto-refreshing
@@ -197,6 +199,8 @@ window.alert = (msg, classes) ->
         msg.alert()
         if classes != 'error'
             setTimeout (-> msg.find('.close').click() ), 10000
+
+
 
 
 

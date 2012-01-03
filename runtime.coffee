@@ -7,7 +7,11 @@ exports.Runtime = class Runtime extends service.Service
         super()
         @name = 'cloudpub-runtime'
 
-    startup: (cb) ->
+    startup: (params, cb) ->
+        if typeof(params) == 'function'
+            cb = params
+            params = {}
+            
         @submit({
             entity:  "shell"
             package: "worker"
@@ -21,7 +25,11 @@ exports.Runtime = class Runtime extends service.Service
                 message: 'Online'
         }, cb)
 
-    shutdown: (cb) ->
+    shutdown: (params, cb) ->
+        if typeof(params) == 'function'
+            cb = params
+            params = {}
+
         @submit({
             entity:  "shell"
             package: "worker"

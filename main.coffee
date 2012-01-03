@@ -43,6 +43,7 @@ createApp = ->
     app.get '/', (req, resp) -> resp.render 'main'
     app
 
+exports.log = io.log
 
 exports.init = (cb) ->
     

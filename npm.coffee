@@ -34,7 +34,6 @@ exports.Npm = class Npm extends service.Service
             params = {}
 
         async.series [
-            (cb) => @stop( cb )
             (cb) => @submit({
                     entity:  "shell"
                     package: "worker"
@@ -46,7 +45,6 @@ exports.Npm = class Npm extends service.Service
                         state:   'down'
                         message: 'Terminated'
                 }, cb)
-            (cb) => @start( cb )
         ], cb
 
     install: (cb) ->

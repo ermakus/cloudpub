@@ -1,12 +1,10 @@
-spawn   = require('child_process').spawn
-_       = require 'underscore'
-async   = require 'async'
-state   = require './state'
-io      = require './io'
+spawn    = require('child_process').spawn
+_        = require 'underscore'
+async    = require 'async'
+state    = require './state'
+io       = require './io'
+settings = require './settings'
 
-log     = console
-
-SSH_PRIVATE_KEY='/home/anton/.ssh/id_rsa'
 RUN_TIMEOUT=500
 #
 # Worker process
@@ -19,7 +17,7 @@ exports.Worker = class Worker extends state.State
         stdout = ''
         stderr = ''
 
-        log.info "Exec " + (run.join " ")
+        exports.log.info "Exec " + (run.join " ")
         
         options = {
             env: _.clone( process.env )
@@ -30,29 +28,29 @@ exports.Worker = class Worker extends state.State
         @pid = ch.pid
 
         ch.stdout.on 'data', (data) ->
-            log.info "stdout: ", data.toString()
+            exports.log.info "stdout: ", data.toString()
             if stdout.length < 512
                 stdout += data.toString()
 
         ch.stderr.on 'data', (data) ->
             stderr += data.toString()
-            log.info "stderr: ", data.toString()
+            exports.log.info "stderr: ", data.toString()
         
         ch.on 'exit', (code) =>
             if code == 0
                 @message = stdout
                 @emit 'success', @, (err)=>
                     if err
-                        log.error "Worker #{@id} success handler error", err
+                        exports.log.error "Worker #{@id} success handler error", err
                     else
-                        log.info "Worker #{@id} succeed"
+                        exports.log.info "Worker #{@id} succeed"
             else
                 @message = stderr
                 @emit 'failure', @, (err)=>
                     if err
-                        log.error "Worker #{@id} fail handler error", err
+                        exports.log.error "Worker #{@id} fail handler error", err
                     else
-                        log.error "Worker #{@id} failed"
+                        exports.log.error "Worker #{@id} failed"
         
         cb and cb(null)
 
@@ -62,11 +60,8 @@ exports.Worker = class Worker extends state.State
             try
                 process.kill @pid
             catch err
-                log.warn "Process with #{@pid} does not exists"
+                exports.log.warn "Process with #{@pid} does not exists"
         @clear cb
-
-# SSH global options
-SSH = "ssh -i #{SSH_PRIVATE_KEY} -o StrictHostKeyChecking=no -o BatchMode=yes"
 
 exports.Sync = class Sync extends Worker
     start: (cb)->
@@ -74,7 +69,9 @@ exports.Sync = class Sync extends Worker
         if not @target  then return cb and cb(new Error("Copy target not set"))
         if not @user    then return cb and cb(new Error("Remote user not set"))
         if not @address then return cb and cb(new Error("Remote address not set"))
-        @exec [ __dirname + "/bin/sync", "-u", @user, "-a", @address, "-k", SSH_PRIVATE_KEY, @source, @target ], cb
+        @exec [ __dirname + "/bin/sync", "-u", @user, "-a", @address, "-k", settings.PRIVATE_KEY_FILE, @source, @target ], cb
+
+SSH = "ssh -i #{settings.PRIVATE_KEY_FILE} -o StrictHostKeyChecking=no -o BatchMode=yes"
     
 # Execute command on remote system over ssh
 exports.Shell = class Shell extends Worker
@@ -97,7 +94,7 @@ exports.Preproc = class Preproc extends Worker
         if not @target  then return cb and cb(new Error("Copy target not set"))
         if not @user    then return cb and cb(new Error("Remote user not set"))
         if not @address then return cb and cb(new Error("Remote address not set"))
-        log.info "Preproc #{@source} -> #{@target}: " + JSON.stringify @context
+        exports.log.info "Preproc #{@source} -> #{@target}: " + JSON.stringify @context
         fs.readFile @source, (err, cfg) =>
             if err
                 return @emit 'failure', err, @
@@ -108,7 +105,6 @@ exports.Preproc = class Preproc extends Worker
                 else
                     return @emit 'success', "Done", @
         cb and cb(null)
-
 
 exports.Proxy = class Proxy
     # Configure proxy
@@ -127,7 +123,3 @@ exports.Proxy = class Proxy
                 command:["sudo", "service", "nginx", "reload"]
             ) ], cb
 
-exports.init = (app, cb)->
-    app.register 'worker'
-    log = io.log
-    cb and cb( null )

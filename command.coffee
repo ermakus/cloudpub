@@ -1,16 +1,12 @@
+async   = require 'async'
 fs      = require 'fs'
 form    = require 'express-form'
 account = require './account'
 state   = require './state'
+settings = require './settings'
 
 ENTITY_NEW       = 'new'
 ALLOWED_COMMANDS = ['startup','shutdown']
-PUBLIC_KEY_FILE = "/home/anton/.ssh/id_rsa.pub"
-
-try
-    PUBLIC_KEY = fs.readFileSync( PUBLIC_KEY_FILE )
-catch e
-    PUBLIC_KEY = "Not found - please run ssh-keygen"
 
 COMMAND_FORMS =
     app_startup: form(
@@ -38,16 +34,18 @@ COMMAND_FORMS =
         form.validate("data").required().is(/^(keep|delete)$/)
     )
 
-# Execute command in HTTP request
-exec_command = (entity, factory, req,resp) ->
+# Execute command contained in HTTP request
+execCommand = (entity, factory, req,resp) ->
     # Create new entity if special ID
     if req.params.id == ENTITY_NEW
         req.params.id = null
 
+    # Override some params
     req.form ||= {}
     req.form.id = req.params.id
     req.form.account = req.session.uid
 
+    # Call factory function that create object
     factory req.form, entity, (err, obj) ->
         if err
             return resp.send err.message, 500
@@ -60,12 +58,25 @@ exec_command = (entity, factory, req,resp) ->
             return resp.send 'Command not supported', 500
 
         console.log "Exec #{req.params.command} on #{entity} " + if req.form then JSON.stringify req.form
-       
-        command.call obj, req.form, (err) ->
-            if err
-                return resp.send err.message, 500
 
-            resp.send obj
+        async.series [
+            # Call stop on object first. This will clear object queue
+            (cb)-> obj.stop( cb )
+            # Execute command on object.
+            # Command should fill queue by tasks
+            (cb)->
+                command.call obj, req.form, (err) ->
+                    if err
+                        exports.log.error "Command error: ", err
+                        return resp.send err.message, 500
+                    # Send object state to client as JSON
+                    resp.send obj
+                    cb(null)
+            # Start object queue again
+            (cb)-> obj.start(cb)
+        ], (err)->
+            if err
+                exports.console.error "Command start/stop error", err
 
 #
 # Return anonymous function to handle API command
@@ -83,11 +94,11 @@ exports.handler = handler = (entity, factory)->
         if form
             form req, resp, ->
                 if req.form.isValid
-                    exec_command entity, factory, req, resp
+                    execCommand entity, factory, req, resp
                 else
                     resp.send (req.form.errors.join '\n'), 500
         else
-            exec_command entity, factory, req, resp
+            execCommand entity, factory, req, resp
 
 
 
@@ -103,7 +114,7 @@ exports.register = (app)->
     
         # HTML page view
         app.get '/' + entity, account.force_login, (req, resp)->
-            resp.render entity, {pubkey:PUBLIC_KEY}
+            resp.render entity, {pubkey:settings.PUBLIC_KEY}
 
         # API query handler
         app.get '/api/' + entity, account.ensure_login, (req, resp)->

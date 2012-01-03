@@ -8,15 +8,15 @@ defaultCallback = ->
 # Session object as base for all sessions
 exports.Session = class Session extends state.State
 
-    init: ->
-        super()
-        @expires = new Date()
-        @sessionData = undefined
-        
     # Clear session if expired
     clearIfExpired: (cb)->
-        if (@expires and (Date.now() > @expires))
-            exports.log.warn "Session #{@id} is expired: ", @expires
+        if typeof(@expires) == 'string'
+            expires = new Date(@expires)
+        else
+            expires = @expires
+
+        if (expires and (Date.now() > expires.getTime()))
+            exports.log.warn "Session #{@id} is expired: ", expires
             @clear cb
         else
             cb(null)
@@ -37,7 +37,9 @@ exports.SessionStore = class SessionStore extends express.session.Store
         state.loadOrCreate "session-" + sid, 'session', (err, session)=>
             return cb(err) if err
             if data && data.cookie && data.cookie.originalMaxAge
-                @expires = new Date( (new Date()).getTime() + data.cookie.originalMaxAge)
+                @expires = new Date( Date.now() + data.cookie.originalMaxAge)
+            else
+                exports.log.error "Session cookie not set"
             session.sessionData = data
             session.save cb
     

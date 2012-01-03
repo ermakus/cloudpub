@@ -1,6 +1,7 @@
-state  = require '../state'
-async  = require 'async'
-assert = require 'assert'
+settings = require '../settings'
+state    = require '../state'
+async    = require 'async'
+assert   = require 'assert'
 
 exports.log = state.log
 
@@ -100,7 +101,7 @@ exports.Checker = class Checker extends state.State
             (inst, cb)=>
                 @instance = inst
                 inst.address = '127.0.0.1'
-                inst.user = 'anton'
+                inst.user = settings.USERNAME
                 inst.events = {}
                 inst.save cb
             # Load test account 

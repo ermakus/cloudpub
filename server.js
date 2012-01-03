@@ -1,8 +1,8 @@
 require('coffee-script');
-var app = require('./main');
-var account = require('./account');
+var settings = require('./settings');
+var main = require('./main');
 
-app.init( function(err, server) {
+main.init( function(err, server) {
     if(err) {
         console.log(err)
     } else {
@@ -10,7 +10,7 @@ app.init( function(err, server) {
             account.log.error( "Fatal error: " + err.message );
             process.exit(1);
         });
-        account.log.info("Server started on " + account.DOMAIN + ":" + account.PORT );
-        server.listen( account.PORT );
+        main.log.info("Server started on " + settings.DOMAIN + ":" + settings.PORT );
+        server.listen( settings.PORT );
     }
 });
