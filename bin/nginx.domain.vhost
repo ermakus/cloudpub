@@ -1,0 +1,12 @@
+upstream worker_ID {
+    SERVICES
+}
+
+server {
+    server_name DOMAIN;
+    location / {
+        proxy_pass http://worker_ID;
+        proxy_redirect off;
+        proxy_set_header Host $host;
+    }
+}

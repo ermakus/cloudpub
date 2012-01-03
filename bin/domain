@@ -1,0 +1,87 @@
+#!/bin/bash
+#
+# Enable or disable virtual host
+# 
+# Parameter: "enable" or "disable"
+#
+# Configuration passed as environment
+#
+# DOMAIN   = domain to install
+# DEFAULT  = if true, this is default domain
+# PORT     = port to listen
+# SERVICES = list of servers (server host:port;...) in nginx format
+# HOME     = should(!) point to nginx root
+#
+# Based on bash nginx vhost generation script by Seb Dangerfield 
+# http://www.sebdangerfield.me.uk/2011/03/automatically-creating-new-virtual-hosts-with-nginx-bash-script/
+#
+set -e
+SED=`which sed`
+NGINX_CONFIG="$HOME/conf/sites-available"
+NGINX_SITES_ENABLED="$HOME/conf/sites-enabled"
+PIDFILES="$HOME/var/pid"
+
+if [[ "$DEFAULT" == "true" ]]; then
+    # Default domain
+    ADDRESS=$DOMAIN
+    DOMAIN="default"
+    CONFIG="$HOME/conf/nginx.conf"
+    TEMPLATE="$HOME/bin/nginx.default.vhost"
+else
+    TEMPLATE="$HOME/bin/nginx.domain.vhost"
+    CONFIG=$NGINX_CONFIG/$DOMAIN.conf
+    if [ -z $DOMAIN ]; then
+        echo "No domain name passed"
+        exit 1
+    fi
+
+    # check the domain is roughly valid
+    PATTERN="^([[:alnum:]]([[:alnum:]\-]{0,61}[[:alnum:]])?\.)+[[:alpha:]]{2,6}$"
+    if [[ "$DOMAIN" =~ $PATTERN ]]; then
+        DOMAIN=`echo $DOMAIN | tr '[A-Z]' '[a-z]'`
+        echo "Creating domain:" $DOMAIN
+    else
+        echo "Invalid domain name"
+        exit 1
+    fi
+fi
+
+case $1 in
+
+    enable)
+        echo "Enable domain $DOMAIN"
+        mkdir -p $NGINX_CONFIG
+        mkdir -p $NGINX_SITES_ENABLED
+        mkdir -p $PIDFILES
+
+        cp $TEMPLATE $CONFIG
+        $SED -i "s/ID/$ID/g" $CONFIG
+        $SED -i "s/DOMAIN/$DOMAIN/g" $CONFIG
+        $SED -i "s!HOME!$HOME!g" $CONFIG
+        $SED -i "s/PORT/$PORT/g" $CONFIG
+        $SED -i "s/SERVICES/$SERVICES/g" $CONFIG
+        $SED -i "s/DOMAIN/$DOMAIN/g" $CONFIG
+ 
+        if [[ "$DEFAULT" != "true" ]] ; then
+            # create symlink to enable site
+            ln -f -s $CONFIG $NGINX_SITES_ENABLED/$DOMAIN.conf
+            # reload Nginx to pull in new config
+            $HOME/sbin/nginx -s reload
+        fi
+        ;;
+
+    disable)
+        echo "Disable domain $DOMAIN"
+        if [[ "$DEFAULT" != "true" ]] ; then
+            # delete symlink to disable site
+            rm $NGINX_SITES_ENABLED/$DOMAIN.conf
+            # reload Nginx to pull in new config
+            $HOME/sbin/nginx -s reload
+        fi 
+        ;;
+
+    *)
+        echo "$0 (enable|disable)"
+        exit 1
+        ;;
+esac
