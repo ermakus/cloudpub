@@ -25,12 +25,12 @@ exports.App = class App extends serviceGroup.ServiceGroup
         exports.log.info "Install #{@id} on instance #{instanceId}"
         state.load instanceId, (err, instance)=>
             cb and cb(err, {
-                id:'node-' + @id + '-' + instance.id
                 entity:'npm'
                 package:'npm'
                 account:@account
                 app:@id
                 domain:@domain
+                port:instance.port
                 instance:instance.id
                 address:instance.address
                 user:instance.user

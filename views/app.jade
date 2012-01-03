@@ -41,7 +41,7 @@ script.list-template(type="text/template")
                         span <%= item.message %> 
                 td.domain
                     h3
-                        a(href="http://<%= item.domain %>",target="_new") <%=item.domain%>
+                        a(href="http://<%= item.domain %>:<%= item.port %>",target="_new") <%=item.domain%>
                 td.worker
                     ul.state-list
                         <% _.each(item._children, function(child) { %>
@@ -69,7 +69,7 @@ script.instances-template(type="text/template")
         li
             .state-icon-small
                 img(src="state-<%=item.state%>.png")
-                input.required(id="<%= item.id %>",type="checkbox",name="instance",value="<%= item.id %>",checked="true")
+                input.required(id="<%= item.id %>",type="checkbox",name="instance",value="<%= item.id %>",checked="false")
             .state-info-small
                 label.instance-address(for="<%= item.id %>") &nbsp;<%= item.address %>
         <% }); %>
@@ -87,7 +87,7 @@ script.startup-template(type="text/template")
                     a(href="#settings")  Settings
                 li
                     a(href="#servers") Servers
-            .pill-content
+            .tab-content
                 #settings.active
                     .clearfix
                         label Source

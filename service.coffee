@@ -44,6 +44,10 @@ exports.Service = class Service extends queue.Queue
         @instance = params.instance or @instance
         if not @instance then return cb and cb(new Error("Instance not set"))
 
+        @port = params.port or @port
+        if not @port then return cb and cb(new Error("Port not set"))
+
+
         @app      = params.app or @app
         @home     = "/home/#{@user}/.cloudpub"
 

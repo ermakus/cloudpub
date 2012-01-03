@@ -7,8 +7,8 @@ state    = require './state'
 instance = require './instance'
 
 # AWS keys
-EC2_ACCESS_KEY='AKIAJRLCT356JGNL55XA'
-EC2_SECRET_KEY='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'
+EC2_ACCESS_KEY=''
+EC2_SECRET_KEY=''
 
 # AWS client
 EC2 = aws.createEC2Client( EC2_ACCESS_KEY, EC2_SECRET_KEY, secure:false )

@@ -23,10 +23,11 @@ COMMAND_FORMS =
     )
     instance_startup: form(
         form.validate("id").required().is(/^[a-z0-9\.\-]+$/)
-        form.validate("cloud").required().is(/^(ec2|ssh)$/)
-        form.filter("user").trim().toLower(),
+        form.filter("cloud").trim().toLower()
+        form.filter("user").trim().toLower()
         form.validate("user").is(/^[a-z0-9]+$/)
-        form.filter("address").trim().toLower(),
+        form.validate("port").is(/^[0-9]+$/)
+        form.filter("address").trim().toLower()
         form.validate("address").is(/^[a-z0-9\.]+$/)
     )
     instance_shutdown: form(

@@ -15,16 +15,19 @@ exports.Instance = class Instance extends serviceGroup.ServiceGroup
         @user = undefined
         # Owner account
         @account = undefined
+        # Port to listen
+        @port = "8088"
 
     configure: (params, cb) ->
         @account = params.account
         @address = params.address
         @user    = params.user
+        @port    = params.port
         if not (@address and @user)
             return cb and cb( new Error('Invalid address or user') )
         params.instance = @id
         params.services = [
-            { id:'runtime-' + @id, entity:'runtime', package:'runtime', domain:@address, default:true, port:"8088" }
+            { id:'runtime-' + @id, entity:'runtime', package:'runtime', domain:@address, default:true, port:@port }
         ]
         super(params, cb)
 

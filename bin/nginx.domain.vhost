@@ -1,11 +1,13 @@
-upstream worker_ID {
+upstream ID {
     SERVICES
 }
 
 server {
     server_name DOMAIN;
+    listen PORT;
+
     location / {
-        proxy_pass http://worker_ID;
+        proxy_pass http://ID;
         proxy_redirect off;
         proxy_set_header Host $host;
     }

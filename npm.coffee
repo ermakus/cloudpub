@@ -71,8 +71,7 @@ exports.Npm = class Npm extends service.Service
                         port: @port
                         domain: @domain
                         default: false
-                        services: "server localhost:4000;" # FIXME
-                    command: ['domain','enable']
+                    command: ['domain','disable']
                     success:
                         state:'maintain'
                         message: 'Domain parked'
@@ -99,7 +98,7 @@ exports.Npm = class Npm extends service.Service
             message: "Install app"
             state:   "maintain"
             home: @home
-            command:["./bin/node", './bin/npm', "--force", "-g", "--prefix", @home, 'install', @source]
+            command:["./bin/node", './bin/npm', "-g", "--prefix", @home, 'install', @source]
             success:
                 state:'up'
                 message: 'App installed'

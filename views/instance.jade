@@ -50,41 +50,50 @@ script.startup-template(type="text/template")
             a.close(href="#") × 
             h3 Start Server
         form.modal-body
-            .clearfix.cloudtype(style="display:none;")
-                ul.inputs-list
-                    li
-                        label
-                            input.cloud(type="radio", name="cloud", value="ec2")
-                            b Take server from the cloud 
-                            span.help-block
-                                span You will pay for resources by 
-                                a(href="/price",target="new") price
-                    li
-                        label
-                            input.cloud(type="radio", checked="true", name="cloud", value="ssh")
-                            span Add your own server by SSH
-                            span.help-block
-                                div You need to have SSH user account and ability to add the public key
-                                div.red Currently tested on Ubuntu only
-            .clearfix.custom
-                    label Server address
-                    .input
-                        input.custom-input.required.address(type="text",name="address",value="<%= item.address %>")
-                        span.help-block Enter your server domain name or IP address
-            .clearfix.custom
-                    label SSH login
-                    .input
-                        input.custom-input.required.login(type="text",name="user",value="<%= item.user %>")
-                        span.help-block Specify user account for setup runtime.
-            .clearfix.custom
-                    label
-                        div SSH public key
-                        #clip-container(style="position: relative;")
-                            #clip-button.label Copy to clipboard
-                    .input
-                        textarea#pubkey(rows="3",readonly="true", style="width: 350px; font-size: 9px;")= pubkey
-                        span.help-block Add this public key to ~/.ssh/authorized_hosts file&nbsp;
-        .modal-footer
+            ul.tabs
+                li.hidden
+                    a(href="#cloud") Allocate from cloud
+                li.active
+                    a(href="#ssh")  Add by SSH
+            .tab-content
+                #cloud
+                    .clearfix
+                        ul.inputs-list
+                            li
+                                label
+                                    input.cloud(type="radio", name="cloud", value="usa")
+                                    b USA 
+                            li
+                                label
+                                    input.cloud(type="radio", checked="true", name="cloud", value="europe")
+                                    span Europe
+                #ssh.active
+                    .clearfix.custom
+                            label Server address
+                            .input
+                                input.custom-input.required.address(type="text",name="address",value="<%= item.address %>")
+                                span.help-block Enter your server domain name or IP address
+                    .clearfix.custom
+                            label SSH login
+                            .input
+                                input.custom-input.required.login(type="text",name="user",value="<%= item.user %>")
+                                span.help-block Specify user account for setup runtime.
+                    .clearfix.custom
+                            label
+                                div SSH public key
+                                #clip-container(style="position: relative;")
+                                    #clip-button.label Copy to clipboard
+                            .input
+                                textarea#pubkey(rows="3",readonly="true", style="width: 350px; font-size: 9px;")= pubkey
+                                span.help-block Add this public key to ~/.ssh/authorized_hosts file&nbsp;
+                    .clearfix.custom
+                            label Proxy Port Number
+                            .input
+                                input.custom-input.required.port(type="text",name="port",value="<%= item.port %>")
+                                span.help-block
+                                    div Proxy and load balancer port number
+                                    div To run on priveleged port (<1024) root access is required.
+         .modal-footer
             a.btn.primary.execute(href="#") Start
             a.btn.secondary.cancel(href="#") Cancel
 

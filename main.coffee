@@ -8,7 +8,7 @@ command  = require './command'
 session  = require './session'
 
 MODULES = [ 'state', 'session', 'queue', 'group', 'account', 'command', 'worker', 'service',
-            'serviceGroup', 'domain', 'instance', 'ec2', 'app', 'suite', 'npm', 'registry' ]
+            'serviceGroup', 'domain', 'instance', 'app', 'suite', 'npm', 'registry' ]
 
 publicDir = __dirname + '/public'
 
