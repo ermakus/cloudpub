@@ -11,22 +11,20 @@ exports.InstanceStartTest = class extends checker.Checker
     testInstanceStart: (cb)->
         async.waterfall [
              (cb)=>
-                # 1. Sync files...
                 @expect 'maintain', 'Sync service files', cb
              (cb)=>
-                # 2. Sync done
                 @expect 'maintain', 'Service installed', cb
              (cb)=>
-                # 3. Compiling
-                @expect 'maintain', 'Install node.js runtime', cb
+                @expect 'maintain', 'Compile node runtime', cb
              (cb)=>
-                # 4. Compiling done
                 @expect 'maintain', 'Runtime compiled', cb
              (cb)=>
-                # 5. Starting
-                @expect 'maintain', 'Starting daemon', cb
+                @expect 'maintain', 'Configure proxy', cb
              (cb)=>
-                # 6. Complete
+                @expect 'maintain', 'Proxy configured', cb
+             (cb)=>
+                @expect 'maintain', 'Start daemon', cb
+             (cb)=>
                 @expect 'up', 'Online', cb
              (cb)=>
                 @instance.on 'state', 'onState', @id

@@ -57,7 +57,7 @@ execCommand = (entity, factory, req,resp) ->
         if not command
             return resp.send 'Command not supported', 500
 
-        console.log "Exec #{req.params.command} on #{entity} " + if req.form then JSON.stringify req.form
+        exports.log.info "Exec #{req.params.command} on #{entity} " + if req.form then JSON.stringify req.form
 
         async.series [
             # Call stop on object first. This will clear object queue
@@ -70,6 +70,7 @@ execCommand = (entity, factory, req,resp) ->
                         exports.log.error "Command error: ", err
                         return resp.send err.message, 500
                     # Send object state to client as JSON
+                    obj._children = undefined
                     resp.send obj
                     cb(null)
             # Start object queue again

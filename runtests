@@ -1,3 +1,5 @@
 #!/bin/sh
+killall nginx
+killall node
 rm test-snapshot.json
 node --debug server.js --test

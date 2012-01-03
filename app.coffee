@@ -1,5 +1,6 @@
 _            = require 'underscore'
 async        = require 'async'
+settings     = require './settings'
 account      = require './account'
 serviceGroup = require './serviceGroup'
 state        = require './state'
@@ -29,6 +30,7 @@ exports.App = class App extends serviceGroup.ServiceGroup
                 package:'npm'
                 account:@account
                 app:@id
+                domain:@domain
                 instance:instance.id
                 address:instance.address
                 user:instance.user

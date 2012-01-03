@@ -11,19 +11,39 @@ exports.Runtime = class Runtime extends service.Service
         if typeof(params) == 'function'
             cb = params
             params = {}
-            
-        @submit({
-            entity:  "shell"
-            package: "worker"
-            message: "Starting daemon"
-            state:   "maintain"
-            command: ["#{@home}/bin/daemon",
-                      "-b", @home,
-                      "start", @id, "#{@home}/sbin/nginx"]
-            success:
-                state:'up'
-                message: 'Online'
-        }, cb)
+      
+        async.series [
+            (cb) => @submit({
+                entity:  "shell"
+                package: "worker"
+                message: "Configure proxy"
+                state:   "maintain"
+                home: @home
+                context:
+                    id: @id
+                    home: @home
+                    port: @port
+                    domain: @domain
+                    default: true
+                    services: null
+                command: ['domain','enable']
+                success:
+                    state:'maintain'
+                    message: 'Proxy configured'
+                }, cb)
+            (cb) => @submit({
+                entity:  "shell"
+                package: "worker"
+                message: "Start daemon"
+                state:   "maintain"
+                home: @home
+                command: ["#{@home}/sbin/nginx", "-c", "#{@home}/conf/nginx.conf" ]
+                success:
+                    state:'up'
+                    message: 'Online'
+                }, cb)
+        ], cb
+
 
     shutdown: (params, cb) ->
         if typeof(params) == 'function'
@@ -35,8 +55,8 @@ exports.Runtime = class Runtime extends service.Service
             package: "worker"
             message: "Stop daemon"
             state:   "maintain"
-            home:    @home
-            command:["#{@home}/bin/daemon", "stop", @id]
+            home: @home
+            command:["daemon", "stop", @id]
             success:
                 state:   'down'
                 message: 'Terminated'
@@ -44,25 +64,27 @@ exports.Runtime = class Runtime extends service.Service
 
     install: (cb) ->
         async.series( [
-                # Sync service files
+                # Sync bin folder
                 (cb) => @submit({
                             entity: 'sync'
                             package: "worker"
                             message: "Sync service files"
                             state:   "maintain"
                             source: __dirname + "/bin"
-                            target: "#{@home}/"
+                            home: @home
+                            target: "#{@home}/" # Slash important!
                             success:
                                 state:'maintain'
                                 message: 'Service installed'
                         }, cb),
-                # Install service deps
+                # Install runtime
                 (cb) => @submit({
                             entity:  'shell'
                             package: 'worker'
-                            message: "Install node.js runtime"
+                            message: "Compile node runtime"
                             state:   "maintain"
-                            command:["#{@home}/bin/install", @home]
+                            home: @home
+                            command:["install", @home]
                             success:
                                 state:'maintain'
                                 message: 'Runtime compiled'

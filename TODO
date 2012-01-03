@@ -1,10 +1,7 @@
-Service configuration
-Put object to separate indexes (eluminate prefixes)
-Service factory
-Start/stop service
-App configuration
-Pass domain to slave
 Generate nginx config and restart nginx
+Service configuration
+Service factory
+Pass domain to slave
 Reserve domain name
 Fix bug with refresh after delete
 Generate PK for account

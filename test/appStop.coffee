@@ -8,13 +8,17 @@ exports.AppStopTest = class extends checker.Checker
     testAppStop: (cb)->
         async.waterfall [
              (cb)=>
+                @expect 'maintain', 'Detach from proxy', cb
+             (cb)=>
+                @expect 'maintain', 'Domain parked', cb
+             (cb)=>
                 @expect 'maintain', 'Stop daemon', cb
              (cb)=>
                 @expect 'down', 'Terminated', cb
              (cb)=>
-                @expect 'maintain', 'Uninstall app: test', cb
+                @expect 'maintain', 'Uninstall app', cb
              (cb)=>
-                @expect 'down', 'Service uninstalled', cb
+                @expect 'down', 'App uninstalled', cb
              (cb)=>
                 @expect 'down', 'Deleted', cb
              (cb)=>

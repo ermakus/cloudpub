@@ -12,7 +12,7 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
     # Run service by ID or JSON
     startService: (serviceId, cb)->
         exports.log.info "Start service #{serviceId}"
-        state.load serviceId, 'service', (err, service) =>
+        state.load serviceId, (err, service) =>
             return cb and cb(err) if err
             # Subscribe to state event
             async.series [

@@ -29,7 +29,7 @@ script.list-template(type="text/template")
                         span <%= item.message %> 
                  td.domain
                     h3
-                        a(href="http://<%=item.address%>") <%=item.address%>
+                        a(href="http://<%=item.address%>:<%=item.port%>", target="new") <%=item.address%>
                 td.worker
                     ul.state-list
                         <% _.each(item._children, function(worker) { %>

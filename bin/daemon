@@ -64,7 +64,7 @@ case $COMMAND in
     stop)
         if [ -f $PIDFILES/$ID.pid ] ; then
     	    start-stop-daemon --stop --pidfile $PIDFILES/$ID.pid
-            rm $PIDFILES/$ID.pid
+            rm -f $PIDFILES/$ID.pid
         else
             echo "No PID file"
         fi

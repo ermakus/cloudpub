@@ -24,7 +24,7 @@ exports.Instance = class Instance extends serviceGroup.ServiceGroup
             return cb and cb( new Error('Invalid address or user') )
         params.instance = @id
         params.services = [
-            { id:'runtime-' + @id, entity:'runtime', package:'runtime' }
+            { id:'runtime-' + @id, entity:'runtime', package:'runtime', domain:@address, default:true, port:"8088" }
         ]
         super(params, cb)
 

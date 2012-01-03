@@ -82,44 +82,18 @@ exports.Shell = class Shell extends Worker
         cmd = SSH.split(' ').concat("-l", @user, @address)
         if @home
             cmd = cmd.concat ["export", "PATH=#{@home}/bin:$PATH", '&&', 'cd', @home, '&&']
+        else
+            exports.log.warn "Shell: Home not set"
 
+        # Pass environment to children
+        if @context
+            for key of @context
+                value = @context[ key ]
+                if _.isString( value ) or _.isNumber( value ) or _.isBoolean( value )
+                    cmd.push "export"
+                    cmd.push "#{key.toUpperCase()}='#{value}'"
+                    cmd.push "&&"
+
+        # Finally add command
         cmd = cmd.concat(@command)
         @exec cmd, cb
-
-# Preprocess config file by _.template
-exports.Preproc = class Preproc extends Worker
-
-    start: (cb) ->
-        if not @source  then return cb and cb(new Error("Copy source not set"))
-        if not @target  then return cb and cb(new Error("Copy target not set"))
-        if not @user    then return cb and cb(new Error("Remote user not set"))
-        if not @address then return cb and cb(new Error("Remote address not set"))
-        exports.log.info "Preproc #{@source} -> #{@target}: " + JSON.stringify @context
-        fs.readFile @source, (err, cfg) =>
-            if err
-                return @emit 'failure', err, @
-            cfg = _.template cfg.toString(), @context
-            fs.writeFile @target, cfg, (err)=>
-                if err
-                    return @emit 'failure', err, @
-                else
-                    return @emit 'success', "Done", @
-        cb and cb(null)
-
-exports.Proxy = class Proxy
-    # Configure proxy
-    start: (cb) ->
-        async.series [
-            # Generate SSH vhost
-            async.apply( @submit, 'preproc',
-                source:__dirname + '/nginx.vhost'
-                target: @home + '/vhost'
-                context: { service:@, params }
-            ),
-            async.apply( @submit, 'shell',
-                command:["sudo", "ln", "-sf", "#{@home}/vhost", "/etc/nginx/sites-enabled/#{@id}.#{@user}.conf"]
-            ),
-            async.apply( @submit, 'shell',
-                command:["sudo", "service", "nginx", "reload"]
-            ) ], cb
-
