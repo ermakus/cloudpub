@@ -1,0 +1,38 @@
+#!/usr/bin/env coffee
+#
+# Cloud-Fu
+#
+async = require 'async'
+nconf = require 'nconf'
+state = require './state'
+
+# Fix console to look like logger
+console.info = console.debug = console.warn = console.error = console.log
+
+commands = process.argv[2...]
+if commands.length < 1
+    console.info "Usage: fu [black magic]"
+    process.exit 0
+
+selector = commands[0]
+params   = commands[1...]
+
+console.log "Kya! #{selector}(#{params})"
+
+state.create {}, selector, 'cloudfu', (err, command)->
+    if err
+        console.log err
+        process.exit(1)
+
+    async.series [
+        (cb)->
+            command.configure params, cb
+        (cb)->
+            command.startup params, cb
+    ], (err)->
+        if err
+            console.log err
+            process.exit(1)
+
+        console.log "Command executed"
+        process.exit(1)

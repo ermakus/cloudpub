@@ -34,7 +34,11 @@ COMMAND_FORMS =
         form.validate("id").required().is(/^[a-z0-9\.\-]+$/)
         form.validate("data").required().is(/^(keep|delete)$/)
     )
-
+    cloudfu_startup: form(
+        form.validate("command").required()
+        form.validate("instance").required()
+    )
+ 
 # Execute command contained in HTTP request
 execCommand = (entity, factory, req,resp) ->
     # Create new entity if special ID

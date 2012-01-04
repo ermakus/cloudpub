@@ -35,7 +35,6 @@ window.TEMPLATE = TEMPLATE = (name) ->
     if text
         _.template text.replace(/&amp;/g, "&").replace(/&gt;/g, ">").replace(/&lt;/g, "<").replace(/&quot;/g, "&")
     else
-        error "Invalid template: #{name}"
         null
 
 #
@@ -107,13 +106,16 @@ window.CommandHandler = class CommandHandler
     constructor: (@entity, @command, @item, cb) ->
         # Get dialog for command
         template = TEMPLATE command
-        # Render template
-        @dlg = $(template(item:@item))
-        @dlg.data 'item', @item
-        # Bind execute button
-        @dlg.find('.execute').bind 'click', => @execute( cb )
-        # Remove element after hide
-        @dlg.bind 'hidden', => @dlg.remove()
+        if template
+            # Render template
+            @dlg = $(template(item:@item))
+            @dlg.data 'item', @item
+            # Bind execute button
+            @dlg.find('.execute').bind 'click', => @execute( cb )
+            # Remove element after hide
+            @dlg.bind 'hidden', => @dlg.remove()
+        else
+            @dlg = $('<h1>No template</h1>')
 
     # Show command dialog
     show: ->
@@ -150,6 +152,9 @@ window.CommandHandler = class CommandHandler
         hide_dialog = =>
             @hide()
             cb and cb( null )
+        @run( cb )
+
+    run: (cb) ->
 
         form = @dlg.find('form')
         if form.length

@@ -144,7 +144,14 @@ exports.create = create = (id, entity, package, cb) ->
     if id of CACHE
         return cb and cb( null, CACHE[id] )
 
-    module = require('./' + package)
+    try
+        module = require('./' + package)
+    catch e
+        log.warn "Try global package", package
+        module = require(package)
+
+    if typeof( module.log ) == 'undefined'
+        module.log = console
 
     entityClass = entity.charAt(0).toUpperCase() + entity.substring(1)
     Entity = module[ entityClass ]

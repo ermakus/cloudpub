@@ -1,0 +1,88 @@
+h1 Active Commands
+// Put controls into this div
+.page
+    .loading
+
+#cloudfu
+    form.row
+        .span4
+            #instances
+        .span11
+            input#fu.span10(type="text")
+            a.btn.danger#kya(href="#") Kya!
+
+// Module script
+!= js('/js/cloudfu.js')
+
+// Below is client-side _.templates (use <% %>!)
+// Items list
+script.list-template(type="text/template")
+    table.bordered-table.zebra-striped
+        thead
+            tr
+                th.state Service
+                th.domain Domain
+                th.control &nbsp;
+        tbody
+            <% _.each(items, function(item) { %>
+            tr
+                td.state
+                    .state-icon
+                        a(href="#", title="<%=item.state%>: <%=item.message%>")
+                            img(src="state-<%=item.state%>.png")
+                            .state-hole <%= item.children && item.children.length || 0 %>
+                    .state-info
+                        h3 <%=item.entity %>
+                        span <%= item.message %> 
+                 td.domain
+                    h3
+                        a(href="http://<%=item.domain%>:<%=item.port%>", target="new") <%=item.domain%>:<%=item.port%>
+                td.control
+                    <% if(item.state != "up") { %>
+                    img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="startup")
+                    <% } %>
+                    img.btn.command(src="command-stop.png",data-id="<%=item.id%>",data-command="shutdown")
+            <% }); %>
+
+// Instances list
+script.instances-template(type="text/template")
+    ul.state-list
+        <%  if(_.isEmpty(items)) { %>
+        input.required(type="hidden",name="instance")
+        li
+            a.important(href="/instance") Click here to add server first
+        <% } %>
+        <% _.each(items, function(item) { %>
+        li
+            .state-icon-small
+                img(src="state-<%=item.state%>.png")
+                input.required(id="<%= item.id %>",type="checkbox",name="instance",value="<%= item.id %>",checked="false")
+            .state-info-small
+                label.instance-address(for="<%= item.id %>") &nbsp;<%= item.address %>
+        <% }); %>
+
+
+// Start dialog
+script.startup-template(type="text/template")
+    .start.modal.hide.fade
+        .modal-header
+            a.close(href="#") × 
+            h3 Start Service
+        form.modal-body
+            .clearfix
+        .modal-footer
+            a.btn.primary.execute(href="#") Start Service
+            a.btn.secondary.cancel(href="#") Cancel
+
+// Stop dialog
+script.shutdown-template(type="text/template")
+    .modal.hide.fade
+        .modal-header
+            a.close(href="#") × 
+            h3 Stop Service
+        form.modal-body
+            .clearfix
+        .modal-footer
+            a.btn.primary.execute(href="#") Stop Service
+            a.btn.secondary.cancel(href="#") Cancel
+

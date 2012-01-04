@@ -8,12 +8,11 @@ command  = require './command'
 session  = require './session'
 
 MODULES = [ 'state', 'session', 'queue', 'group', 'account', 'command', 'worker', 'service',
-            'serviceGroup', 'domain', 'instance', 'app', 'suite', 'npm', 'registry' ]
+            'serviceGroup', 'domain', 'instance', 'app', 'suite', 'npm', 'registry', 'cloudfu' ]
 
 publicDir = __dirname + '/public'
 
 SessionStore = session.SessionStore
-
 
 createApp = ->
     app = express.createServer()

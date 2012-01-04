@@ -28,7 +28,8 @@ exports.AppStartTest = class extends checker.Checker
              (cb)=>
                 @app.on 'state', 'onState', @id
                 @app.startup {
-                    source: 'cloudpub-redis'
+                    name: 'cloudpub-redis'
+                    source: '/home/anton/Projects/cloudpub-redis'
                     domain: 'redis.cloudpub.us'
                     port: '8081'
                     instance: @instance.id

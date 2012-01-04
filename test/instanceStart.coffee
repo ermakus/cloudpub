@@ -19,6 +19,10 @@ exports.InstanceStartTest = class extends checker.Checker
              (cb)=>
                 @expect 'maintain', 'Runtime compiled', cb
              (cb)=>
+                @expect 'maintain', 'Install cloudpub', cb
+             (cb)=>
+                @expect 'maintain', 'Cloudpub installed', cb
+             (cb)=>
                 @expect 'maintain', 'Configure proxy', cb
              (cb)=>
                 @expect 'maintain', 'Proxy configured', cb
@@ -29,7 +33,7 @@ exports.InstanceStartTest = class extends checker.Checker
              (cb)=>
                 @instance.on 'state', 'onState', @id
                 @instance.startup {
-                    user: settings.USERNAME
+                    user: settings.USER
                     address: '127.0.0.1'
                     port: '8080'
                     instance: @instance.id

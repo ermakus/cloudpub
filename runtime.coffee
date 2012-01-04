@@ -13,6 +13,7 @@ exports.Runtime = class Runtime extends service.Service
             params = {}
       
         async.series [
+
             (cb) => @submit({
                 entity:  "shell"
                 package: "worker"
@@ -88,6 +89,18 @@ exports.Runtime = class Runtime extends service.Service
                             success:
                                 state:'maintain'
                                 message: 'Runtime compiled'
+                        }, cb)
+                # Install cloudpub
+                (cb) => @submit({
+                            entity: 'shell'
+                            package: "worker"
+                            message: "Install cloudpub"
+                            state:   "maintain"
+                            home: @home
+                            command:["./bin/node", './bin/npm', "-g", "--prefix", @home, 'install', __dirname]
+                            success:
+                                state:'maintain'
+                                message: 'Cloudpub installed'
                         }, cb)
             ], cb)
 
