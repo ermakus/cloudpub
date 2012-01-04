@@ -1,4 +1,5 @@
 exports.init = (app, cb)->
+    return cb(null) if not app
     app.get '/registry/:id', (req, resp)->
         resp.send {"error":"not_found","reason":"missing"}, 404
 

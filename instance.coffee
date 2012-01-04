@@ -43,7 +43,7 @@ listInstances = (entity, params, cb)->
 
 # Init HTTP request handlers
 exports.init = (app, cb)->
-
+    return cb(null) if not app
     # Create or load instance
     item = (params, entity, cb) ->
         if params.cloud == 'ec2'

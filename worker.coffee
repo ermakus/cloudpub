@@ -85,10 +85,15 @@ exports.Shell = class Shell extends Worker
         else
             exports.log.warn "Shell: Home not set"
 
-        # Pass environment to children
         if @context
-            for key of @context
-                value = @context[ key ]
+            context = @context
+        else
+            context = @
+
+        # Pass environment to children
+        if context
+            for key of context
+                value = context[ key ]
                 if _.isString( value ) or _.isNumber( value ) or _.isBoolean( value )
                     cmd.push "export"
                     cmd.push "#{key.toUpperCase()}='#{value}'"

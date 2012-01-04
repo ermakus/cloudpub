@@ -123,6 +123,7 @@ listServices = (entity, params, cb)->
 
 # Init request handlers here
 exports.init = (app, cb)->
+    return cb(null) if not app
     # List of services
     app.register 'service', listServices, ((id, entity, cb)->state.load( id, cb ))
     cb and cb(null)

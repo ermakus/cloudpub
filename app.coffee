@@ -90,5 +90,6 @@ listApp = (entity, params, cb)->
 
 # Init request handlers here
 exports.init = (app, cb)->
+    return cb(null) if not app
     app.register 'app', listApp
     cb and cb(null)

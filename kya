@@ -1,0 +1,25 @@
+#!/usr/bin/env node
+var cloudpub = undefined;
+// Fix console to look like logger
+console.info = console.debug = console.warn = console.error = console.log
+
+try {
+    cloudpub = require('./index.js');
+} catch( ex ) {
+    console.error("cloudpub not installed");
+    process.exit(1);
+}
+
+cloudpub.init( false, function(err, server) {
+    if(err) {
+        process.stderr.write("Error: " + err.message + "\n");
+        process.exit(1);
+    };
+    cloudpub.cloudfu.kya( process.argv.slice(2), process.env, function(err) {
+        if(err) {
+            process.stderr.write("Error: " + err.message + "\n");
+            process.exit(1);
+        };
+        process.exit(0);
+    });
+});

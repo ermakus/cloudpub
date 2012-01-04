@@ -80,6 +80,5 @@ exports.Queue = class Queue extends group.Group
             ], cb
 
 exports.init = (app, cb)->
-    app.register 'queue'
-    log = io.log
+    if app then app.register 'queue'
     cb and cb( null )

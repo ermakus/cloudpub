@@ -7,7 +7,10 @@
   "repository": {
     "url": "git@github.com:ermakus/cloudpub.git"
   },
-  "main": "server.js",
+  "main": "index.js",
+  "bin":{
+   "kya":"./kya"
+  },
   "scripts":{
     "start":"node server.js"
   },

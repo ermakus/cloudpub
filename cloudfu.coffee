@@ -3,6 +3,32 @@ async = require 'async'
 state = require './state'
 settings = require './settings'
 
+#
+# Command line parser
+# Entry point for bin/kya
+#
+exports.kya = (command, params, cb)->
+    exports.log.info "Command #{command.join(' ')}"
+    if command.length < 1
+        cb( new Error("Command too short") )
+    # First is method name
+    method = command[0]
+    # Second is object ID or default Cloudfu handler
+    id = command[1] or "cloudfu"
+    # Other args is pass to params as arg0..argN keys
+    args = command[1...]
+    argIndex = 0
+    for arg in args
+        params["arg#{argIndex}"] = arg
+    # Load or create object
+    state.loadOrCreate id, 'cloudfu', (err, state)->
+        return cb( err ) if err
+        # Run method with params
+        if method of state
+            state[method](params, cb)
+        else
+            cb( new Error("Method #{method} not supported") )
+
 # Base class for all commands
 exports.Command = class Command extends state.State
 
@@ -14,16 +40,62 @@ exports.Command = class Command extends state.State
     stop: (cb)->
         cb(null)
 
-exports.Help = class extends Command
+#
+# Main ClodFu command handler
+# Singleton TBD
+#
+exports.Cloudfu = class extends Command
 
-    startup: (params, cb)->
-        exports.log.info "Use the source, " + settings.USER
-        exports.log.info "view #{__filename}"
+
+    init: ->
+        super()
+        @stdout = console.log
+
+    # Command handlers
+    # No help yet
+    help: (params, cb)->
+        @stdout "Use the source, " + settings.USER
+        @stdout "Look at #{__filename} for available commands"
         cb( new Error("Help not implemented" ) )
 
+    # Show local object cache
+    list: (params, cb)->
+        hr = (symbol)->
+            for i in [0..6]
+                symbol = symbol+symbol
+            symbol + "\n"
 
-# Command handler object
-exports.Cloudfu = class extends Command
+        state.query params.arg0 or 'service', (err, states)=>
+            return cb(err) if err
+            count = 0
+            @stdout hr('-')
+            @stdout "CACHE:\n"
+            @stdout hr('-')
+            for obj in states
+                @stdout "\##{obj.id}\t#{obj.package}.#{obj.entity}\t[#{obj.state}]\t#{obj.message}\n"
+                count += 1
+            @stdout hr('-')
+            @stdout "Total: #{count} object(s)\n"
+            @stdout hr('-')
+            cb(null)
+
+    # Just print patams
+    params: (params, cb)->
+        for key of params
+            @stdout "#{key}=#{params[key]}"
+        cb(null)
+
+    # Startup service
+    startup: (params, cb)->
+        state.load params.arg0, (err, obj)=>
+            return cb(err) if err
+            obj.startup params, cb
+
+    # Shutdown service
+    shutdown: (params, cb)->
+        state.load params.arg0, (err, obj)=>
+            return cb(err) if err
+            obj.shutdown params, cb
 
     execOn: (instanceId, cb)->
         exports.log.info "Run #{@command} on #{instanceId}"
@@ -83,5 +155,6 @@ getCommand = (id, entity, cb)->
 
 # Init module
 exports.init = (app, cb)->
+    return cb(null) if not app
     app.register 'cloudfu', listCommands, getCommand
     cb(null)

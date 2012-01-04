@@ -14,11 +14,7 @@ exports.AppStartTest = class extends checker.Checker
              (cb)=>
                 @expect 'up', 'App installed', cb
              (cb)=>
-                @expect 'maintain', 'Configure service', cb
-             (cb)=>
-                @expect 'maintain', 'Service configured', cb
-             (cb)=>
-                @expect 'maintain', 'Starting daemon', cb
+                @expect 'maintain', 'Start app', cb
              (cb)=>
                 @expect 'up', 'Online', cb
              (cb)=>

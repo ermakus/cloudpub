@@ -6,7 +6,10 @@ parseCookie = require('connect').utils.parseCookie
 
 UID2SOCKET = {}
 
+# Defualt logger
 exports.log = log = console
+exports.log.debug = ->
+exports.log.info = ->
 
 exports.emit = (uid, msg) ->
     if uid of UID2SOCKET
@@ -15,6 +18,8 @@ exports.emit = (uid, msg) ->
         log.debug "Can't push event", msg
 
 exports.init = (app, cb)->
+
+    return cb(null) if not app
 
     sio = io.listen(app)
     

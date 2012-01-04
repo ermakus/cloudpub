@@ -44,12 +44,18 @@ createApp = ->
 
 exports.log = io.log
 
-exports.init = (cb) ->
-    
-    app = createApp()
+exports.init = (initServer,cb) ->
+    if typeof(minimal) == 'function'
+        cb = minimal
+        initServer = true
+
+    if initServer
+        app = createApp()
+    else
+        app = null
 
     load_module = (module, cb)->
-        io.log.info "Init module: #{module}"
+        io.log.debug "Init module: #{module}"
         mod = require "./#{module}"
         mod.log = io.log
         if mod.init

@@ -15,6 +15,7 @@ validate_domain_form = form(
 
 
 exports.init = (app, cb) ->
+    return cb(null) if not app
     app.get '/resolve/:domain', validate_domain_form, (req, resp) ->
 
         domain =

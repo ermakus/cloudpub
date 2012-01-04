@@ -233,22 +233,3 @@ exports.query = query = (entity, params, cb) ->
     # Load async each entity by key
     async.map _.keys(json), loadWithChildren, cb
 
-
-exports.init = (app, cb)->
-
-    nconf.argv()
-
-    nconf.defaults {
-        listen:3000
-        test:false
-    }
-
-    if not nconf.get('test')
-        nconf.file
-            file: __dirname + '/snapshot.json'
-    else
-        nconf.file
-            file: __dirname + '/test-snapshot.json'
-
-    log = io.log
-    cb and cb(null)

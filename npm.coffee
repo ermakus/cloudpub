@@ -3,6 +3,7 @@ state = require './state'
 service = require './service'
 
 # This class implements npm packaged service
+
 exports.Npm = class Npm extends service.Service
 
     # Configure service by params dictionary
@@ -18,15 +19,33 @@ exports.Npm = class Npm extends service.Service
             cb = params
             params = {}
 
-        state.loadOrCreate @id, '', 'cloudpub', (err, service)->
-            service.startup.call @, params, cb
+        @submit({
+            entity: 'shell'
+            package: "worker"
+            message: "Start app"
+            state:   "maintain"
+            home: @home
+            command:["./bin/node", './bin/kya', "startup", @id]
+            success:
+                state:'up'
+                message: 'Online'
+        }, cb)
 
     shutdown: (params, cb) ->
         if typeof(params) == 'function'
             cb = params
             params = {}
-
-        cb(null)
+        @submit({
+            entity: 'shell'
+            package: "worker"
+            message: "Stop service"
+            state:   "maintain"
+            home: @home
+            command:["./bin/node", './bin/kya', "shutdown", @id]
+            success:
+                state:'up'
+                message: 'Terminated'
+        }, cb)
 
 
     install: (cb) ->

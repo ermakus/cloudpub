@@ -99,6 +99,7 @@ exports.force_login = (req, resp, next) ->
 
 # Init module views
 exports.init = (app, cb)->
+    return cb(null) if not app
 
     validate_account_form = form(
         form.filter("email").trim(),
