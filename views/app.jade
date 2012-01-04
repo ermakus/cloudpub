@@ -105,7 +105,7 @@ script.startup-template(type="text/template")
                             input.required.domain(type="text",name="domain",value="<%= item.domain%>")
                             span.help-block
                                 div Select domain name for this app.
-                                div Use [Your Domain].cloudpub.us or enter your domain name and point it to master server.
+                                div Use [subdomain].cloudpub.us or enter your own domain name that point to server IP.
                 #servers
                     .clearfix
                         label Server to run
@@ -113,8 +113,11 @@ script.startup-template(type="text/template")
                             #items
                             span.help-block
                                 span Select server(s) to run app
-                                div If multiple servers selected, round-robin HTTP load balancing will be performed.
-                                div Use servers in green state to avoid errors.
+                                div If multiple servers is selected, load balancing will be performed.
+                                div 
+                                    span Use servers in
+                                    span(style="color: green") &nbsp;green&nbsp;
+                                    span state to avoid errors.
         .modal-footer
             a.btn.primary.execute(href="#") Start App
             a.btn.secondary.cancel(href="#") Cancel

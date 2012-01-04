@@ -1,7 +1,8 @@
 #!/bin/bash
 #
 # Enable or disable virtual host
-# 
+# This script should not be called manually
+#
 # Parameter: "enable" or "disable"
 #
 # Configuration passed as environment
@@ -74,7 +75,7 @@ case $1 in
         echo "Disable domain $DOMAIN"
         if [[ "$DEFAULT" != "true" ]] ; then
             # delete symlink to disable site
-            rm $NGINX_SITES_ENABLED/$DOMAIN.conf
+            rm -f $NGINX_SITES_ENABLED/$DOMAIN.conf
             # reload Nginx to pull in new config
             $HOME/sbin/nginx -s reload
         fi 

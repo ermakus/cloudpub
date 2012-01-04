@@ -59,8 +59,8 @@ var ZeroClipboard = {
 			left: 0, 
 			top: 0, 
 			// Monkeypatch buggy size
-            width: 200,//obj.width ? obj.width : obj.offsetWidth, 
-			height: 50,//obj.height ? obj.height : obj.offsetHeight
+            width: 130,//obj.width ? obj.width : obj.offsetWidth, 
+			height: 20,//obj.height ? obj.height : obj.offsetHeight
 		};
 
 		while (obj && (obj != stopObj)) {

@@ -16,7 +16,7 @@ exports.Instance = class Instance extends serviceGroup.ServiceGroup
         # Owner account
         @account = undefined
         # Port to listen
-        @port = "8088"
+        @port = "8080"
 
     configure: (params, cb) ->
         @account = params.account

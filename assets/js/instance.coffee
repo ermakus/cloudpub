@@ -38,7 +38,14 @@ $ ->
             $('.address').attr 'readonly', false
             $('.cloudtype').show()
         init_clipboard()
-    
+
+        # Dialog tabs
+        $('.tabs').tabs()
+        # Help tooltips
+        $('a[rel=twipsy]').twipsy()
+        $('a[rel=popover]').popover(html:true)
+        # Source help
+     
     # Show listing
     listing = new Listing('.page', 'instance')
     listing.startUpdate()
@@ -50,7 +57,8 @@ $ ->
             id: 'new'
             cloud: 'ssh'
             address: '127.0.0.1'
-            user: 'root'
+            user: 'cloudpub'
+            port: '8080'
 
         handler = new CommandHandler( 'instance', 'startup', item, (err)-> listing.reload())
         handler.show()

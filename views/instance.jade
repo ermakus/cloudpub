@@ -87,12 +87,15 @@ script.startup-template(type="text/template")
                                 textarea#pubkey(rows="3",readonly="true", style="width: 350px; font-size: 9px;")= pubkey
                                 span.help-block Add this public key to ~/.ssh/authorized_hosts file&nbsp;
                     .clearfix.custom
-                            label Proxy Port Number
+                            label Public Port Number
                             .input
                                 input.custom-input.required.port(type="text",name="port",value="<%= item.port %>")
                                 span.help-block
                                     div Proxy and load balancer port number
-                                    div To run on priveleged port (<1024) root access is required.
+                                    div
+                                        span To run on priveleged port (<1024)
+                                        a(href="#",rel="popover",title="Running as root is not recommended", data-content="Please use iptables to redirect traffic:<br/><code>sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080</code>") &nbsp;root&nbsp;
+                                        span  access is required
          .modal-footer
             a.btn.primary.execute(href="#") Start
             a.btn.secondary.cancel(href="#") Cancel

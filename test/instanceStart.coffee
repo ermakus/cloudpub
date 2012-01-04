@@ -31,6 +31,7 @@ exports.InstanceStartTest = class extends checker.Checker
                 @instance.startup {
                     user: settings.USERNAME
                     address: '127.0.0.1'
+                    port: '8080'
                     instance: @instance.id
                     account: @account.id
                 }, cb

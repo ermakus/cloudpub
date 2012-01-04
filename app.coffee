@@ -19,6 +19,10 @@ exports.App = class App extends serviceGroup.ServiceGroup
         @account = undefined
         # List of instancies app run
         @instancies = []
+        # Port that application listen
+        @port = "8081"
+        # Interface
+        @interface = "127.0.0.1"
 
     # Create service JSON info from params and instance ID
     makeService: (instanceId, cb)->
@@ -30,7 +34,8 @@ exports.App = class App extends serviceGroup.ServiceGroup
                 account:@account
                 app:@id
                 domain:@domain
-                port:instance.port
+                port:@port
+                interface:@interface
                 instance:instance.id
                 address:instance.address
                 user:instance.user
@@ -48,6 +53,10 @@ exports.App = class App extends serviceGroup.ServiceGroup
         @account = params.account
         if not @account
             return cb and cb(new Error("Account not set"))
+        @port = params.port or @port
+        if not @port
+            return cb and cb(new Error("Port not set"))
+
 
         params.instance ||= []
         # Single checkbox passed as string, so make it array

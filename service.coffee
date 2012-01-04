@@ -2,7 +2,7 @@ fs      = require 'fs'
 _       = require 'underscore'
 async   = require 'async'
 
-account  = require './account'
+settings = require './settings'
 queue    = require './queue'
 command  = require './command'
 state    = require './state'
@@ -12,21 +12,22 @@ exports.Service = class Service extends queue.Queue
 
     init: ->
         super()
-        # Owner account
+        # Owner account ID
         @account = undefined
         # Instance ID service run on
         @instance = undefined
         # Application ID to run
         @app = undefined
-        # Address of server to run
+        # Address of SSH server to run
         @address = undefined
         # Posix user to run
-        @user = undefined
-        # Service domain
-        @domain = account.DOMAIN
-        # Service port
-        @port = account.PORT
-
+        @user = settings.USER
+        # Service public domain
+        @domain = settings.DOMAIN
+        # Service public port
+        @port = settings.PORT
+        # Interface to bind
+        @interface = "127.0.0.1"
 
     # Configure service and attach to groups
     configure: (params, cb)->
