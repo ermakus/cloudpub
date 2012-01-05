@@ -22,6 +22,12 @@ exports.emit = (accountId, msg, cb=defaultCallback) ->
                     exports.log.info "Send message to socket ", client.id
                     client.emit('message', msg)
 
+
+# Emit event to master
+exports.emitMaster = emitMaster = (event)->
+    exports.log.info "Send event to master", event
+    exports.cio.send JSON.stringify(event)
+
 # Init module
 exports.init = (app, cb)->
 
@@ -31,14 +37,18 @@ exports.init = (app, cb)->
         socket = ioClient.connect("http://#{settings.MASTER}:#{settings.MASTER_PORT}", {
                 transports:['websocket']
         })
+        exports.cio = socket
         socket.on 'connect', ->
             exports.log.info "Connected to master: #{settings.MASTER}"
+            emitMaster { target:settings.ID, state:"up", message:"Slave Connected" }
+        
         socket.on 'disconnect', ->
             exports.log.warn "Disconnected from master: #{settings.MASTER}"
+        
         socket.on 'error', (err) ->
             exports.log.error "Master connection error: #{err}"
-        socket.send JSON.stringify { state:"up", message:"Connected to master" }
-    
+
+
     # End here if not server
     return cb(null) if not app
 
@@ -70,10 +80,22 @@ exports.init = (app, cb)->
                     if err then exports.log.error "Detach socket error", err
                     hs.session = undefined
 
-        # TODO Handle incoming message
+        # Handle incoming message
         socket.on 'message', (msg) ->
-            exports.log.info "Socket message: ", msg
+            try
+                msg = JSON.parse msg
+            catch e
+                msg = undefined
 
+            exports.log.info "Message", msg
+
+            if msg.target
+                state.load msg.target, (err, object)->
+                    if err
+                        exports.log.error "Message target not found", err
+                        return
+                    object.emit 'message', msg, (err)->
+                        if err then exports.log.error "Message handler error". err
 
     sio.set 'authorization', (data, accept) ->
         # check if there's a cookie header
@@ -96,7 +118,6 @@ exports.init = (app, cb)->
             # Accept connection and wait for messages
             exports.log.info "Server connection accepted"
             accept null, true
-            #accept('No cookie transmitted.', false)
 
     exports.sio = sio
 

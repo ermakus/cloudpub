@@ -16,20 +16,25 @@ class Logger
     for level, num of Logger.levels
       Logger.define @, level
 
-  add: (level, args...) ->
+  add: (level, args) ->
 
     if @level > (Logger.levels[level] or 5)
       return
 
-    if args
-        if args.join
-            args = args.join(" ")
-        args = "#{args}".replace(/[\r\n]$/, "")
+    message = ""
+    for arg in args
+        if typeof(arg) == 'string'
+            message += arg
+        else
+            message += JSON.stringify(arg)
+        message += " "
+ 
+    message = message.replace(/[\r\n]$/, "")
 
     @write(
       timestamp: new Date
       severity:  level
-      message:   args
+      message:   message
       pid:       process.pid
     )
 
@@ -51,7 +56,7 @@ class Logger
     else
         timestr = ""
 
-    terminal.stylize( timestr + "[#{color}]#{options.severity}[/#{color}] ") + options.message
+    terminal.stylize( timestr + "[#{color}]#{options.severity}[/#{color}] " + options.message )
 
 Logger.define = (logger, level) ->
   logger[level] = (args...)-> logger.add level, args
@@ -66,7 +71,7 @@ Logger.levels =
   stderr: 7
 
 Logger.colors =
-  debug: 'gray'
+  debug: 'grey'
   info:  'white'
   warn:  'yellow'
   error: 'red'

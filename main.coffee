@@ -5,7 +5,7 @@ async    = require 'async'
 passport = require 'passport'
 command  = require './command'
 session  = require './session'
-logger   = require './logger'
+settings = require './settings'
 
 MODULES = [ 'state', 'memory', 'rest', 'session', 'queue', 'group', 'account', 'command', 'worker', 'service',
             'serviceGroup', 'domain', 'instance', 'io', 'app', 'suite', 'npm', 'registry', 'cloudfu' ]
@@ -15,7 +15,7 @@ publicDir = __dirname + '/public'
 SessionStore = session.SessionStore
 
 # Init default logger
-exports.log = logger.create()
+exports.log = settings.log
 
 # Create express server
 createApp = ->

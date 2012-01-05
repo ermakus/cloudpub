@@ -3,7 +3,6 @@ _       = require 'underscore'
 async   = require 'async'
 events  = require 'events'
 io      = require './io'
-uuid    = require './uuid'
 
 # List of storage backends
 BACKENDS = [
