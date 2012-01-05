@@ -38,6 +38,12 @@ COMMAND_FORMS =
         form.validate("id").required().is(/^[a-z0-9\.\-]+$/)
         form.validate("data").required().is(/^(keep|delete)$/)
     )
+    service_startup: form(
+        form.validate("command").required()
+    )
+    service_shutdown: form(
+        form.validate("command").required()
+    )
     cloudfu_startup: form(
         form.validate("command").required()
         form.validate("instance").required()
@@ -107,7 +113,7 @@ exports.handler = handler = (entity, factory)->
                 else
                     resp.send (req.form.errors.join '\n'), 500
         else
-            cb( new Error("Form for #{entity} is not defined") )
+            resp.send "Form for #{entity} is not defined", 500
 
 
 # Return anonymous function that used to create CRUD REST API handlers

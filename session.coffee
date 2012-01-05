@@ -29,12 +29,12 @@ exports.SessionStore = class SessionStore extends express.session.Store
         setInterval (=> @clearExpired( defaultCallback ) ), 60000
         
     get: (sid, cb = defaultCallback) ->
-        state.load "session-" + sid, 'session', (err, session)->
+        state.load sid, 'session', (err, session)->
             return cb() if err
             cb( null, session.sessionData )
     
     set: (sid, data, cb = defaultCallback) ->
-        state.loadOrCreate "session-" + sid, 'session', (err, session)=>
+        state.loadOrCreate sid, 'session', (err, session)=>
             return cb(err) if err
             if data && data.cookie && data.cookie.originalMaxAge
                 @expires = new Date( Date.now() + data.cookie.originalMaxAge)
@@ -44,7 +44,7 @@ exports.SessionStore = class SessionStore extends express.session.Store
             session.save cb
     
     destroy: (sid, cb = defaultCallback) ->
-        state.load "session-" + sid, 'session', (err, session)->
+        state.load sid, 'session', (err, session)->
             return cb(null) if err
             session.clear cb
     

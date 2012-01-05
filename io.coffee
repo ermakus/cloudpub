@@ -1,21 +1,31 @@
-settings = require './settings'
-io = require 'socket.io'
-ioClient = require('./patched_modules/socket.io-client')
-        
+io          = require 'socket.io'
+_           = require 'underscore'
+async       = require 'async'
 parseCookie = require('connect').utils.parseCookie
+ioClient    = require('./patched_modules/socket.io-client')
+settings    = require './settings'
+state       = require './state'
 
-# Init socket.io request handlers
+# Socket.io messaging facility
 
-UID2SOCKET = {}
+defaultCallback = ->
 
-exports.emit = (uid, msg) ->
-    if uid of UID2SOCKET
-        UID2SOCKET[ uid ].emit('message', msg)
-    else
-        exports.log.debug "Can't push event", msg
+# Emit event by account ID
+exports.emit = (accountId, msg, cb=defaultCallback) ->
+    state.query 'session', account:accountId, (err, sessions)->
+        return cb(err) if err
+        for session in sessions
+            # Query not implemented, so filter brute force
+            if session.sessionData?.uid != accountId then continue
+            for client in exports.sio.sockets.clients()
+                if client.id in session.sockets
+                    exports.log.info "Send message to socket ", client.id
+                    client.emit('message', msg)
 
+# Init module
 exports.init = (app, cb)->
 
+    # If master is set, connect to it
     if settings.MASTER
         exports.log.info "Connecting to master domain: #{settings.MASTER}"
         socket = ioClient.connect("http://#{settings.MASTER}:#{settings.MASTER_PORT}", {
@@ -28,9 +38,11 @@ exports.init = (app, cb)->
         socket.on 'error', (err) ->
             exports.log.error "Master connection error: #{err}"
         socket.send JSON.stringify { state:"up", message:"Connected to master" }
-
+    
+    # End here if not server
     return cb(null) if not app
 
+    # COnfigure socket.io
     sio = io.listen(app)
     
     sio.enable('browser client minification')
@@ -39,17 +51,29 @@ exports.init = (app, cb)->
     sio.set('log level', 1)
     sio.set('transports', ['websocket', 'flashsocket', 'htmlfile', 'xhr-polling', 'jsonp-polling'])
 
+    # Handle incoming connection
     sio.sockets.on 'connection', (socket)->
         hs = socket.handshake
-        if hs.session?.uid
-            UID2SOCKET[ hs.session.uid ] = socket
+        # We maintain socket ID list as session field
+        if hs.session
+            # Add socket IDs to list
+            hs.session.sockets ||= []
+            hs.session.sockets.push socket.id
+            hs.session.save (err)->
+                if err then exports.log.error "Attach socket error", err
 
+        socket.on 'disconnect', ->
+            # Remove socket ID from list
+            if hs.session
+                hs.session.sockets = _.without hs.session.sockets, socket.id
+                hs.session.save (err)->
+                    if err then exports.log.error "Detach socket error", err
+                    hs.session = undefined
+
+        # TODO Handle incoming message
         socket.on 'message', (msg) ->
             exports.log.info "Socket message: ", msg
 
-        socket.on 'disconnect', ->
-            if hs.session?.uid
-                delete UID2SOCKET[ hs.session.uid ]
 
     sio.set 'authorization', (data, accept) ->
         # check if there's a cookie header
@@ -58,8 +82,9 @@ exports.init = (app, cb)->
             data.cookie = parseCookie(data.headers.cookie)
             # note that you will need to use the same key to grad the
             # session id, as you specified in the Express setup.
-            data.sessionID = data.cookie['cloudpub.sid']
-            app.sessionStore.get  data.sessionID, (err, session)->
+            sessionID = data.cookie['cloudpub.sid']
+            # Load session from storage
+            state.load  sessionID, (err, session)->
                 if err or not session
                     accept err and err.message, false
                 else
@@ -74,5 +99,8 @@ exports.init = (app, cb)->
             #accept('No cookie transmitted.', false)
 
     exports.sio = sio
-    cb( null )
 
+    # Clear all sockets from sessions
+    state.query 'session', (err, sessions)->
+        return cb(err) if err
+        async.forEach sessions, ((session,cb)->session.sockets=[]; session.save(cb)), cb
