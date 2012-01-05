@@ -40,8 +40,9 @@ exports.Runtime = class Runtime extends service.Service
                 context:
                     port: @port+1
                     domain: @domain
-                command: ["daemon", "-b", @home, "start", @id,
-                          "node", "./lib/node_modules/cloudpub/server.js"]
+                    home: @home
+                command: ["daemon", "-b", @home, "start", @id + "cloudpub",
+                          "./bin/node", "./lib/node_modules/cloudpub/server.js"]
                 success:
                     state:'maintain'
                     message: 'Started'
@@ -56,9 +57,7 @@ exports.Runtime = class Runtime extends service.Service
                 success:
                     state:'up'
                     message: 'Online'
-            }
-        ], cb
-
+            }], cb
 
     shutdown: (params, cb) ->
         if typeof(params) == 'function'
@@ -72,7 +71,7 @@ exports.Runtime = class Runtime extends service.Service
                 message: "Stop Cloudpub"
                 state:   "maintain"
                 home: @home
-                command:["daemon", "stop", @id]
+                command:["daemon", "stop", @id + "cloudpub"]
                 success:
                     state:   'down'
                     message: 'Terminated'
@@ -87,13 +86,11 @@ exports.Runtime = class Runtime extends service.Service
                 success:
                     state:   'down'
                     message: 'Offline'
-            }
-         ], cb)
+            }], cb)
 
     install: (cb) ->
-        async.series( [
-                # Sync bin folder
-                (cb) => @submit({
+        @submit([
+                {
                             entity: 'sync'
                             package: "worker"
                             message: "Sync service files"
@@ -104,9 +101,9 @@ exports.Runtime = class Runtime extends service.Service
                             success:
                                 state:'maintain'
                                 message: 'Service installed'
-                        }, cb),
+                },
                 # Install runtime
-                (cb) => @submit({
+                {
                             entity:  'shell'
                             package: 'worker'
                             message: "Compile node runtime"
@@ -116,9 +113,9 @@ exports.Runtime = class Runtime extends service.Service
                             success:
                                 state:'maintain'
                                 message: 'Runtime compiled'
-                        }, cb)
+                },
                 # Install cloudpub
-                (cb) => @submit({
+                {
                             entity: 'shell'
                             package: "worker"
                             message: "Install cloudpub"
@@ -128,7 +125,7 @@ exports.Runtime = class Runtime extends service.Service
                             success:
                                 state:'maintain'
                                 message: 'Cloudpub installed'
-                        }, cb)
+                }
             ], cb)
 
     uninstall: (cb) ->

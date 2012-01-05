@@ -110,7 +110,7 @@ exports.Service = class Service extends queue.Queue
 
     # Install handler
     install: (cb) ->
-        cb and cb(null)
+        cb and cb(new Error("Install not implemented"))
 
     # Uninstall handler
     uninstall: (cb) ->

@@ -5,9 +5,8 @@ http = require 'http'
 settings = require './settings'
 state = require './state'
 
-
-if settings.MASTER_DOMAIN
-    master = http.createClient(settings.MASTER_PORT, settings.MASTER_DOMAIN)
+if settings.MASTER
+    master = http.createClient(settings.MASTER_PORT, settings.MASTER)
 else
     master = undefined
 

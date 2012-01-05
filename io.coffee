@@ -1,3 +1,4 @@
+settings = require './settings'
 io = require 'socket.io'
 
 parseCookie = require('connect').utils.parseCookie
@@ -13,6 +14,17 @@ exports.emit = (uid, msg) ->
         exports.log.debug "Can't push event", msg
 
 exports.init = (app, cb)->
+
+    if settings.MASTER
+        exports.log.info "Connecting to master domain: #{settings.MASTER}"
+        socket = io.connect('http://' + settings.MASTER + ":" + settings.MASTER_PORT )
+        socket.on 'connect', ->
+            exports.log.info "Connected to master: #{settings.MASTER}"
+        socket.on 'disconnect', ->
+            exports.log.warn "Disconnected from master: #{settings.MASTER}"
+        socket.on 'error', (err) ->
+            exports.log.error "Master connection error: #{err}"
+        socket.send JSON.stringify { state:"up", message:"Connected to master" }
 
     return cb(null) if not app
 
@@ -53,4 +65,5 @@ exports.init = (app, cb)->
             accept('No cookie transmitted.', false)
 
     exports.sio = sio
-    cb and cb( null )
+    cb( null )
+

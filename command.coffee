@@ -94,13 +94,12 @@ execCommand = (entity, factory, req,resp) ->
 exports.handler = handler = (entity, factory)->
 
     return (req, resp)->
-
         if not (req.param("command") in ALLOWED_COMMANDS)
             return resp.send 'Invalid command', 500
         if not req.params.id
             return resp.send 'Invalid entity ID', 500
             
-        form = COMMAND_FORMS[ entity + '_' + req.params.command ]
+        form = COMMAND_FORMS[ entity + '_' + req.param("command") ]
         if form
             form req, resp, ->
                 if req.form.isValid
@@ -108,8 +107,7 @@ exports.handler = handler = (entity, factory)->
                 else
                     resp.send (req.form.errors.join '\n'), 500
         else
-            execCommand entity, factory, req, resp
-
+            cb( new Error("Form for #{entity} is not defined") )
 
 
 # Return anonymous function that used to create CRUD REST API handlers

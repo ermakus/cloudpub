@@ -17,9 +17,9 @@ else
 # Domain of service
 exports.DOMAIN = DOMAIN = nconf.get('domain') or 'localhost'
 # Port to listen
-exports.PORT   = PORT   = nconf.get('listen') or 4000
+exports.PORT   = PORT   = nconf.get('port') or 4000
 # Master node domain
-exports.MASTER_DOMAIN = nconf.get('master-domain') or undefined
+exports.MASTER = nconf.get('master') or undefined
 # Master node port
 exports.MASTER_PORT = nconf.get('master-port') or PORT
 # Current system user
@@ -36,3 +36,7 @@ catch e
 
 # Private key file
 exports.PRIVATE_KEY_FILE = "#{exports.HOME}/.ssh/id_rsa"
+
+
+for key of exports
+    console.log "#{key}=#{exports[key]}"

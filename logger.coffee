@@ -22,8 +22,8 @@ class Logger
       return
 
     if args
-        if args.constructor == Array.constructor
-            args = args.join " "
+        if args.join
+            args = args.join(" ")
         args = "#{args}".replace(/[\r\n]$/, "")
 
     @write(
@@ -54,8 +54,7 @@ class Logger
     terminal.stylize( timestr + "[#{color}]#{options.severity}[/#{color}] ") + options.message
 
 Logger.define = (logger, level) ->
-  logger[level] = (args...) ->
-    logger.add level, args
+  logger[level] = (args...)-> logger.add level, args
 
 Logger.levels =
   debug: 1

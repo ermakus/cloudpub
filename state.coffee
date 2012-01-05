@@ -37,6 +37,10 @@ exports.State = class State
         @state = 'down'
         @message = 'innocent'
 
+    type: ->
+        results = (/function (.{1,})\(/).exec((this).constructor.toString())
+        if results?.length then results[1] else "Unknown"
+
     # Save state
     save: (cb) ->
         return cb and cb(null) unless @id
