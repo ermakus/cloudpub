@@ -5,8 +5,6 @@ events  = require 'events'
 io      = require './io'
 uuid    = require './uuid'
 
-log = console
-
 #
 # Persistent state
 #
@@ -33,7 +31,7 @@ exports.State = class State
     # Save state
     save: (cb) ->
         return cb and cb(null) unless @id
-        log.debug "Save: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
+        exports.log.debug "Save: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
         #console.trace()
         # Save persistend fields
         @_children = undefined
@@ -47,7 +45,7 @@ exports.State = class State
     clear: (cb) ->
         if @id
             delete CACHE[@id]
-            log.info "Delete object #{@id}"
+            exports.log.info "Delete object #{@id}"
             nconf.clear('object:' + @id)
             nconf.clear( @entity + ":" + @id )
             @id = undefined
@@ -65,12 +63,12 @@ exports.State = class State
         else
             @message = message
     
-        write = log.info
+        write = exports.log.info
         if @state == 'down'
-            write = log.warn
+            write = exports.log.warn
         if @state == 'error'
-            write = log.error
-        write.call log, "State: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
+            write = exports.log.error
+        write.call exports.log, "State: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
         @save (err)=>
             return cb and cb(err) if err
             @emit 'state', @, cb
@@ -83,7 +81,7 @@ exports.State = class State
             # Load object from store
             load handler.id, (err, item)->
                 return cb and cb(err) if err
-                log.info "#{entity} emit #{name} to #{handler.id}::#{handler.handler}"
+                exports.log.info "#{entity} emit #{name} to #{handler.id}::#{handler.handler}"
                 # Call handler by name
                 item[handler.handler] event, cb
 
@@ -137,7 +135,7 @@ exports.create = create = (id, entity, package, cb) ->
         return cb and cb( new Error("Entity type or package not set") )
     if not id
         id = uuid.v1()
-    log.debug "Create #{package}.#{entity} [#{id}]"
+    exports.log.debug "Create #{package}.#{entity} [#{id}]"
     if not (package and entity)
         return cb and cb( new Error("Can't create null entity") )
 
@@ -147,11 +145,12 @@ exports.create = create = (id, entity, package, cb) ->
     try
         module = require('./' + package)
     catch e
-        log.warn "Try global package", package
+        exports.log.warn "Try global package", package
         module = require(package)
 
+    # Attach logger to loaded module
     if typeof( module.log ) == 'undefined'
-        module.log = console
+        module.log = exports.log
 
     entityClass = entity.charAt(0).toUpperCase() + entity.substring(1)
     Entity = module[ entityClass ]
@@ -196,7 +195,7 @@ exports.load = load = (id, entity, package, cb) ->
         return cb and cb(err) if err
         if stored
             _.extend obj, stored
-            log.debug "Loaded #{package}.#{entity} [#{id}]"
+            exports.log.debug "Loaded #{package}.#{entity} [#{id}]"
             if obj.loaded
                 return obj.loaded cb
         cb and cb( null, obj )

@@ -10,14 +10,19 @@ try {
     process.exit(1);
 }
 
-cloudpub.init( false, function(err, server) {
+var log = cloudpub.main.log;
+
+log.level = 2
+log.options.notime = true
+
+cloudpub.main.init( false, function(err, server) {
     if(err) {
-        process.stderr.write("Error: " + err.message + "\n");
+        log.stderr("Error: " + err.message);
         process.exit(1);
     };
     cloudpub.cloudfu.kya( process.argv.slice(2), process.env, function(err) {
         if(err) {
-            process.stderr.write("Error: " + err.message + "\n");
+            log.stderr("Error: " + err.message);
             process.exit(1);
         };
         process.exit(0);

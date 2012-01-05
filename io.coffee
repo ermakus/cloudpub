@@ -6,16 +6,11 @@ parseCookie = require('connect').utils.parseCookie
 
 UID2SOCKET = {}
 
-# Defualt logger
-exports.log = log = console
-exports.log.debug = ->
-exports.log.info = ->
-
 exports.emit = (uid, msg) ->
     if uid of UID2SOCKET
         UID2SOCKET[ uid ].emit('message', msg)
     else
-        log.debug "Can't push event", msg
+        exports.log.debug "Can't push event", msg
 
 exports.init = (app, cb)->
 
@@ -26,10 +21,8 @@ exports.init = (app, cb)->
     sio.enable('browser client minification')
     sio.enable('browser client etag')
     sio.enable('browser client gzip')
-    sio.set('log level', 2)
+    sio.set('log level', 3)
     sio.set('transports', ['websocket', 'flashsocket', 'htmlfile', 'xhr-polling', 'jsonp-polling'])
-
-    exports.log = log = sio.log
 
     sio.sockets.on 'connection', (socket)->
         hs = socket.handshake

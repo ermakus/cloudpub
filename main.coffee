@@ -3,17 +3,21 @@ stylus   = require 'stylus'
 assets   = require 'connect-assets'
 async    = require 'async'
 passport = require 'passport'
-io       = require './io'
 command  = require './command'
 session  = require './session'
+logger   = require './logger'
 
 MODULES = [ 'state', 'session', 'queue', 'group', 'account', 'command', 'worker', 'service',
-            'serviceGroup', 'domain', 'instance', 'app', 'suite', 'npm', 'registry', 'cloudfu' ]
+            'serviceGroup', 'domain', 'instance', 'io', 'app', 'suite', 'npm', 'registry', 'cloudfu' ]
 
 publicDir = __dirname + '/public'
 
 SessionStore = session.SessionStore
 
+# Init default logger
+exports.log = logger.create()
+
+# Create express server
 createApp = ->
     app = express.createServer()
     app.set 'view engine', 'jade'
@@ -42,11 +46,14 @@ createApp = ->
     app.get '/', (req, resp) -> resp.render 'main'
     app
 
-exports.log = io.log
 
+# Init cloudpub engine
+# initServer=true for socket.io/express handlers setup
+# return callback( error, server ) where server is express application
 exports.init = (initServer,cb) ->
-    if typeof(minimal) == 'function'
-        cb = minimal
+    # First param optional
+    if typeof(initServer) == 'function'
+        cb = initServer
         initServer = true
 
     if initServer
@@ -54,16 +61,16 @@ exports.init = (initServer,cb) ->
     else
         app = null
 
-    load_module = (module, cb)->
-        io.log.debug "Init module: #{module}"
+    # Load and initialize module
+    # app passed as first param and can be null
+    loadModule = (module, cb)->
+        exports.log.debug "Init module: #{module}"
         mod = require "./#{module}"
-        mod.log = io.log
+        mod.log = exports.log
         if mod.init
             mod.init app, cb
         else
-            cb and cb(null)
-        
-    async.series [
-        (cb)-> io.init(app, cb)
-        (cb)-> async.forEachSeries MODULES, load_module, cb
-    ], (err)-> cb and cb(err, app)
+            cb(null)
+    
+    # Init all modules
+    async.forEach MODULES, loadModule, (err)-> cb(err, app)

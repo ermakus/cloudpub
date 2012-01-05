@@ -46,10 +46,9 @@ exports.Command = class Command extends state.State
 #
 exports.Cloudfu = class extends Command
 
-
     init: ->
         super()
-        @stdout = console.log
+        @stdout = exports.log.stdout
 
     # Command handlers
     # No help yet
@@ -79,7 +78,7 @@ exports.Cloudfu = class extends Command
             @stdout hr('-')
             cb(null)
 
-    # Just print patams
+    # Just print params
     params: (params, cb)->
         for key of params
             @stdout "#{key}=#{params[key]}"
