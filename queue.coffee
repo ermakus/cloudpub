@@ -64,8 +64,16 @@ exports.Queue = class Queue extends group.Group
                 process.nextTick => @start ((err) -> if err then exports.log.error "Start queue error: ", err)
                 cb and cb(null)
 
-    # Create new worker
+    # Submit job list
+    submitAll: ( list, cb ) ->
+        async.forEachSeries list, ((item, cb)=>@submit(item, cb)), cb
+
+    # Submit job
     submit: ( params, cb ) ->
+        # If array passed then submit all
+        if params and _.isArray(params)
+            return @submitAll params, cb
+
         exports.log.info "Queue: Submit " + JSON.stringify(params)
         state.create params, (err, worker) =>
             return cb and cb(err) if err

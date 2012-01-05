@@ -3,6 +3,7 @@
 #
 nconf = require 'nconf'
 uuid = require './uuid'
+async = require 'async'
 _ = require 'underscore'
 
 exports.cache = CACHE = {}

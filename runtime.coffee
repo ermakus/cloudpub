@@ -12,9 +12,8 @@ exports.Runtime = class Runtime extends service.Service
             cb = params
             params = {}
       
-        async.series [
-
-            (cb) => @submit({
+        @submit [
+            {
                 entity:  "shell"
                 package: "worker"
                 message: "Configure proxy"
@@ -31,18 +30,33 @@ exports.Runtime = class Runtime extends service.Service
                 success:
                     state:'maintain'
                     message: 'Proxy configured'
-                }, cb)
-            (cb) => @submit({
+            },
+            {
                 entity:  "shell"
                 package: "worker"
-                message: "Start daemon"
+                message: "Start Cloudpub"
+                state:   "maintain"
+                home: @home
+                context:
+                    port: @port+1
+                    domain: @domain
+                command: ["daemon", "-b", @home, "start", @id,
+                          "node", "./lib/node_modules/cloudpub/server.js"]
+                success:
+                    state:'maintain'
+                    message: 'Started'
+            },
+            {
+                entity:  "shell"
+                package: "worker"
+                message: "Start Proxy"
                 state:   "maintain"
                 home: @home
                 command: ["#{@home}/sbin/nginx", "-c", "#{@home}/conf/nginx.conf" ]
                 success:
                     state:'up'
                     message: 'Online'
-                }, cb)
+            }
         ], cb
 
 
@@ -51,17 +65,30 @@ exports.Runtime = class Runtime extends service.Service
             cb = params
             params = {}
 
-        @submit({
-            entity:  "shell"
-            package: "worker"
-            message: "Stop daemon"
-            state:   "maintain"
-            home: @home
-            command:["daemon", "stop", @id]
-            success:
-                state:   'down'
-                message: 'Terminated'
-        }, cb)
+        @submit([
+            {
+                entity:  "shell"
+                package: "worker"
+                message: "Stop Cloudpub"
+                state:   "maintain"
+                home: @home
+                command:["daemon", "stop", @id]
+                success:
+                    state:   'down'
+                    message: 'Terminated'
+            },
+            {
+                entity:  "shell"
+                package: "worker"
+                message: "Stop Proxy"
+                state:   "maintain"
+                home: @home
+                command:["daemon", "stop", @id]
+                success:
+                    state:   'down'
+                    message: 'Offline'
+            }
+         ], cb)
 
     install: (cb) ->
         async.series( [

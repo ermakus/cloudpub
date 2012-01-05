@@ -27,7 +27,11 @@ exports.InstanceStartTest = class extends checker.Checker
              (cb)=>
                 @expect 'maintain', 'Proxy configured', cb
              (cb)=>
-                @expect 'maintain', 'Start daemon', cb
+                @expect 'maintain', 'Start Cloudpub', cb
+              (cb)=>
+                @expect 'maintain', 'Started', cb
+              (cb)=>
+                @expect 'maintain', 'Start Proxy', cb
              (cb)=>
                 @expect 'up', 'Online', cb
              (cb)=>

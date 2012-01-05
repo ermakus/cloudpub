@@ -7,7 +7,7 @@ command  = require './command'
 session  = require './session'
 logger   = require './logger'
 
-MODULES = [ 'state', 'memory', 'session', 'queue', 'group', 'account', 'command', 'worker', 'service',
+MODULES = [ 'state', 'memory', 'rest', 'session', 'queue', 'group', 'account', 'command', 'worker', 'service',
             'serviceGroup', 'domain', 'instance', 'io', 'app', 'suite', 'npm', 'registry', 'cloudfu' ]
 
 publicDir = __dirname + '/public'

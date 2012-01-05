@@ -57,26 +57,4 @@ exports.Suite = class Suite extends queue.Queue
         , 500 # Give a time to execute callbacks
         @clear cb
 
-exports.init = (app, cb)->
-    if nconf.get('test')
 
-        list = (cb)->
-            state.load 'test-suite', (err, item)->
-                return cb and cb(err, item?.children)
-
-        app.register 'suite', list
-
-        async.waterfall [
-            (cb) -> state.create('test-suite', 'suite', cb)
-            (suite, cb)->
-                suite.submitTests [
-                        'state'
-                        'instanceStart'
-                        'appStart'
-                        'appStop'
-                        'instanceStop'
-                ], (err)-> cb( err, suite )
-            (suite, cb) -> suite.start(cb)
-        ], cb
-    else
-        cb(null)

@@ -12,6 +12,6 @@ $ ->
         command = $('#fu').val()
         instance = $('input[name=instance]:checked').val()
 
-        $.post "/api/cloudfu/new/startup", {command, instance}, (done)->
+        $.post "/kya", {command, instance}, (done)->
             $('#fu').val('')
             listing.reload()

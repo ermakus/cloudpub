@@ -2,32 +2,8 @@ _ = require 'underscore'
 async = require 'async'
 state = require './state'
 settings = require './settings'
+account = require './account'
 
-#
-# Command line parser
-# Entry point for bin/kya
-#
-exports.kya = (command, params, cb)->
-    exports.log.info "Command #{command.join(' ')}"
-    if command.length < 1
-        cb( new Error("Command too short") )
-    # First is method name
-    method = command[0]
-    # Second is object ID or default Cloudfu handler
-    id = command[1] or "cloudfu"
-    # Other args is pass to params as arg0..argN keys
-    args = command[1...]
-    argIndex = 0
-    for arg in args
-        params["arg#{argIndex}"] = arg
-    # Load or create object
-    state.loadOrCreate id, 'cloudfu', (err, state)->
-        return cb( err ) if err
-        # Run method with params
-        if method of state
-            state[method](params, cb)
-        else
-            cb( new Error("Method #{method} not supported") )
 
 # Base class for all commands
 exports.Command = class Command extends state.State
@@ -78,6 +54,21 @@ exports.Cloudfu = class extends Command
             @stdout hr('-')
             cb(null)
 
+    # Run test suite
+    test: (params, cb)->
+        async.waterfall [
+            (cb) -> state.create('test-suite', 'suite', cb)
+            (suite, cb)->
+                suite.submitTests [
+                        'state'
+                        'instanceStart'
+                        'appStart'
+                        'appStop'
+                        'instanceStop'
+                ], (err)-> cb( err, suite )
+            (suite, cb) -> suite.start(cb)
+        ], (err)-> cb( err, true )
+
     # Just print params
     params: (params, cb)->
         for key of params
@@ -95,6 +86,32 @@ exports.Cloudfu = class extends Command
         state.load params.arg0, (err, obj)=>
             return cb(err) if err
             obj.shutdown params, cb
+
+#
+# Command line parser
+# Entry point for bin/kya
+#
+exports.kya = (command, params, cb)->
+    exports.log.info "Command #{command.join(' ')}"
+    if command.length < 1
+        cb( new Error("Command too short") )
+    # First is method name
+    method = command[0]
+    # Second is object ID or default Cloudfu handler
+    id = command[1] or "cloudfu"
+    # Other args is pass to params as arg0..argN keys
+    args = command[1...]
+    argIndex = 0
+    for arg in args
+        params["arg#{argIndex}"] = arg
+    # Load or create object
+    state.loadOrCreate id, 'cloudfu', (err, state)->
+        return cb( err ) if err
+        # Run method with params
+        if method of state
+            state[method] params, cb
+        else
+            cb( new Error("Method #{method} not supported") )
 
 # Get list of all executing commands of account
 listCommands = (entity, params, cb)->
@@ -131,4 +148,12 @@ getCommand = (id, entity, cb)->
 exports.init = (app, cb)->
     return cb(null) if not app
     app.register 'cloudfu', listCommands, getCommand
+    app.post '/kya', account.ensure_login, (req, resp)->
+        req.params.account = req.session.uid
+        exports.kya req.param('command').split(" "), req.params, (err)->
+            if err
+                resp.send err.message, 500
+            else
+                resp.send true
+
     cb(null)

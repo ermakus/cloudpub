@@ -7,29 +7,12 @@ uuid    = require './uuid'
 
 # List of storage backends
 BACKENDS = [
+    require './rest'
     require './memory'
 ]
 
-backendHandler = (method)->
-    return (args...)->
-        callback = _.find args, _.isFunction
-        res = [null]
-        callBackend = (backend, cb)->
-            # Change original callback 
-            myargs = _.without args, callback
-            myargs.push ->
-                res = arguments
-                cb( arguments[0] )
-            # Call backend
-            backend[method].apply backend, myargs
-
-        async.forEachSeries BACKENDS, callBackend, (err)->
-            callback.apply @, res
-
-
-# Init storage methods
-for method in [ 'create', 'load', 'save', 'clear', 'loadOrCreate' ]
-    exports[method] = backendHandler method
+# Methods backend supported
+BACKEND_METHODS = [ 'create', 'load', 'save', 'clear', 'loadOrCreate', 'query', 'loadWithChildren' ]
 
 #
 # Persistent state
@@ -135,4 +118,29 @@ exports.State = class State
             @events[name] = _.filter( @events[name], (h)->( not ((h.id == id) and (h.handler == handler)) ) )
 
 
+NOT_IMPL = new Error("Not implemented")
+
+# Call method from backend stack
+backendHandler = (method)->
+    return (args...)->
+        callback = _.find args, _.isFunction
+        res = [NOT_IMPL]
+        callBackend = (backend, cb)->
+            if method not of backend then return cb(null)
+            # Change original callback 
+            myargs = _.without args, callback
+            myargs.push ->
+                if not arguments[0]
+                    res = arguments
+                cb( null )
+            # Call backend
+            backend[method].apply backend, myargs
+
+        async.forEachSeries BACKENDS, callBackend, (err)->
+            callback.apply @, res
+
+
+# Init proxy storage methods
+for method in BACKEND_METHODS
+    exports[method] = backendHandler method
 
