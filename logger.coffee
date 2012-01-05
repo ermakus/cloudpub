@@ -24,7 +24,7 @@ class Logger
     if args
         if args.constructor == Array.constructor
             args = args.join " "
-        args = "#{args}".replace(/[\r\n]/g, "")
+        args = "#{args}".replace(/[\r\n]$/, "")
 
     @write(
       timestamp: new Date

@@ -25,7 +25,7 @@ exports.Npm = class Npm extends service.Service
             message: "Start app"
             state:   "maintain"
             home: @home
-            command:["./bin/node", './bin/kya', "startup", @id]
+            command:["./bin/node", './bin/kya', "params", @id]
             success:
                 state:'up'
                 message: 'Online'

@@ -28,13 +28,14 @@ exports.Worker = class Worker extends state.State
         @pid = ch.pid
 
         ch.stdout.on 'data', (data) ->
-            exports.log.info "stdout: ", data.toString()
-            if stdout.length < 512
+            exports.log.stdout data.toString()
+            if stdout.length < 32768
                 stdout += data.toString()
 
         ch.stderr.on 'data', (data) ->
-            stderr += data.toString()
-            exports.log.info "stderr: ", data.toString()
+            exports.log.stderr data.toString()
+            if stderr.length < 32678
+                stderr += data.toString()
         
         ch.on 'exit', (code) =>
             if code == 0

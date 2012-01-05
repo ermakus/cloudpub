@@ -149,12 +149,9 @@ window.CommandHandler = class CommandHandler
         button.unbind 'click'
 
         # Func. to hide dialog
-        hide_dialog = =>
+        hideDialog = =>
             @hide()
             cb and cb( null )
-        @run( cb )
-
-    run: (cb) ->
 
         form = @dlg.find('form')
         if form.length
@@ -163,12 +160,13 @@ window.CommandHandler = class CommandHandler
             params = []
 
         params.push {name:'id', value: @item.id}
+        params.push {name:'command', value: @command}
 
         # Execute command on server and close dialog
-        $.post "/api/#{@entity}/#{@item.id}/#{@command}", params, (res) =>
+        $.post "/api/#{@entity}/#{@item.id}", params, (res) =>
             # res is item JSON
-            hide_dialog()
-        .error hide_dialog
+            hideDialog()
+        .error hideDialog
 
 #
 # Messages and alerts (override system alert)

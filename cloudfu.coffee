@@ -96,31 +96,6 @@ exports.Cloudfu = class extends Command
             return cb(err) if err
             obj.shutdown params, cb
 
-    execOn: (instanceId, cb)->
-        exports.log.info "Run #{@command} on #{instanceId}"
-        state.load instanceId, (err, instance)=>
-            return cb(err) if err
-            instance.submit {
-                entity:@command[0],
-                command:@command[1...]
-            }, cb
-
-    # Run command on instance
-    startup: (params, cb)->
-        params.instance ||= []
-        # Single checkbox passed as string, so make it array
-        if _.isString(params.instance)
-            params.instance = [params.instance]
-        @instancies = params.instance
-        if _.isEmpty(@instancies)
-            return cb and cb(new Error("Instancies not selected"))
-
-        @command = params.command
-        if _.isEmpty(@command)
-            return cb(new Error("Empty command"))
-        @command = @command.split(' ')
-        async.forEach @instancies, ((instance, cb)=> @execOn(instance,cb)), cb
-
 # Get list of all executing commands of account
 listCommands = (entity, params, cb)->
 

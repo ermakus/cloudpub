@@ -21,7 +21,7 @@ exports.init = (app, cb)->
     sio.enable('browser client minification')
     sio.enable('browser client etag')
     sio.enable('browser client gzip')
-    sio.set('log level', 3)
+    sio.set('log level', 1)
     sio.set('transports', ['websocket', 'flashsocket', 'htmlfile', 'xhr-polling', 'jsonp-polling'])
 
     sio.sockets.on 'connection', (socket)->

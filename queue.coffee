@@ -3,7 +3,6 @@ async   = require 'async'
 state   = require './state'
 io      = require './io'
 group   = require './group'
-log     = console
 
 #
 # Work queue
@@ -12,7 +11,7 @@ exports.Queue = class Queue extends group.Group
 
     # Start executing of workers in queue
     start: (cb) ->
-        log.info "Start queue #{@id}", @children
+        exports.log.info "Start queue #{@id}", @children
         if @children.length
             @startWorker @children[0], cb
         else
@@ -38,13 +37,13 @@ exports.Queue = class Queue extends group.Group
 
     # Stop and delete all workers
     stop: (cb)->
-        log.info "Stop queue #{@id}"
+        exports.log.info "Stop queue #{@id}"
         # Clear all workers
         async.forEach @children,((id,cb)=>@stopWorker(id,cb)), cb
 
     # Worker error handler
     workerFailure: (worker, cb) ->
-        log.error "Queue: Worker #{worker.id} failed"
+        exports.log.error "Queue: Worker #{worker.id} failed"
         async.series [
             (cb) => worker.setState( 'error', cb )
             (cb) => @setState( 'error', worker.message, cb )
@@ -53,7 +52,7 @@ exports.Queue = class Queue extends group.Group
 
     # Worker success handler
     workerSuccess: (worker, cb) ->
-        log.info "Queue: Worker #{worker.id} succeeded"
+        exports.log.info "Queue: Worker #{worker.id} succeeded"
         @stopWorker worker.id, (err)=>
             return cb and cb(err) if err
             if _.isObject(worker.success)
@@ -67,7 +66,7 @@ exports.Queue = class Queue extends group.Group
 
     # Create new worker
     submit: ( params, cb ) ->
-        log.info "Queue: Submit " + JSON.stringify(params)
+        exports.log.info "Queue: Submit " + JSON.stringify(params)
         state.create params, (err, worker) =>
             return cb and cb(err) if err
 

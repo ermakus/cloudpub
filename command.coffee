@@ -10,6 +10,7 @@ ALLOWED_COMMANDS = ['startup','shutdown']
 
 COMMAND_FORMS =
     app_startup: form(
+        form.validate("command").required()
         form.validate("id").required().is(/^[a-z0-9\-\.]+$/)
         form.filter("source").trim().toLower(),
         form.validate("source").required().is(/^[a-z0-9\.\-\_]+$/)
@@ -18,10 +19,12 @@ COMMAND_FORMS =
         form.validate("instance").required()
     )
     app_shutdown: form(
+        form.validate("command").required()
         form.validate("id").required().is(/^[a-z0-9\-\.]+$/)
         form.validate("data").required().is(/^(keep|delete)$/)
     )
     instance_startup: form(
+        form.validate("command").required()
         form.validate("id").required().is(/^[a-z0-9\.\-]+$/)
         form.filter("cloud").trim().toLower()
         form.filter("user").trim().toLower()
@@ -31,6 +34,7 @@ COMMAND_FORMS =
         form.validate("address").is(/^[a-z0-9\.]+$/)
     )
     instance_shutdown: form(
+        form.validate("command").required()
         form.validate("id").required().is(/^[a-z0-9\.\-]+$/)
         form.validate("data").required().is(/^(keep|delete)$/)
     )
@@ -58,11 +62,11 @@ execCommand = (entity, factory, req,resp) ->
         if not obj
             return resp.send 'Invalid entity', 500
 
-        command = obj[ req.params.command ]
+        command = obj[ req.param("command") ]
         if not command
             return resp.send 'Command not supported', 500
 
-        exports.log.info "Exec #{req.params.command} on #{entity} " + if req.form then JSON.stringify req.form
+        exports.log.info "Exec #{req.param("command")} on #{entity} " + if req.form then JSON.stringify req.form
 
         async.series [
             # Call stop on object first. This will clear object queue
@@ -91,7 +95,7 @@ exports.handler = handler = (entity, factory)->
 
     return (req, resp)->
 
-        if not (req.params.command in ALLOWED_COMMANDS)
+        if not (req.param("command") in ALLOWED_COMMANDS)
             return resp.send 'Invalid command', 500
         if not req.params.id
             return resp.send 'Invalid entity ID', 500
@@ -134,7 +138,7 @@ exports.register = (app)->
                     resp.send data
 
         # API command handler
-        app.post '/api/' + entity + '/:id/:command', account.ensure_login,
+        app.post '/api/' + entity + '/:id', account.ensure_login,
             # Default command handler
             handler entity, (id, entity, cb) ->
                 # Create or load instance
