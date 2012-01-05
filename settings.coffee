@@ -37,6 +37,6 @@ catch e
 # Private key file
 exports.PRIVATE_KEY_FILE = "#{exports.HOME}/.ssh/id_rsa"
 
-
-for key of exports
-    console.log "#{key}=#{exports[key]}"
+if nconf.get('debug')
+    for key of exports
+        console.log "#{key}=#{exports[key]}"

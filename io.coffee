@@ -1,6 +1,7 @@
 settings = require './settings'
 io = require 'socket.io'
-
+ioClient = require('./patched_modules/socket.io-client')
+        
 parseCookie = require('connect').utils.parseCookie
 
 # Init socket.io request handlers
@@ -17,7 +18,9 @@ exports.init = (app, cb)->
 
     if settings.MASTER
         exports.log.info "Connecting to master domain: #{settings.MASTER}"
-        socket = io.connect('http://' + settings.MASTER + ":" + settings.MASTER_PORT )
+        socket = ioClient.connect("http://#{settings.MASTER}:#{settings.MASTER_PORT}", {
+                transports:['websocket']
+        })
         socket.on 'connect', ->
             exports.log.info "Connected to master: #{settings.MASTER}"
         socket.on 'disconnect', ->
@@ -41,6 +44,9 @@ exports.init = (app, cb)->
         if hs.session?.uid
             UID2SOCKET[ hs.session.uid ] = socket
 
+        socket.on 'message', (msg) ->
+            exports.log.info "Socket message: ", msg
+
         socket.on 'disconnect', ->
             if hs.session?.uid
                 delete UID2SOCKET[ hs.session.uid ]
@@ -58,11 +64,14 @@ exports.init = (app, cb)->
                     accept err and err.message, false
                 else
                     data.session = session
+                    exports.log.info "User connection accepted"
                     accept null, true
         else
-            # if there isn't, turn down the connection with a message
-            # and leave the function.
-            accept('No cookie transmitted.', false)
+            # if there isn't, probably it slave server
+            # Accept connection and wait for messages
+            exports.log.info "Server connection accepted"
+            accept null, true
+            #accept('No cookie transmitted.', false)
 
     exports.sio = sio
     cb( null )
