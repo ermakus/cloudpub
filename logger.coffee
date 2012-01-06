@@ -62,20 +62,20 @@ Logger.define = (logger, level) ->
   logger[level] = (args...)-> logger.add level, args
 
 Logger.levels =
-  debug: 1
-  info:  2
-  warn:  3
-  error: 4
-  fatal: 5
+  debug:  1
+  info:   2
+  warn:   3
+  error:  4
+  fatal:  5
   stdout: 6
   stderr: 7
 
 Logger.colors =
-  debug: 'grey'
-  info:  'white'
-  warn:  'yellow'
-  error: 'red'
-  fatal: 'red'
+  debug:  'grey'
+  info:   'white'
+  warn:   'yellow'
+  error:  'red'
+  fatal:  'red'
   stdout: 'blue'
   stderr: 'red'
 

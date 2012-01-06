@@ -91,10 +91,10 @@ exports.State = class State
                 item[handler.handler] event, cb
 
         async.series [
-            # Call this.name function if defined
+            # Call this.(name)Handler function if defined
             (cb) =>
-                if typeof( @[name] ) == 'function'
-                    @[name](event, cb)
+                if typeof( @[name + 'Handler'] ) == 'function'
+                    @[name + 'Handler'](event, cb)
                 else
                     cb(null)
             # Load listeners and dispatch event to

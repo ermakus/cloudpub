@@ -28,33 +28,11 @@ exports.emitMaster = emitMaster = (event)->
     exports.log.info "Send event to master", event
     exports.cio.send JSON.stringify(event)
 
-# Init module
-exports.init = (app, cb)->
 
-    # If master is set, connect to it
-    if settings.MASTER
-        exports.log.info "Connecting to master domain: #{settings.MASTER}"
-        socket = ioClient.connect("http://#{settings.MASTER}:#{settings.MASTER_PORT}", {
-                transports:['websocket']
-        })
-        exports.cio = socket
-        socket.on 'connect', ->
-            exports.log.info "Connected to master: #{settings.MASTER}"
-            emitMaster { target:settings.ID, state:"up", message:"Slave Connected" }
-        
-        socket.on 'disconnect', ->
-            exports.log.warn "Disconnected from master: #{settings.MASTER}"
-        
-        socket.on 'error', (err) ->
-            exports.log.error "Master connection error: #{err}"
-
-
-    # End here if not server
-    return cb(null) if not app
-
-    # COnfigure socket.io
+# Init socket.io listener
+initListener = (app)->
+    # Configure socket.io
     sio = io.listen(app)
-    
     sio.enable('browser client minification')
     sio.enable('browser client etag')
     sio.enable('browser client gzip')
@@ -76,9 +54,16 @@ exports.init = (app, cb)->
             # Remove socket ID from list
             if hs.session
                 hs.session.sockets = _.without hs.session.sockets, socket.id
-                hs.session.save (err)->
-                    if err then exports.log.error "Detach socket error", err
-                    hs.session = undefined
+                if hs.session.clearOnDisconnect
+                    exports.log.info "Clear socket session", hs.session.id
+                    hs.session.clear (err)->
+                        if err then exports.log.error "Clear socket session error", err
+                        hs.session = undefined
+                else
+                    exports.log.info "Detach socket from session", hs.session.id
+                    hs.session.save (err)->
+                        if err then exports.log.error "Detach socket error", err
+                        hs.session = undefined
 
         # Handle incoming message
         socket.on 'message', (msg) ->
@@ -87,15 +72,13 @@ exports.init = (app, cb)->
             catch e
                 msg = undefined
 
-            exports.log.info "Message", msg
-
-            if msg.target
-                state.load msg.target, (err, object)->
-                    if err
-                        exports.log.error "Message target not found", err
-                        return
-                    object.emit 'message', msg, (err)->
-                        if err then exports.log.error "Message handler error". err
+            if hs.session
+                exports.log.info "Message", msg
+                hs.session.emit 'message', msg, (err)->
+                    if err then exports.log.error "Message handler error". err
+            else
+                exports.log.error "Message to unknown session", msg
+                
 
     sio.set 'authorization', (data, accept) ->
         # check if there's a cookie header
@@ -105,23 +88,78 @@ exports.init = (app, cb)->
             # note that you will need to use the same key to grad the
             # session id, as you specified in the Express setup.
             sessionID = data.cookie['cloudpub.sid']
-            # Load session from storage
-            state.load  sessionID, (err, session)->
-                if err or not session
-                    accept err and err.message, false
-                else
-                    data.session = session
-                    exports.log.info "User connection accepted"
-                    accept null, true
+            getSession = state.load
         else
-            # if there isn't, probably it slave server
-            # Accept connection and wait for messages
-            exports.log.info "Server connection accepted"
-            accept null, true
+            # If no cookie, create server session
+            sessionID = {entity:'session',clearOnDisconnect:true}
+            getSession = state.create
 
-    exports.sio = sio
+        # Load session from storage
+        getSession sessionID, (err, session)->
+            if not session.expired
+                session.setLifetime 5000
+            if err or not session
+                exports.log.error "Session not found", err
+                accept err and err.message, false
+            else
+                data.session = session
+                exports.log.info "Socket connected to session", session.id
+                accept null, true
 
+    return sio
+
+# Init socket.io client (if MASTER specified)
+initSender = (cb)->
+    exports.log.info "Connecting to master", settings.MASTER
+    socket = ioClient.connect("http://#{settings.MASTER}:#{settings.MASTER_PORT}", {
+            'transports'             : ['websocket']
+            'try multiple transports': false
+            'connect timeout'        : 1000
+    })
+    socket.once 'connect', ->
+        exports.log.info "Connected to master", settings.MASTER
+        cb( null, socket )
+
+    socket.on 'disconnect', ->
+        exports.log.warn "Disconnected from master", settings.MASTER
+    
+    socket.once 'connect_failed', (err) ->
+        cb( new Error("Master connection error"), socket )
+    return socket
+
+
+clearSockets = (cb)->
     # Clear all sockets from sessions
     state.query 'session', (err, sessions)->
         return cb(err) if err
         async.forEach sessions, ((session,cb)->session.sockets=[]; session.save(cb)), cb
+
+# Init module
+exports.init = (app, cb)->
+    # if server, init listener
+    if app
+        exports.sio = initListener(app)
+
+    # If master is set, connect to it
+    if settings.MASTER
+        initSender (err, socket)->
+            return cb(err) if (err)
+            exports.cio = socket
+            emitMaster( id:settings.ID, state:"up", message:"Slave Connected" )
+            clearSockets cb
+    else
+        clearSockets cb
+
+
+# Stop module
+exports.stop = (cb)->
+
+    if exports.cio
+        exports.log.debug "Socket.io client disconnected"
+        exports.cio.disconnect()
+
+    if exports.sio
+        exports.log.debug "Socket.io server disconnected"
+        exports.sio.disconnect()
+
+    cb(null)

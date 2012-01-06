@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 require('coffee-script');
 var settings = require('./settings');
 var main = require('./main');

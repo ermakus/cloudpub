@@ -12,7 +12,7 @@
    "kya":"./kya"
   },
   "scripts":{
-    "start":"node server.js"
+    "start":"./server"
   },
   "engines": {
     "node": ">= 0.6.5"

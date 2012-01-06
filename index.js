@@ -1,4 +1,7 @@
 require('coffee-script');
-exports.main    = require('./main')
+main = require('./main')
+exports.log  = main.log
+exports.init = main.init
+exports.stop = main.stop
 exports.cloudfu = require('./cloudfu');
 exports.service = require('./service');

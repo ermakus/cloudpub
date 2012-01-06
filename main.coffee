@@ -3,12 +3,17 @@ stylus   = require 'stylus'
 assets   = require 'connect-assets'
 async    = require 'async'
 passport = require 'passport'
+_        = require 'underscore'
 command  = require './command'
 session  = require './session'
 settings = require './settings'
 
+# Modules to load
 MODULES = [ 'state', 'memory', 'rest', 'session', 'queue', 'group', 'account', 'command', 'worker', 'service',
             'serviceGroup', 'domain', 'instance', 'io', 'app', 'suite', 'npm', 'registry', 'cloudfu' ]
+
+# Loaded modules
+LOADED_MODULES = []
 
 publicDir = __dirname + '/public'
 
@@ -16,6 +21,10 @@ SessionStore = session.SessionStore
 
 # Init default logger
 exports.log = settings.log
+
+# Default callback
+exports.defaultCallback = defaultCallback = (err)->
+    if err then exports.log.error "Default callback error", err
 
 # Create express server
 createApp = ->
@@ -46,31 +55,45 @@ createApp = ->
     app.get '/', (req, resp) -> resp.render 'main'
     app
 
+# Load and initialize module
+# app passed as first param and can be null
+initModule = (app, module, cb = defaultCallback)->
+    exports.log.debug "Init module: #{module}"
+    mod = require "./#{module}"
+    mod.id  = module
+    mod.log = exports.log
+    mod.defaultCallback = defaultCallback
+    LOADED_MODULES.push mod
+    if mod.init
+        mod.init app, cb
+    else
+        cb(null)
+
+# Stop module by calling 'stop' method
+stopModule = (module, cb = defaultCallback)->
+    exports.log.debug "Stop module", module.id
+    LOADED_MODULES = _.without LOADED_MODULES, module
+    if typeof(module.stop) == 'function'
+        module.stop cb
+    else
+        cb( null )
 
 # Init cloudpub engine
 # initServer=true for socket.io/express handlers setup
 # return callback( error, server ) where server is express application
-exports.init = (initServer,cb) ->
+exports.init = (initServer,cb=defaultCallback) ->
     # First param optional
     if typeof(initServer) == 'function'
         cb = initServer
         initServer = true
-
     if initServer
         app = createApp()
     else
         app = null
-
-    # Load and initialize module
-    # app passed as first param and can be null
-    loadModule = (module, cb)->
-        exports.log.debug "Init module: #{module}"
-        mod = require "./#{module}"
-        mod.log = exports.log
-        if mod.init
-            mod.init app, cb
-        else
-            cb(null)
-    
     # Init all modules
-    async.forEach MODULES, loadModule, (err)-> cb(err, app)
+    async.forEach MODULES, async.apply(initModule,app), (err)-> cb(err, app)
+
+# Stop engine
+exports.stop = (cb=defaultCallback)->
+    async.forEach LOADED_MODULES, stopModule, cb
+

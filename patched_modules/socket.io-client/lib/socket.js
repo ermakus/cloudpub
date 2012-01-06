@@ -198,7 +198,12 @@
     }
 
     var self = this;
-
+     if (self.options['connect timeout']) {
+            self.connectTimeoutTimer = setTimeout(function () {
+                self.publish('connect_failed');
+            }, self.options['connect timeout']);
+    }
+ 
     this.handshake(function (sid, heartbeat, close, transports) {
       self.sessionid = sid;
       self.closeTimeout = close * 1000;
@@ -221,6 +226,7 @@
           self.transport.open();
 
           if (self.options['connect timeout']) {
+            clearTimeout(self.connectTimeoutTimer);
             self.connectTimeoutTimer = setTimeout(function () {
               if (!self.connected) {
                 self.connecting = false;
