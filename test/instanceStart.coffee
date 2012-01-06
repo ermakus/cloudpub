@@ -14,7 +14,7 @@ exports.InstanceStartTest = class extends checker.Checker
              (cb)=>
                 @expect 'maintain', 'Sync service files', cb
              (cb)=>
-                @expect 'maintain', 'Service installed', cb
+                @expect 'maintain', 'Done', cb
              (cb)=>
                 @expect 'maintain', 'Compile node runtime', cb
              (cb)=>

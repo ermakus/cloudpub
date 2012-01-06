@@ -14,22 +14,6 @@ set +e
 mkdir -p $BUILD_CACHE
 cd $BUILD_CACHE
 
-if [ ! -d node-v0.6.6 ] ; then
-    echo "Downloading node"
-    wget -q -c http://nodejs.org/dist/v0.6.6/node-v0.6.6.tar.gz
-    tar xzf node-v0.6.6.tar.gz
-fi
-
-if [ ! -f "$TARGET/bin/node" ] ; then
-    echo "Building node"
-    cd node-v0.6.6
-    ./configure --prefix=$TARGET
-    make
-    make install
-fi
-
-cd $BUILD_CACHE
-
 if [ ! -d nginx-1.0.11 ] ; then
     echo "Downloading nginx"
     wget -q -c http://nginx.org/download/nginx-1.0.11.tar.gz

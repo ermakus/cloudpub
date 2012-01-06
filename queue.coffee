@@ -78,6 +78,9 @@ exports.Queue = class Queue extends group.Group
         state.create params, (err, worker) =>
             return cb and cb(err) if err
 
+            # Worker inherit queue params
+            _.defaults worker, @
+
             worker.on 'failure', 'workerFailure', @id
             worker.on 'success', 'workerSuccess', @id
 

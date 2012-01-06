@@ -1,0 +1,29 @@
+#!/bin/sh
+
+check() {
+    if [ -z "$1" ]; then echo "ERROR: $2" 1>&2; exit 1; fi
+}
+
+BUILD_CACHE='/tmp/cloudpub'
+TARGET=$1
+
+check "$TARGET"  "Target not set"
+
+set +e
+
+mkdir -p $BUILD_CACHE
+cd $BUILD_CACHE
+
+if [ ! -d node-v0.6.6 ] ; then
+    echo "Downloading node"
+    wget -q -c http://nodejs.org/dist/v0.6.6/node-v0.6.6.tar.gz
+    tar xzf node-v0.6.6.tar.gz
+fi
+
+if [ ! -f "$TARGET/bin/node" ] ; then
+    echo "Building node"
+    cd node-v0.6.6
+    ./configure --prefix=$TARGET
+    make
+    make install
+fi

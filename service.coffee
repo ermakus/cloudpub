@@ -26,6 +26,12 @@ exports.Service = class Service extends queue.Queue
         @port = settings.PORT
         # Interface to bind
         @interface = "127.0.0.1"
+        # Dependencies
+        @depends = []
+
+    # Return dependencies
+    dependencies: (cb)->
+        async.map @depends, state.load, cb
 
     # Configure service and attach to groups
     configure: (params, cb)->
@@ -53,17 +59,6 @@ exports.Service = class Service extends queue.Queue
             (cb)=> @attachTo(@app,cb)
         ], cb
 
-    # Submit task to work queue
-    submit: (params, cb)->
-
-        if not (@address and @user)
-            return cb and cb(new Error("Service not configured"))
-
-        params.address = @address
-        params.user    = @user
-        
-        super params, cb
-    
     # Add this service to target group and subscribe it to events
     attachTo: (targetId, cb)->
         return cb and cb(null) if not targetId

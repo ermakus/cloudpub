@@ -20,14 +20,20 @@ exports.Instance = class Instance extends serviceGroup.ServiceGroup
         @port = "8080"
 
     configure: (params, cb) ->
+        # Instance is equal to ID for this class
+        @instance = @id
+        # Other params
         @account = params.account
         @address = params.address
         @user    = params.user
         @port    = params.port
         if not (@address and @user)
             return cb and cb( new Error('Invalid address or user') )
+        # Delcare services
         params.services = [
-            { id:'runtime-' + @id, entity:'runtime', package:'runtime', domain:@address, default:true, port:@port }
+            { id:"runtime",  entity:'runtime' }
+            { id:"proxy",    entity:'proxy',    domain:@address, default:true, port:@port, depends:['runtime'] }
+            { id:"cloudpub", entity:'cloudpub', domain:@address, address:@address, port:(@port+1), depends:['runtime','proxy'] }
         ]
         super(params, cb)
 

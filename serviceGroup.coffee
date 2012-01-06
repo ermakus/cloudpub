@@ -14,14 +14,24 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
         exports.log.info "Start service #{serviceId}"
         state.load serviceId, (err, service) =>
             return cb and cb(err) if err
-            # Subscribe to state event
-            async.series [
-                (cb) => service.save(cb)
-                (cb) => service.stop(cb)
-                (cb) => service.install(cb)
-                (cb) => service.startup(cb)
-                (cb) => service.start(cb)
-            ], (err)-> cb( null, service.id )
+            # Exit if already up
+            if service.state in ['up','maintain']
+                return cb(null)
+
+            # If service has dependencies, check it first
+            service.dependencies (err, services)=>
+                return cb(err) if err
+                if services.length and not _.all( services, ((service)->(service.state == 'up')))
+                    exports.log.warn "Dependencies of #{serviceId} not ready"
+                    return cb(null)
+
+                # Start service
+                async.series [
+                        (cb) => service.stop(cb)
+                        (cb) => service.install(cb)
+                        (cb) => service.startup(cb)
+                        (cb) => service.start(cb)
+                    ], (err)-> cb( null, service.id )
 
     # Stop service by ID
     stopService: (serviceId, doUninstall, cb)->

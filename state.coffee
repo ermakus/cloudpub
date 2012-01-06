@@ -22,12 +22,6 @@ BACKEND_METHODS = [ 'create', 'load', 'save', 'clear', 'loadOrCreate', 'query', 
 #
 exports.State = class State
 
-    # Last state name ('up','maintain','down','error')
-    state  : 'down'
-
-    # Last message
-    message: 'innocent'
-
     # Create or load state
     # @entity = entity name
     # @id = entity ID (if not null then state retreived from storage)
@@ -41,6 +35,7 @@ exports.State = class State
         # Each object has machine instance ID
         @instance = settings.ID
 
+    # Return type of object
     type: ->
         results = (/function (.{1,})\(/).exec((this).constructor.toString())
         if results?.length then results[1] else "Unknown"
@@ -102,14 +97,12 @@ exports.State = class State
 
     # Handle event, called internally by router
     eventTarget: (name, event, cb)->
-        state.log.debug "Handle event", @id, event
         if not event?.method
             return cb( new Error("Target method not set", event) )
         if typeof( @[event.method] ) == 'function'
             @[event.method](event, cb)
         else
             return cb( new Error("Target method not found", event) )
-            
 
 
     # Register event handler
