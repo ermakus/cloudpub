@@ -47,6 +47,8 @@ exports.SessionStore = class SessionStore extends express.session.Store
             else
                 exports.log.error "Session cookie not set"
                 session.setLifetime( 60000 )
+            session.state = 'up'
+            session.message = "User: " + data.uid
             session.http = data
             session.save cb
     
@@ -83,8 +85,9 @@ exports.gc = (cb=gcCallback)->
 
 # Init module
 exports.init = (app, cb)->
+    return cb(null) if not app
     interval = settings.GC_INTERVAL
-    exports.log.info "Garbage collector interval", interval
+    exports.log.debug "Garbage collector interval", interval
     gcInterval = setInterval( exports.gc, interval )
     cb(null)
 

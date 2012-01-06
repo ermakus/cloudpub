@@ -1,8 +1,12 @@
-nconf   = require 'nconf'
-_       = require 'underscore'
-async   = require 'async'
-events  = require 'events'
-io      = require './io'
+nconf    = require 'nconf'
+_        = require 'underscore'
+async    = require 'async'
+events   = require 'events'
+io       = require './io'
+settings = require './settings'
+
+# Module ref
+state = exports
 
 # List of storage backends
 BACKENDS = [
@@ -34,7 +38,8 @@ exports.State = class State
     init: ->
         @events = {}
         @state = 'down'
-        @message = 'innocent'
+        # Each object has machine instance ID
+        @instance = settings.ID
 
     type: ->
         results = (/function (.{1,})\(/).exec((this).constructor.toString())
@@ -80,31 +85,32 @@ exports.State = class State
 
     # Emit event to registered handlers
     emit: (name, event, cb)->
-        entity = @entity
-        # Helper load to call event listener
-        callHandler = (handler, cb) ->
-            # Load object from store
-            exports.load handler.id, (err, item)->
-                return cb and cb(err) if err
-                exports.log.info "#{entity} emit #{name} to #{handler.id}::#{handler.handler}"
-                # Call handler by name
-                item[handler.handler] event, cb
+        # Helper to call event listener
+        callHandler = (handler, cb) =>
+            # Clone event from original
+            cloneEvent = _.clone(event)
+            cloneEvent.source = @id
+            cloneEvent.target = handler.id
+            cloneEvent.method = handler.handler
+            # Marshall event over system rourer
+            state.emit name, cloneEvent, cb
 
-        async.series [
-            # Call this.(name)Handler function if defined
-            (cb) =>
-                if typeof( @[name + 'Handler'] ) == 'function'
-                    @[name + 'Handler'](event, cb)
-                else
-                    cb(null)
-            # Load listeners and dispatch event to
-            (cb) =>
-                if name of @events
-                    async.forEach @events[name], callHandler, cb
-                else
-                    cb(null)
-        # Stupid coffee parser required this here
-        ], (err) -> cb(err)
+        if name of @events
+            async.forEach @events[name], callHandler, cb
+        else
+            cb(null)
+
+    # Handle event, called internally by router
+    eventTarget: (name, event, cb)->
+        state.log.debug "Handle event", @id, event
+        if not event?.method
+            return cb( new Error("Target method not set", event) )
+        if typeof( @[event.method] ) == 'function'
+            @[event.method](event, cb)
+        else
+            return cb( new Error("Target method not found", event) )
+            
+
 
     # Register event handler
     # name = name of event
@@ -121,25 +127,44 @@ exports.State = class State
             @events[name] = _.filter( @events[name], (h)->( not ((h.id == id) and (h.handler == handler)) ) )
 
 
-NOT_IMPL = new Error("Not implemented")
+# Emit event to event.target
+# Name is event namespace
+# If target object is not local, route it over socket.io
+state.emit = (name, event, cb=state.defautCallback)->
+    if not event?.target
+        exports.log.error "Bad event", event
+        cb(new Error("Event target not set"))
+    # Load target object
+    state.load event.target, (err, obj)->
+        return cb(err) if err
+        # if object instance is local (i.e. equals ID)
+        if not obj.instance or (obj.instance == settings.ID)
+            exports.log.info "Route locally", event.target
+            # then handle event locally
+            obj.eventTarget name, event, cb
+        else
+            exports.log.info "Route remote", event.target, obj.instance
+            # else route event over socket.io
+            io.emit name, event, cb
 
 # Call method from backend stack
 backendHandler = (method)->
     return (args...)->
         callback = _.find args, _.isFunction
-        res = [NOT_IMPL]
+        res = undefined
         callBackend = (backend, cb)->
             if method not of backend then return cb(null)
             # Change original callback 
             myargs = _.without args, callback
             myargs.push ->
-                if not arguments[0]
+                if (not arguments[0]) and arguments[1]
                     res = arguments
-                cb( null )
+                cb( arguments[0] )
             # Call backend
             backend[method].apply backend, myargs
 
         async.forEachSeries BACKENDS, callBackend, (err)->
+            if err or not res then return callback.call @, err
             callback.apply @, res
 
 

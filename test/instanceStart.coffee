@@ -1,14 +1,15 @@
+async    = require 'async'
+http     = require 'http'
+fs       = require 'fs'
 settings = require '../settings'
-async = require 'async'
-fs    = require 'fs'
-main  = require '../main'
-state = require '../state'
-checker = require './checker'
+main     = require '../main'
+state    = require '../state'
+checker  = require './checker'
 
 exports.InstanceStartTest = class extends checker.Checker
 
     # Test instance startup
-    testInstanceStart: (cb)->
+    test1InstanceStart: (cb)->
         async.waterfall [
              (cb)=>
                 @expect 'maintain', 'Sync service files', cb
@@ -35,13 +36,15 @@ exports.InstanceStartTest = class extends checker.Checker
              (cb)=>
                 @expect 'up', 'Online', cb
              (cb)=>
-                @instance.on 'state', 'onState', @id
-                @instance.startup {
+                @inst.on 'state', 'onState', @id
+                @inst.startup {
+                    id: settings.ID
                     user: settings.USER
                     address: '127.0.0.1'
                     port: '8080'
-                    instance: @instance.id
-                    account: @account.id
+                    account: @acc.id
                 }, cb
         ], cb
 
+    test2InstanceCheck: (cb)->
+        state.emit "ping", {target:"SLAVE"}, cb

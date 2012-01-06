@@ -43,7 +43,7 @@ exports.Queue = class Queue extends group.Group
 
     # Worker error handler
     workerFailure: (worker, cb) ->
-        exports.log.error "Queue: Worker #{worker.id} failed"
+        exports.log.error "Queue: Worker #{worker.source} failed"
         async.series [
             (cb) => worker.setState( 'error', cb )
             (cb) => @setState( 'error', worker.message, cb )
@@ -58,10 +58,10 @@ exports.Queue = class Queue extends group.Group
             if _.isObject(worker.success)
                 @setState worker.success.state, worker.success.message, (err)=>
                     return cb and cb(err) if err
-                    process.nextTick => @start ((err) -> if err then exports.log.error "Start queue error: ", err)
+                    process.nextTick => @start ((err) -> if err then exports.log.error "Start queue error: ", err.message)
                     cb and cb(null)
             else
-                process.nextTick => @start ((err) -> if err then exports.log.error "Start queue error: ", err)
+                process.nextTick => @start ((err) -> if err then exports.log.error "Start queue error: ", err.message)
                 cb and cb(null)
 
     # Submit job list

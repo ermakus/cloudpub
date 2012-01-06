@@ -8,7 +8,7 @@ nconf.argv()
 nconf.env()
 
 # Unique ID of instance or service
-@ID = nconf.get('id') or uuid.v1()
+@ID = nconf.get('id') or "MASTER" #uuid.v1()
 
 # Domain of service
 @DOMAIN = DOMAIN = nconf.get('domain') or 'localhost'
@@ -45,7 +45,7 @@ catch e
 
 # Init logger
 @log = log = logger.create()
-log.level = nconf.get('log-level') or 3
+log.level = nconf.get('log-level') or 2
 
 # Monkey patch for separate test context
 if process.argv.join(' ').indexOf('kya test') > 0

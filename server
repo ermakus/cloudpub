@@ -5,10 +5,13 @@ var main = require('./main');
 
 main.init( function(err, server) {
     if(err) {
-        console.log(err)
+        main.log.fatal( "Fatal error: " + err.message );
+        main.stop();
+        process.exit(1);
     } else {
         server.on('error', function(err) {
-            account.log.error( "Fatal error: " + err.message );
+            main.log.fatal( "Fatal error: " + err.message );
+            main.stop();
             process.exit(1);
         });
         main.log.info("Server started on " + settings.DOMAIN + ":" + settings.PORT );

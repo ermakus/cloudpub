@@ -29,7 +29,7 @@ class Logger
             message += JSON.stringify(arg)
         message += " "
  
-    message = message.replace(/[\r\n]$/, "")
+    message = message.replace(/[\r\n]/g, " ")
 
     @write(
       timestamp: new Date

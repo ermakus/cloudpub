@@ -23,8 +23,8 @@ exports.InstanceStopTest = class extends checker.Checker
              (cb)=>
                 @expect 'down', 'Deleted', cb
              (cb)=>
-                @instance.on 'state', 'onState', @id
-                @instance.shutdown {
+                @inst.on 'state', 'onState', @id
+                @inst.shutdown {
                     data: 'delete'
                 }, cb
         ], cb

@@ -14,8 +14,6 @@ exports.Service = class Service extends queue.Queue
         super()
         # Owner account ID
         @account = undefined
-        # Instance ID service run on
-        @instance = undefined
         # Application ID to run
         @app = undefined
         # Address of SSH server to run
@@ -42,12 +40,8 @@ exports.Service = class Service extends queue.Queue
         @user     = params.user or @user
         if not @user then return cb and cb(new Error("User not set"))
 
-        @instance = params.instance or @instance
-        if not @instance then return cb and cb(new Error("Instance not set"))
-
         @port = params.port or @port
         if not @port then return cb and cb(new Error("Port not set"))
-
 
         @app      = params.app or @app
         @home     = "/home/#{@user}/.cloudpub"

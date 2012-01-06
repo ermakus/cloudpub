@@ -10,15 +10,13 @@ if settings.MASTER
 else
     master = undefined
 
-NO_MASTER = new Error("Master not set")
-
 # Clear entity from cache
 exports.clear =(entity, cb)->
-    cb and cb( new Error("Not implemented") )
+    cb and cb( null )
 
 # Save entity to storage
 exports.save = (entity, cb)->
-    cb and cb( new Error("Not implemented") )
+    cb and cb( null )
 
 # Load state from module
 exports.load = load = (id, entity, package, cb) ->
@@ -29,7 +27,7 @@ exports.load = load = (id, entity, package, cb) ->
         cb = entity
         package = entity = null
     
-    return cb( NO_MASTER ) if not master
+    return cb( null ) if not master
 
     master.get options, (err, res)->
         return cb(err) if err
@@ -40,7 +38,7 @@ exports.query = query = (entity, params, cb) ->
     if typeof(params) == 'function'
         cb = params
         params = []
-    cb and cb( new Error("Not implemented") )
+    cb and cb( null )
 
 # Init web service
 exports.init = (app, cb)->
@@ -53,7 +51,6 @@ exports.init = (app, cb)->
                 resp.send err, 500
             else
                 resp.send obj
-
 
     cb(null)
 

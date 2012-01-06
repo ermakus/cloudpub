@@ -2,4 +2,4 @@
 killall nginx
 killall node
 rm test-snapshot.json
-node ./kya test
+node ./kya test --debug

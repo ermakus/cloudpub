@@ -160,6 +160,6 @@ exports.stop = (cb)->
 
     if exports.sio
         exports.log.debug "Socket.io server disconnected"
-        exports.sio.disconnect()
+        # How? exports.sio.disconnect()
 
     cb(null)

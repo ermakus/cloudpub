@@ -38,11 +38,13 @@ exports.Runtime = class Runtime extends service.Service
                 state:   "maintain"
                 home: @home
                 context:
-                    port: @port+1
+                    id: @instance
                     domain: @domain
                     home: @home
-                command: ["daemon", "-b", @home, "start", @id + "cloudpub",
-                          "./bin/node", "./lib/node_modules/cloudpub/server.js"]
+                    master: @domain
+                    master_port: @port
+                    port: @port+1
+                command: ["kya", "startup", @instance]
                 success:
                     state:'maintain'
                     message: 'Started'
@@ -71,7 +73,13 @@ exports.Runtime = class Runtime extends service.Service
                 message: "Stop Cloudpub"
                 state:   "maintain"
                 home: @home
-                command:["daemon", "stop", @id + "cloudpub"]
+                context:
+                    id: @instance
+                    domain: @domain
+                    home: @home
+                    master: @domain
+                    master_port: @port
+                command:["kya", "shutdown", @instance]
                 success:
                     state:   'down'
                     message: 'Terminated'
@@ -82,7 +90,9 @@ exports.Runtime = class Runtime extends service.Service
                 message: "Stop Proxy"
                 state:   "maintain"
                 home: @home
-                command:["daemon", "stop", @id]
+                context:
+                    id: @instance
+                command:["kya", "shutdown", "nginx"]
                 success:
                     state:   'down'
                     message: 'Offline'

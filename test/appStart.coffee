@@ -28,8 +28,7 @@ exports.AppStartTest = class extends checker.Checker
                     source: '/home/anton/Projects/cloudpub-redis'
                     domain: 'redis.cloudpub.us'
                     port: '8081'
-                    instance: @instance.id
-                    account: @account.id
+                    account: @acc.id
                 }, cb
         ], cb
 

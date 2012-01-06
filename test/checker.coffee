@@ -96,10 +96,10 @@ exports.Checker = class Checker extends state.State
                 app.save cb
             # Load test instance
             (cb)->
-                state.loadOrCreate 'test-instance', 'instance', cb
+                state.loadOrCreate settings.ID, 'instance', cb
             # Save it
             (inst, cb)=>
-                @instance = inst
+                @inst = inst
                 inst.address = '127.0.0.1'
                 inst.user = settings.USERNAME
                 inst.events = {}
@@ -109,7 +109,7 @@ exports.Checker = class Checker extends state.State
                 state.loadOrCreate 'test-user', 'account', cb
             # Save it
             (acc, cb)=>
-                @account = acc
+                @acc = acc
                 acc.login = 'test'
                 acc.events = {}
                 acc.save cb

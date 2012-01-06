@@ -3,6 +3,7 @@ _            = require 'underscore'
 account      = require './account'
 serviceGroup = require './serviceGroup'
 state        = require './state'
+settings     = require './settings'
 
 # Instance class
 exports.Instance = class Instance extends serviceGroup.ServiceGroup
@@ -25,7 +26,6 @@ exports.Instance = class Instance extends serviceGroup.ServiceGroup
         @port    = params.port
         if not (@address and @user)
             return cb and cb( new Error('Invalid address or user') )
-        params.instance = @id
         params.services = [
             { id:'runtime-' + @id, entity:'runtime', package:'runtime', domain:@address, default:true, port:@port }
         ]
@@ -53,4 +53,10 @@ exports.init = (app, cb)->
     # Register CRUD handler
     app.register 'instance', listInstances, item
 
-    cb and cb( null )
+    # Create localhost instance
+    state.loadOrCreate settings.ID, 'instance', (err, instance)->
+        return cb(err) if err
+        instance.user = settings.USER
+        instance.address = settings.DOMAIN
+        instance.port = settings.PORT
+        instance.save cb

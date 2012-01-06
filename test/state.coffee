@@ -15,21 +15,15 @@ exports.StateTest = class extends checker.Checker
             assert.equal item.package, testObj.entity
             @emit 'success', @, cb
 
-    callback: (event, cb)->
-        @called1 = true
-        assert.equal event, @
-        cb( null )
-
     ref_callback: (event, cb)->
         @called2 = true
-        assert.equal event, @
+        assert.equal event.target, @id
         cb( null )
 
     test2_EventEmitter: (cb)->
         @on 'callback', 'ref_callback', @id
         @emit 'callback', @, (err)=>
             assert.ifError err
-            assert.ok @called1
             assert.ok @called2
             @emit 'success', @, cb
 

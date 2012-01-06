@@ -6,7 +6,7 @@ console.info = console.debug = console.warn = console.error = console.log
 try {
     cloudpub = require('./index.js');
 } catch( ex ) {
-    console.error("cloudpub not installed");
+    console.error("cloudpub not installed", ex);
     process.exit(1);
 }
 
@@ -22,8 +22,11 @@ cloudpub.init( false, function(err, server) {
     cloudpub.cloudfu.kya( process.argv.slice(2), process.env, function(err, background) {
         if(err) {
             log.stderr("Error: " + err.message);
-        };
-        if(!background)
             cloudpub.stop();
+            process.exit(1);
+        };
+        if(!background) {
+            cloudpub.stop();
+        }
     });
 });
