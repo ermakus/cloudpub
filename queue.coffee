@@ -3,11 +3,22 @@ async   = require 'async'
 state   = require './state'
 io      = require './io'
 group   = require './group'
+tsort   = require './topologicalSort.js'
 
 #
 # Work queue
 #
 exports.Queue = class Queue extends group.Group
+
+    # Reorder with dependency topological sort
+    reorder: (cb)->
+        async.map @children, state.load, (err, services)=>
+            reordered = []
+            for index in tsort.topologicalSort( services )
+                reordered.unshift @children[index]
+            exports.log.info "New order", reordered
+            @children = reordered
+            cb(null)
 
     # Start executing of workers in queue
     start: (cb) ->
@@ -87,6 +98,8 @@ exports.Queue = class Queue extends group.Group
             async.series [
                 (cb) => worker.save(cb)
                 (cb) => @add(worker.id, cb)
+                (cb) => @reorder(cb)
+                (cb) => @save(cb)
             ], cb
 
 exports.init = (app, cb)->

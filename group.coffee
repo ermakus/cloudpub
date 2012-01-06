@@ -43,24 +43,21 @@ exports.Group = class Group extends state.State
         async.forEachSeries @children, process, cb
 
     # Update group state from children states
-    # UP = all children is up
-    # DOWN = all children is down
-    # ERROR = at least 1 child error
-    # MAINTAIN = any other
+    # up       = all children is up
+    # down     = all children is down
+    # error    = at least 1 child error
+    # maintain = any other
     updateState: (cb)->
         exports.log.info "Update group #{@id} state"
 
         states   = {up:0,maintain:0,down:0,error:0}
-        messages = {up:[],maintain:[],down:[],error:[]}
         workers  = 0
 
         checkState = (id, cb)->
             state.load id, (err, child)->
                 # Ignore non-exist children
                 return cb and cb(null) if err
-                workers += child.children?.length or 0
                 states[ child.state ] += 1
-                messages[ child.state ].push child.message
                 cb and cb(null)
 
         async.forEach @children, checkState, (err)=>
@@ -70,15 +67,12 @@ exports.Group = class Group extends state.State
                 st = 'up'
             if states['down'] == @children.length
                 st = 'down'
-
             if states['error'] > 0
                 st = 'error'
             
-            message = messages[st][0]
-
             async.series [
                 (cb)=>
-                    if workers == 0
+                    if st == 'up'
                         exports.log.info "Group #{@id} success"
                         @emit('success', @, cb)
                     else
@@ -90,7 +84,7 @@ exports.Group = class Group extends state.State
                     else
                         cb(null)
                 (cb)=>
-                    @setState(st, message, cb)
+                    @setState(st, @message, cb)
             ], cb
 
     # Resolve children IDs to objects from storage

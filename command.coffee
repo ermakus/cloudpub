@@ -11,7 +11,7 @@ ALLOWED_COMMANDS = ['startup','shutdown']
 COMMAND_FORMS =
     app_startup: form(
         form.validate("command").required()
-        form.validate("id").required().is(/^[a-z0-9\-\.]+$/)
+        form.validate("id").required().is(/^[a-zA-Z0-9\-\.]+$/)
         form.filter("source").trim().toLower(),
         form.validate("source").required().is(/^[a-z0-9\.\-\_]+$/)
         form.filter("domain").trim().toLower(),
@@ -20,12 +20,12 @@ COMMAND_FORMS =
     )
     app_shutdown: form(
         form.validate("command").required()
-        form.validate("id").required().is(/^[a-z0-9\-\.]+$/)
+        form.validate("id").required().is(/^[a-zA-Z0-9\-\.]+$/)
         form.validate("data").required().is(/^(keep|delete)$/)
     )
     instance_startup: form(
         form.validate("command").required()
-        form.validate("id").required().is(/^[a-z0-9\.\-]+$/)
+        form.validate("id").required().is(/^[a-zA-Z0-9\.\-]+$/)
         form.filter("cloud").trim().toLower()
         form.filter("user").trim().toLower()
         form.validate("user").is(/^[a-z0-9]+$/)
@@ -35,7 +35,7 @@ COMMAND_FORMS =
     )
     instance_shutdown: form(
         form.validate("command").required()
-        form.validate("id").required().is(/^[a-z0-9\.\-]+$/)
+        form.validate("id").required().is(/^[a-zA-Z0-9\.\-]+$/)
         form.validate("data").required().is(/^(keep|delete)$/)
     )
     service_startup: form(

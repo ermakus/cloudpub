@@ -12,7 +12,7 @@ exports.Runtime = class Runtime extends service.Service
             cb = params
             params = {}
       
-        exports.log.info "#{@name} starup", params
+        exports.log.info "#{@name} startup", params
         cb(null)
 
     shutdown: (params, cb) ->
@@ -48,7 +48,7 @@ exports.Runtime = class Runtime extends service.Service
                             state:   "maintain"
                             command:["install-node", @home]
                             success:
-                                state:'maintain'
+                                state:'up'
                                 message: 'Runtime compiled'
                 }
             ], cb)

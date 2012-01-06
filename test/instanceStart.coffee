@@ -20,19 +20,23 @@ exports.InstanceStartTest = class extends checker.Checker
              (cb)=>
                 @expect 'maintain', 'Runtime compiled', cb
              (cb)=>
-                @expect 'maintain', 'Install cloudpub', cb
+                @expect 'maintain', 'Compile proxy', cb
              (cb)=>
-                @expect 'maintain', 'Cloudpub installed', cb
+                @expect 'maintain', 'Proxy installed', cb
              (cb)=>
                 @expect 'maintain', 'Configure proxy', cb
              (cb)=>
                 @expect 'maintain', 'Proxy configured', cb
              (cb)=>
-                @expect 'maintain', 'Start Cloudpub', cb
-              (cb)=>
-                @expect 'maintain', 'Started', cb
-              (cb)=>
                 @expect 'maintain', 'Start Proxy', cb
+             (cb)=>
+                @expect 'maintain', 'Online', cb
+             (cb)=>
+                @expect 'maintain', 'Install Cloudpub', cb
+             (cb)=>
+                @expect 'maintain', 'Cloudpub Installed', cb
+             (cb)=>
+                @expect 'maintain', 'Start Cloudpub', cb
              (cb)=>
                 @expect 'up', 'Online', cb
              (cb)=>
@@ -45,6 +49,3 @@ exports.InstanceStartTest = class extends checker.Checker
                     account: @acc.id
                 }, cb
         ], cb
-
-    test2InstanceCheck: (cb)->
-        state.emit "ping", {target:"SLAVE"}, cb

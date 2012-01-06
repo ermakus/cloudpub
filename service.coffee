@@ -12,6 +12,7 @@ exports.Service = class Service extends queue.Queue
 
     init: ->
         super()
+        @message = "Wait..."
         # Owner account ID
         @account = undefined
         # Application ID to run
@@ -29,9 +30,11 @@ exports.Service = class Service extends queue.Queue
         # Dependencies
         @depends = []
 
+
     # Return dependencies
     dependencies: (cb)->
         async.map @depends, state.load, cb
+
 
     # Configure service and attach to groups
     configure: (params, cb)->
@@ -51,6 +54,9 @@ exports.Service = class Service extends queue.Queue
 
         @app      = params.app or @app
         @home     = "/home/#{@user}/.cloudpub"
+
+        @dependencies (err)->
+
 
         async.series [
             (cb)=> @save(cb)

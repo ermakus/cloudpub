@@ -31,9 +31,9 @@ exports.Instance = class Instance extends serviceGroup.ServiceGroup
             return cb and cb( new Error('Invalid address or user') )
         # Delcare services
         params.services = [
-            { id:"runtime",  entity:'runtime' }
             { id:"proxy",    entity:'proxy',    domain:@address, default:true, port:@port, depends:['runtime'] }
             { id:"cloudpub", entity:'cloudpub', domain:@address, address:@address, port:(@port+1), depends:['runtime','proxy'] }
+            { id:"runtime",  entity:'runtime' }
         ]
         super(params, cb)
 

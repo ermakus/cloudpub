@@ -62,8 +62,8 @@ exports.Cloudfu = class extends Command
                 suite.submitTests [
                         'state'
                         'instanceStart'
-                        'appStart'
-                        'appStop'
+#                        'appStart'
+#                        'appStop'
                         'instanceStop'
                 ], (err)-> cb( err, suite )
             (suite, cb) -> suite.start(cb)

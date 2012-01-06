@@ -66,16 +66,19 @@ exports.Proxy = class Proxy extends service.Service
                 state:   "maintain"
                 home: @home
                 command:["install-proxy", @home]
+                success:
+                    state: "maintain"
+                    message: "Proxy installed"
            }, cb)
 
     uninstall: (cb) -> @submit({
                 state: 'maintain'
-                message: 'Uninstall service'
+                message: 'Uninstall proxy'
                 entity:  'shell'
                 package: 'worker'
                 command:['kya','params']
                 success:
                     state:'down'
-                    message: 'Service uninstalled'
+                    message: 'Proxy uninstalled'
             }, cb)
 

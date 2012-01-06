@@ -2,7 +2,7 @@ async = require 'async'
 state = require './state'
 service = require './service'
 
-# This class implements npm packaged service
+# This class implements the main cloudpub service
 
 exports.Cloudpub = class Cloudpub extends service.Service
 
@@ -20,9 +20,9 @@ exports.Cloudpub = class Cloudpub extends service.Service
         @submit({
             entity: 'shell'
             package: "worker"
-            message: "Start app"
+            message: "Start Cloudpub"
             state:   "maintain"
-            command:["kya", "startup", @id]
+            command:["kya", "params"]
             success:
                 state:'up'
                 message: 'Online'
@@ -35,11 +35,11 @@ exports.Cloudpub = class Cloudpub extends service.Service
         @submit({
             entity: 'shell'
             package: "worker"
-            message: "Stop service"
+            message: "Stop Clodupub"
             state:   "maintain"
-            command:["kya", "shutdown", @id]
+            command:["kya", "params"]
             success:
-                state:'up'
+                state:'down'
                 message: 'Terminated'
         }, cb)
 
@@ -48,23 +48,23 @@ exports.Cloudpub = class Cloudpub extends service.Service
         @submit({
             entity: 'shell'
             package: "worker"
-            message: "Install app"
+            message: "Install Cloudpub"
             state:   "maintain"
             command:["npm", "-g", "--prefix", @home, 'install', @source]
             success:
-                state:'up'
-                message: 'App installed'
+                state:'maintain'
+                message: 'Cloudpub Installed'
         }, cb)
 
     uninstall: (cb) ->
         @submit({
             state: 'maintain'
-            message: "Uninstall app"
+            message: "Uninstall Cloudpub"
             entity:  'shell'
             package: 'worker'
             command:["npm", "-g", "--prefix", @home, 'uninstall', @name]
             success:
-                state:'down'
-                message: 'App uninstalled'
+                state:'maintain'
+                message: 'Cloudpub Uninstalled'
         }, cb)
 

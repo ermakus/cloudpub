@@ -1,13 +1,12 @@
 _       = require 'underscore'
 async   = require 'async'
-
-group    = require './group'
-state    = require './state'
+queue   = require './queue'
+state   = require './state'
 
 #
 # Service group
 # 
-exports.ServiceGroup = class ServiceGroup extends group.Group
+exports.ServiceGroup = class ServiceGroup extends queue.Queue
 
     # Run service by ID or JSON
     startService: (serviceId, cb)->
@@ -18,18 +17,20 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
             if service.state in ['up','maintain']
                 return cb(null)
 
-            # If service has dependencies, check it first
-            service.dependencies (err, services)=>
-                return cb(err) if err
-                if services.length and not _.all( services, ((service)->(service.state == 'up')))
-                    exports.log.warn "Dependencies of #{serviceId} not ready"
-                    return cb(null)
-
                 # Start service
                 async.series [
                         (cb) => service.stop(cb)
-                        (cb) => service.install(cb)
-                        (cb) => service.startup(cb)
+                        (cb) =>
+                            if not service.isInstalled
+                                service.install(cb)
+                            else
+                                cb(null)
+                        (cb) =>
+                            if not service.isInstalled
+                                service.isInstalled = true
+                                service.save(cb)
+                        (cb) =>
+                            service.startup(cb)
                         (cb) => service.start(cb)
                     ], (err)-> cb( null, service.id )
 
@@ -38,12 +39,17 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
         exports.log.info "Stop service #{serviceId}"
         state.load serviceId, (err, service) =>
             return cb and cb(err) if err
+            if service.state in ['down','maintain','error']
+                return cb(null)
 
             ifUninstall = (cb)->
-                if doUninstall
-                    service.uninstall(cb)
+                if doUninstall and service.isInstalled
+                    service.uninstall (err)->
+                        return cb(err) if err
+                        service.isInstalled = false
+                        service.save(cb)
                 else
-                    cb and cb(null)
+                    cb(null)
 
             async.series [
                 (cb) => service.stop(cb)
@@ -77,6 +83,7 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
         async.series [
             (cb)=> @save(cb)
             (cb)=> async.forEach params.services, ((serviceId, cb)=>@configureService( serviceId, params, cb )), cb
+            (cb)=> @reorder(cb)
             (cb)=> @save(cb)
         ], cb
 
@@ -84,12 +91,15 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
     # See configure for accepted params
     startup: (params, cb) ->
         exports.log.info "Startup service group #{@id}"
+        @mode = "startup"
         @mute 'success', 'suicide', @id
         @mute 'failure', 'suicide', @id
         async.series [
+            (cb) => @save cb
             (cb) => @configure params, cb
             (cb) => async.forEach @children, ((serviceId, cb)=>@startService( serviceId, cb )), cb
             (cb) => @save(cb)
+            (cb) => @start(cb)
         ], cb
 
     # Stop service group
@@ -98,7 +108,9 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
     shutdown: (params, cb) ->
         exports.log.info "Shutdown service group #{@id}"
         doUninstall = params.data == 'delete'
+        @mode = "shutdown"
         async.series [
+            (cb)=> @save cb
             # Subscribe to suicide handler
             (cb)=>
                 if doUninstall
@@ -113,12 +125,23 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
                     async.forEach @children, ((serviceId, cb)=>@stopService( serviceId, doUninstall, cb )), cb
                 else
                     @emit 'success', @, cb
+            (cb) => @start(cb)
         ], cb
 
     # Service state event handler
     serviceState: (event, cb)->
-        # Replicate last service state
-        @updateState cb
+        # Update group state from services
+        @message = event.message
+        @updateState (err)=>
+            return cb(err) if err
+            # If group starting up or shutting down, repeat this
+            if @mode == 'startup' and @state != 'up'
+                return process.nextTick =>
+                    async.forEach @children, ((serviceId, cb)=>@startService( serviceId, cb )), cb
+            if @mode == 'shutdown' and @state != 'down'
+                return process.nextTick =>
+                    async.forEach @children, ((serviceId, cb)=>@stopService( serviceId, cb )), cb
+            cb(null)
  
     # Service state handler called when uninstall. 
     # Commits suicide after work complete
