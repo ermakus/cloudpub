@@ -16,7 +16,7 @@ exports.emit = (accountId, msg, cb=defaultCallback) ->
         return cb(err) if err
         for session in sessions
             # Query not implemented, so filter brute force
-            if session.sessionData?.uid != accountId then continue
+            if session.http?.uid != accountId then continue
             for client in exports.sio.sockets.clients()
                 if client.id in session.sockets
                     exports.log.info "Send message to socket ", client.id
