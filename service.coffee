@@ -165,30 +165,17 @@ exports.Service = class Service extends queue.Queue
         exports.log.info "Start service #{@id}"
 
         # Exit if already up
-        if @state in ['up', 'maintain']
+        if @state in ['up']
             exports.log.warn "Service already started", @id
-            return queue.Queue.prototype.start.call( @, params..., cb )
+            return cb(null)
 
         # Start service
         # Called @install and @startup internally
         async.waterfall [
-                # Stop service first
-                (cb) =>
-                    @stop(cb)
                 # Configure service
                 (cb) =>
                     @mode = 'start'
                     @configure(params..., cb)
-                # Check dependencies
-                (cb) =>
-                    @groupState( @depends, cb )
-                # If dependecies not ready, break waterfall
-                (state, cb)=>
-                    if state != 'up'
-                        exports.log.warn "Wait service dependencies", state, @depends
-                        cb("BREAK")
-                    else
-                        cb(null)
                 # Call install handler if not installed
                 (cb) =>
                     if not @isInstalled
@@ -200,6 +187,16 @@ exports.Service = class Service extends queue.Queue
                     if not @isInstalled
                         @isInstalled = true
                         @save(cb)
+                    else
+                        cb(null)
+                # Check dependencies
+                (cb) =>
+                    @groupState( @depends, cb )
+                # If dependecies not ready, break waterfall
+                (state, cb)=>
+                    if state != 'up'
+                        exports.log.warn "Wait for dependencies", state, @depends
+                        cb("BREAK")
                     else
                         cb(null)
                 # Call startup handler

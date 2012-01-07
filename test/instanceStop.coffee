@@ -24,7 +24,7 @@ exports.InstanceStopTest = class extends checker.Checker
                 @expect 'down', 'Deleted', cb
              (cb)=>
                 @inst.on 'state', 'onState', @id
-                @inst.shutdown {
+                @inst.stop {
                     data: 'delete'
                 }, cb
         ], cb

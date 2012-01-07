@@ -42,14 +42,14 @@ exports.Worker = class Worker extends state.State
                 @message = stdout
                 @emit 'success', @, (err)=>
                     if err
-                        exports.log.error "Worker #{@id} success handler error", err
+                        exports.log.error "Worker #{@id} success handler error", err.message
                     else
                         exports.log.info "Worker #{@id} succeed"
             else
                 @message = stderr
                 @emit 'failure', @, (err)=>
                     if err
-                        exports.log.error "Worker #{@id} fail handler error", err
+                        exports.log.error "Worker #{@id} fail handler error", err.message
                     else
                         exports.log.error "Worker #{@id} failed"
         

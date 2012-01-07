@@ -7,16 +7,12 @@ service = require './service'
 exports.Cloudpub = class Cloudpub extends service.Service
 
     # Configure service by params dictionary
-    configure: (params, cb)->
+    configure: (params..., cb)->
         @source = __dirname
         @name = "cloudpub"
-        super params, cb
+        super params..., cb
 
-    startup: (params, cb) ->
-        if typeof(params) == 'function'
-            cb = params
-            params = {}
-
+    startup: (params..., cb) ->
         @submit({
             entity: 'shell'
             package: "worker"
@@ -28,10 +24,7 @@ exports.Cloudpub = class Cloudpub extends service.Service
                 message: 'Online'
         }, cb)
 
-    shutdown: (params, cb) ->
-        if typeof(params) == 'function'
-            cb = params
-            params = {}
+    shutdown: (params..., cb) ->
         @submit({
             entity: 'shell'
             package: "worker"

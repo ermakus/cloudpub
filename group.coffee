@@ -44,11 +44,7 @@ exports.Group = class Group extends state.State
         # Call method on instance
         makeCall = (instance, cb)->
             exports.log.info "Call method", method, "params", params
-            # Make params copy for each call
-            p = _.clone params
-            # Append callback
-            p.push cb
-            instance[method].apply(instance, p)
+            instance[method].call(instance, params..., cb)
 
         # Load children  and call method
         process = (id, cb) =>
@@ -64,7 +60,7 @@ exports.Group = class Group extends state.State
                         return cb(err) if err
                         makeCall(instance, cb)
                 else
-                    makeCall(instance)
+                    makeCall(instance, cb)
 
         async.forEach @children, process, cb
 
@@ -133,20 +129,11 @@ exports.Group = class Group extends state.State
 
     # Start children and update state
     start: (params..., cb)->
-        async.series [
-            (cb) => @each('start', params..., cb)
-            #(cb) => @updateState(cb)
-        ], cb
+        @each('start', params..., cb)
 
     # Stop children and update state
     stop: (params..., cb)->
-        if typeof(params) == 'function'
-            cb = params
-            params = {}
-        async.series [
-            (cb) => @each('stop', params..., cb)
-            #(cb) => @updateState(cb)
-        ], cb
+        @each('stop', params..., cb)
 
     # Remove with childrens
     deepClear: (cb)->

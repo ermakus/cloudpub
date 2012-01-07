@@ -74,25 +74,13 @@ execCommand = (entity, factory, req,resp) ->
 
         exports.log.info "Exec #{req.param("command")} on #{entity} " + if req.form then JSON.stringify req.form
 
-        async.series [
-            # Call stop on object first. This will clear object queue
-            (cb)-> obj.stop( cb )
-            # Execute command on object.
-            # Command should fill queue by tasks
-            (cb)->
-                command.call obj, req.form, (err) ->
-                    if err
-                        exports.log.error "Command error: ", err
-                        return resp.send err.message, 500
-                    # Send object state to client as JSON
-                    obj._children = undefined
-                    resp.send obj
-                    cb(null)
-            # Start object queue again
-            (cb)-> obj.start(cb)
-        ], (err)->
+        command.call obj, req.form, (err) ->
             if err
-                exports.console.error "Command start/stop error", err
+                exports.log.error "Command error: ", err
+                return resp.send err.message, 500
+            # Send object state to client as JSON
+            obj._children = undefined
+            resp.send obj
 
 #
 # Return anonymous function to handle API command
