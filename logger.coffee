@@ -41,6 +41,10 @@ class Logger
   # Overwrite this to write to a file, a db, etc
   write: (options) ->
     console.log @build_message(options)
+    # Print caller from stack
+    if @level < 2
+        options.message  = "[grey]#{(new Error().stack).split("\n")[4]}[/grey]"
+        console.log @build_message(options)
 
   build_message: (options) ->
     color = Logger.colors[options.severity]

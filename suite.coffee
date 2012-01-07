@@ -8,11 +8,6 @@ queue   = require './queue'
 checker = require './test/checker'
 nconf   = require 'nconf'
 
-exports.setUp = (cb)->
-    main.init (err, app)->
-        if err then throw err
-        cb()
-
 # Test suite
 # Will run all testXXX methods from @testModule.@testEntity
 # 

@@ -41,7 +41,7 @@ exports.InstanceStartTest = class extends checker.Checker
                 @expect 'up', 'Online', cb
              (cb)=>
                 @inst.on 'state', 'onState', @id
-                @inst.startup {
+                @inst.start {
                     id: settings.ID
                     user: settings.USER
                     address: '127.0.0.1'

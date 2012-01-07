@@ -19,23 +19,27 @@ exports.Instance = class Instance extends serviceGroup.ServiceGroup
         # Port to listen
         @port = "8080"
 
-    configure: (params, cb) ->
+    start: (params..., cb) ->
+        exports.log.info "Start instance", @id
         # Instance is equal to ID for this class
         @instance = @id
-        # Other params
-        @account = params.account
-        @address = params.address
-        @user    = params.user
-        @port    = params.port
+
+        # Merge some params (TODO)
+        @account = params[0].account
+        @address = params[0].address
+        @user    = params[0].user
+        @port    = params[0].port
+
         if not (@address and @user)
             return cb and cb( new Error('Invalid address or user') )
+
         # Delcare services
-        params.services = [
+        @children = [
             { id:"proxy",    entity:'proxy',    domain:@address, default:true, port:@port, depends:['runtime'] }
             { id:"cloudpub", entity:'cloudpub', domain:@address, address:@address, port:(@port+1), depends:['runtime','proxy'] }
             { id:"runtime",  entity:'runtime' }
         ]
-        super(params, cb)
+        super(params..., cb)
 
 # List instancies for account
 listInstances = (entity, params, cb)->

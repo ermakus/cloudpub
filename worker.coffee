@@ -56,7 +56,7 @@ exports.Worker = class Worker extends state.State
         cb and cb(null)
 
     # Kill process and delete worker
-    stop: (cb)->
+    stop: (params..., cb)->
         if (@state=='up') and @pid
             try
                 process.kill @pid
@@ -65,18 +65,20 @@ exports.Worker = class Worker extends state.State
         @clear cb
 
 exports.Sync = class Sync extends Worker
-    start: (cb)->
-        if not @source  then return cb and cb(new Error("Copy source not set"))
-        if not @target  then return cb and cb(new Error("Copy target not set"))
-        if not @user    then return cb and cb(new Error("Remote user not set"))
-        if not @address then return cb and cb(new Error("Remote address not set"))
+    start: ( params..., cb)->
+        if not @source  then return cb(new Error("Copy source not set"))
+        if not @target  then return cb(new Error("Copy target not set"))
+        if not @user    then return cb(new Error("Remote user not set"))
+        if not @address then return cb(new Error("Remote address not set"))
         @exec [ __dirname + "/bin/sync", "-u", @user, "-a", @address, "-k", settings.PRIVATE_KEY_FILE, @source, @target ], cb
 
 SSH = "ssh -i #{settings.PRIVATE_KEY_FILE} -o StrictHostKeyChecking=no -o BatchMode=yes"
     
 # Execute command on remote system over ssh
 exports.Shell = class Shell extends Worker
-    start: ( cb ) ->
+
+    # Start shell execution
+    start: ( params..., cb ) ->
         if not @user    then return cb and cb(new Error("Remote user not set"))
         if not @address then return cb and cb(new Error("Remote address not set"))
         if not @command then return cb and cb(new Error("Shell command not set"))

@@ -35,7 +35,6 @@ exports.Account = class Account extends group.Group
 
     # Service state change handler
     serviceState: (event, cb)->
-        exports.log.info 'Account event'
         io.emit @id, {state:event.state, message:event.message}
         cb and cb(null)
 

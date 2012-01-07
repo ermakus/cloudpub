@@ -39,7 +39,7 @@ function topologicalSort(graph){
     if(i == undefined){
       throw new Error("You have dependency cycle");
     }
-    if(graph[i].depends) graph[i].depends.forEach(function(dep){
+    if(graph[i].dependsFrom) graph[i].dependsFrom.forEach(function(dep){
       e = indexOf( dep );
       indegrees[e]--; 
     });
@@ -53,9 +53,9 @@ function topologicalSort(graph){
     for(var i=0; i<graph.length; i++) indegrees[i] = 0;
 
     for(var i=0; i<graph.length; i++) {
-        if(graph[i].depends) {
+        if(graph[i].dependsFrom) {
             hasDeps = true;
-            graph[i].depends.forEach(function( dep ) {
+            graph[i].dependsFrom.forEach(function( dep ) {
                 e = indexOf( dep );
                 indegrees[e]++;
             }); 

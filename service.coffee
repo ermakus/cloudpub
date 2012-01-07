@@ -27,14 +27,57 @@ exports.Service = class Service extends queue.Queue
         @port = settings.PORT
         # Interface to bind
         @interface = "127.0.0.1"
-        # Dependencies
-        @depends = []
+        # Depends from. IDs of other services
+        @dependsFrom = []
+        # Depends to, updated automatically
+        @dependsTo = []
 
+    # Add and resolve single dependence
+    addDependence: (depId, cb)->
+        async.waterfall [
+            # Update from
+            (cb)=>
+                @dependsFrom ||= []
+                if depId not in @dependsFrom
+                    @dependsFrom.push depId
+                    @save(cb)
+                else
+                    cb(null)
+            # Load target object
+            (cb)=>
+                state.load(depId, cb)
+            # Update to
+            (dependent, cb)=>
+                dependent.dependsTo ||= []
+                if @id not in dependent.dependsTo
+                    dependent.dependsTo.push @id
+                    dependent.save(cb)
+                else
+                    cb(null)
+            ], cb
 
-    # Return dependencies
-    dependencies: (cb)->
-        async.map @depends, state.load, cb
-
+    # Remove dependence
+    removeDependence: (depId, cb)->
+        async.waterfall [
+            # Update from
+            (cb)=>
+                if depId in @dependsFrom
+                    @dependsFrom = _.without @dependsFrom, depId
+                    @save(cb)
+                else
+                    cb(null)
+            # Load target object
+            (cb)=>
+                state.load(depId, cb)
+            # Update to
+            (dependent, cb)=>
+                if @id in dependent.dependentTo
+                    @dependsTo = _.without @dependsTo, depId
+                    dependent.dependsFrom.push @id
+                    dependent.save(cb)
+                else
+                    cb(null)
+            ], cb
 
     # Configure service and attach to groups
     configure: (params, cb)->
@@ -55,11 +98,9 @@ exports.Service = class Service extends queue.Queue
         @app      = params.app or @app
         @home     = "/home/#{@user}/.cloudpub"
 
-        @dependencies (err)->
-
-
         async.series [
             (cb)=> @save(cb)
+            (cb)=> async.forEach(@dependsFrom, ((id, cb)=>@addDependence(id,cb)), cb)
             (cb)=> @attachTo(@account,cb)
             (cb)=> @attachTo(@instance,cb)
             (cb)=> @attachTo(@app,cb)
@@ -87,17 +128,79 @@ exports.Service = class Service extends queue.Queue
             (cb)=> @save(cb)
         ], cb
 
-    # Delete service and detach from groups
+    # Delete service and detach from others
     clear: (cb)->
-        clear = queue.Queue.prototype.clear
-        detach = (id, cb)  => @detachFrom(id, cb)
-        async.forEachSeries [@app,@account,@instance], detach, (err)=>
-            return cb and cb(err) if err
-            clear.call @, cb
+        async.series [
+                # Detach from listeners
+                (cb)=>
+                    detach = (id, cb)  => @detachFrom(id, cb)
+                    async.forEach [@app,@account,@instance], detach, cb
+                # Remove dependencies
+                (cb)=>
+                    async.forEach( @dependsFrom or [], ((id, cb)=>@removeDependence(id, cb)), cb)
+                # Call super
+                (cb)=>
+                    queue.Queue.prototype.clear.call @, cb
+            ], cb
+
+    # Start service by ID or JSON
+    start: (cb)->
+        exports.log.info "Start service #{@id}"
+
+        start = queue.Queue.prototype.start
+
+        # Exit if already up
+        if @state in ['up','maintain']
+            return cb(null)
+
+        # Start service
+        async.series [
+                (cb) =>
+                    @stop(cb)
+                (cb) =>
+                    if not @isInstalled
+                        @install(cb)
+                    else
+                        cb(null)
+                (cb) =>
+                    if not @isInstalled
+                        @isInstalled = true
+                        @save(cb)
+                (cb) =>
+                    @startup(cb)
+                (cb) =>
+                    start.call @, cb
+            ], cb
+
+    # Stop service
+    stop: (cb)->
+        exports.log.info "Stop service #{@id}"
+        
+        stop  = queue.Queue.prototype.stop
+        start = queue.Queue.prototype.start
+        
+        if @state in ['down','maintain','error']
+            return cb(null)
+
+        ifUninstall = (cb)=>
+            if @doUninstall and @isInstalled
+                @uninstall (err)=>
+                    return cb(err) if err
+                    @isInstalled = false
+                    @save(cb)
+            else
+                cb(null)
+
+        async.series [
+            (cb) => stop.call(@, cb)
+            (cb) => @shutdown(cb)
+            (cb) => ifUninstall(cb)
+            (cb) => start.call(@, cb)
+        ], cb
 
     # Startup handler
     startup: (cb) ->
-        cb and cb(null)
+        cb and cb(new Error("Service: Startup not implemented"))
 
     # Shutdown handler
     shutdown: (cb) ->
@@ -105,12 +208,13 @@ exports.Service = class Service extends queue.Queue
 
     # Install handler
     install: (cb) ->
-        cb and cb(new Error("Install not implemented"))
+        cb and cb(new Error("Service: Install not implemented"))
 
     # Uninstall handler
     uninstall: (cb) ->
         @updateState cb
 
+# Take servers from account
 listServices = (entity, params, cb)->
     state.load params.account, (err, account)->
         return cb and cb(err) if err
@@ -120,5 +224,5 @@ listServices = (entity, params, cb)->
 exports.init = (app, cb)->
     return cb(null) if not app
     # List of services
-    app.register 'service', listServices, ((id, entity, cb)->state.load( id, cb ))
+    app.register 'service', listServices
     cb and cb(null)

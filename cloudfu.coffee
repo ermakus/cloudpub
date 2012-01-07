@@ -92,9 +92,9 @@ exports.Cloudfu = class extends Command
 # Entry point for bin/kya
 #
 exports.kya = (command, params, cb)->
-    exports.log.info "Command #{command.join(' ')}"
+    exports.log.debug "Command #{command.join(' ')}"
     if command.length < 1
-        cb( new Error("Command too short") )
+        cb( new Error("No command specified") )
     # First is method name
     method = command[0]
     # Second is object ID or default Cloudfu handler
