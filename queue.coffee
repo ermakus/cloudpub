@@ -42,7 +42,7 @@ exports.Queue = class Queue extends group.Group
             worker.on 'failure', 'workerFailure', @id
             worker.on 'success', 'workerSuccess', @id
 
-            async.series [
+            async.waterfall [
                 (cb) => worker.save(cb)
                 (cb) => @add(worker.id, cb)
                 (cb) => @save(cb)

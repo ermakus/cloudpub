@@ -15,7 +15,7 @@ exports.clear =(entity, cb)->
     cb and cb( null )
 
 # Save entity to storage
-exports.save = (entity, cb)->
+exports.save = (entity, cb, ccb)->
     cb and cb( null )
 
 # Load state from module

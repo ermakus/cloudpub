@@ -18,19 +18,18 @@ exports.Instance = class Instance extends serviceGroup.ServiceGroup
         @account = undefined
         # Port to listen
         @port = "8080"
-        # Message
-        @message = "Instance is down"
 
     start: (params..., cb) ->
         exports.log.info "Start instance", @id
         # Instance is equal to ID for this class
         @instance = @id
 
-        # Merge some params (TODO)
-        @account = params[0].account
-        @address = params[0].address
-        @user    = params[0].user
-        @port    = params[0].port
+        if params[0]
+            # Merge some params (TODO)
+            @account = params[0].account or @account
+            @address = params[0].address or @address
+            @user    = params[0].user    or @user
+            @port    = params[0].port    or @port
 
         if not (@address and @user)
             return cb and cb( new Error('Invalid address or user') )

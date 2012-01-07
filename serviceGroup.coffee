@@ -13,8 +13,8 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
     start: (params..., cb) ->
         exports.log.info "Start service group", @id
         @mode = "start"
-        @mute 'success', 'suicide', @id
-        @mute 'failure', 'suicide', @id
+        @on 'success', 'serviceState', @id
+        @on 'failure', 'serviceState', @id
         super(params..., cb)
 
     # Stop service group
@@ -40,15 +40,10 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
 
     # Service state event handler
     serviceState: (event, cb)->
-        exports.log.debug "Service group state", event.state, event.message
         # Update group state from services
         @updateState event.state, event.message, (err)=>
+            exports.log.debug "Service group state", @state, @message
             return cb(err) if err
-            # If group starting up or shutting down, repeat this
-            if @mode == 'startup' and @state != 'up'
-                return @start(cb)
-            if @mode == 'shutdown' and @state != 'down'
-                return @stop(cb)
             cb(null)
  
     # Service state handler called when uninstall. 

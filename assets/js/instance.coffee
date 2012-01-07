@@ -27,7 +27,7 @@ $ ->
     $('.cloud').live 'click', ->
         init_cloud_type $(this).val()
 
-    $('.startup').live 'shown', ->
+    $('.start').live 'shown', ->
         item = $(this).data('item')
         return if not item
         init_cloud_type item.entity
@@ -51,7 +51,7 @@ $ ->
     listing.startUpdate()
 
     # Start new server handler
-    $('.startup-new').click ->
+    $('.start-new').click ->
         # Server defaults
         item =
             id: 'new'
@@ -60,7 +60,7 @@ $ ->
             user: 'cloudpub'
             port: '8080'
 
-        handler = new CommandHandler( 'instance', 'startup', item, (err)-> listing.reload())
+        handler = new CommandHandler( 'instance', 'start', item, (err)-> listing.reload())
         handler.show()
 
 

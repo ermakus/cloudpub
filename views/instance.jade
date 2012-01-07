@@ -3,7 +3,7 @@ h1 Servers
 .page
     .loading
 
-a.btn.primary.startup-new(href="#") Start New Server
+a.btn.primary.start-new(href="#") Start New Server
 
 != js('/js/instance.js')
 
@@ -39,13 +39,13 @@ script.list-template(type="text/template")
                         <% });%>
                 td.control
                     <% if(item.state != "up") { %>
-                    img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="startup")
+                    img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="start")
                     <% } %>
-                    img.btn.command(src="command-stop.png",data-id="<%=item.id%>",data-command="shutdown")
+                    img.btn.command(src="command-stop.png",data-id="<%=item.id%>",data-command="stop")
             <% }); %>
 
-script.startup-template(type="text/template")
-    .startup.modal.hide.fade
+script.start-template(type="text/template")
+    .start.modal.hide.fade
         .modal-header
             a.close(href="#") × 
             h3 Start Server
@@ -100,7 +100,7 @@ script.startup-template(type="text/template")
             a.btn.primary.execute(href="#") Start
             a.btn.secondary.cancel(href="#") Cancel
 
-script.shutdown-template(type="text/template")
+script.stop-template(type="text/template")
     .modal.hide.fade(style="display:none;")
         .modal-header
             a.close(href="#") × 

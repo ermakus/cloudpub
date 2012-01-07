@@ -52,6 +52,7 @@ exports.Service = class Service extends queue.Queue
                 dependent.dependsTo ||= []
                 if @id not in dependent.dependsTo
                     dependent.dependsTo.push @id
+                    dependent.on 'state', 'dependentState', @id
                     dependent.save(cb)
                 else
                     cb(null)
@@ -75,6 +76,7 @@ exports.Service = class Service extends queue.Queue
             (dependent, cb)=>
                 if @id in dependent.dependentTo
                     dependent.dependsTo = _.without dependent.dependsTo, @id
+                    dependent.mute 'state', 'dependentState', @id
                     dependent.save(cb)
                 else
                     cb(null)
@@ -90,14 +92,14 @@ exports.Service = class Service extends queue.Queue
             if not @[name]
                 throw new Error("Service param #{name} not set")
 
-        try
-            config "account"
-            config "address"
-            config "user"
-            config "port"
-
-        catch err
-            return cb(err)
+        if params[0]
+            try
+                config "account"
+                config "address"
+                config "user"
+                config "port"
+            catch err
+                return cb(err)
  
         # Init home 
         @home = "/home/#{@user}/.cloudpub"
@@ -151,6 +153,13 @@ exports.Service = class Service extends queue.Queue
                     queue.Queue.prototype.clear.call @, cb
             ], cb
 
+
+    dependentState: (event,cb)->
+        if @mode == 'start'
+            exports.log.info "Try to start service again", event.id, event.state
+            process.nextTick => @start(state.defaultCallback)
+        cb(null)
+
     # Start service by ID or JSON
     start: (params..., cb)->
         exports.log.info "Start service #{@id}"
@@ -168,6 +177,7 @@ exports.Service = class Service extends queue.Queue
                     @stop(cb)
                 # Configure service
                 (cb) =>
+                    @mode = 'start'
                     @configure(params..., cb)
                 # Check dependencies
                 (cb) =>
@@ -200,7 +210,7 @@ exports.Service = class Service extends queue.Queue
                     queue.Queue.prototype.start.call( @, params..., cb )
             ], (err)->
                 # Handle break
-                if err == "BREAK" then cb(null)
+                if err == "BREAK" then return cb(null)
                 cb(err)
 
     # Stop service
@@ -212,6 +222,8 @@ exports.Service = class Service extends queue.Queue
         
         if @state in ['down','maintain','error']
             return cb(null)
+        
+        @mode = 'stop'
 
         ifUninstall = (cb)=>
             if @doUninstall and @isInstalled

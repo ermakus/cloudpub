@@ -24,7 +24,8 @@ exports.log = settings.log
 
 # Default callback
 exports.defaultCallback = defaultCallback = (err)->
-    if err then exports.log.error "Default callback error", err
+    if err
+        exports.log.error "Default callback error", err.message or err, (new Error().stack).split("\n")[2]
 
 # Create express server
 createApp = ->

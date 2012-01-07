@@ -6,10 +6,10 @@ state   = require './state'
 settings = require './settings'
 
 ENTITY_NEW       = 'new'
-ALLOWED_COMMANDS = ['startup','shutdown']
+ALLOWED_COMMANDS = ['start','stop']
 
 COMMAND_FORMS =
-    app_startup: form(
+    app_start: form(
         form.validate("command").required()
         form.validate("id").required().is(/^[a-zA-Z0-9\-\.]+$/)
         form.filter("source").trim().toLower(),
@@ -18,12 +18,12 @@ COMMAND_FORMS =
         form.validate("domain").required().is(/^[a-z0-9\.]+$/)
         form.validate("instance").required()
     )
-    app_shutdown: form(
+    app_stop: form(
         form.validate("command").required()
         form.validate("id").required().is(/^[a-zA-Z0-9\-\.]+$/)
         form.validate("data").required().is(/^(keep|delete)$/)
     )
-    instance_startup: form(
+    instance_start: form(
         form.validate("command").required()
         form.validate("id").required().is(/^[a-zA-Z0-9\.\-]+$/)
         form.filter("cloud").trim().toLower()
@@ -33,18 +33,18 @@ COMMAND_FORMS =
         form.filter("address").trim().toLower()
         form.validate("address").is(/^[a-z0-9\.]+$/)
     )
-    instance_shutdown: form(
+    instance_stop: form(
         form.validate("command").required()
         form.validate("id").required().is(/^[a-zA-Z0-9\.\-]+$/)
         form.validate("data").required().is(/^(keep|delete)$/)
     )
-    service_startup: form(
+    service_start: form(
         form.validate("command").required()
     )
-    service_shutdown: form(
+    service_stop: form(
         form.validate("command").required()
     )
-    cloudfu_startup: form(
+    cloudfu_start: form(
         form.validate("command").required()
         form.validate("instance").required()
     )
