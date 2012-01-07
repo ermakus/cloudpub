@@ -79,9 +79,9 @@ exports.Shell = class Shell extends Worker
 
     # Start shell execution
     start: ( params..., cb ) ->
-        if not @user    then return cb and cb(new Error("Remote user not set"))
-        if not @address then return cb and cb(new Error("Remote address not set"))
-        if not @command then return cb and cb(new Error("Shell command not set"))
+        if not @user    then return cb(new Error("Remote user not set"))
+        if not @address then return cb(new Error("Remote address not set"))
+        if not @command then return cb(new Error("Shell command not set"))
         cmd = SSH.split(' ').concat("-l", @user, @address)
         if @home
             cmd = cmd.concat ["export", "PATH=#{@home}/bin:$PATH", '&&', 'cd', @home, '&&']
@@ -99,7 +99,7 @@ exports.Shell = class Shell extends Worker
                 value = context[ key ]
                 if _.isString( value ) or _.isNumber( value ) or _.isBoolean( value )
                     cmd.push "export"
-                    cmd.push "#{key.toUpperCase()}='#{value}'"
+                    cmd.push "#{key.toUpperCase().replace('-','_')}='#{value}'"
                     cmd.push "&&"
 
         # Finally add command

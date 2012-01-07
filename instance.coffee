@@ -18,6 +18,8 @@ exports.Instance = class Instance extends serviceGroup.ServiceGroup
         @account = undefined
         # Port to listen
         @port = "8080"
+        # Message
+        @message = "Instance is down"
 
     start: (params..., cb) ->
         exports.log.info "Start instance", @id
@@ -33,11 +35,11 @@ exports.Instance = class Instance extends serviceGroup.ServiceGroup
         if not (@address and @user)
             return cb and cb( new Error('Invalid address or user') )
 
-        # Delcare services
+        # Declare services
         @children = [
+            { id:"runtime",  entity:'runtime' }
             { id:"proxy",    entity:'proxy',    domain:@address, default:true, port:@port, depends:['runtime'] }
             { id:"cloudpub", entity:'cloudpub', domain:@address, address:@address, port:(@port+1), depends:['runtime','proxy'] }
-            { id:"runtime",  entity:'runtime' }
         ]
         super(params..., cb)
 

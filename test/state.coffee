@@ -1,13 +1,14 @@
-state = require '../state'
-async = require 'async'
-checker = require './checker'
-assert = require 'assert'
+checker  = require './checker'
+state    = require '../state'
+settings = require '../settings'
+async    = require 'async'
+assert   = require 'assert'
 
 exports.StateTest = class extends checker.Checker
 
     # Test event emitter
     test1_StateCreate: (cb)->
-        testObj = {id:'test-queue',entity:'queue'}
+        testObj = {id:'TEST-QUEUE',entity:'queue'}
         state.create testObj, (err, item)=>
             assert.ifError err
             assert.ok item
@@ -23,7 +24,19 @@ exports.StateTest = class extends checker.Checker
     test2_EventEmitter: (cb)->
         @on 'callback', 'ref_callback', @id
         @emit 'callback', @, (err)=>
-            assert.ifError err
+            return cb(err) if err
             assert.ok @called2
             @emit 'success', @, cb
 
+    queueSuccess: (queue)->
+        @emit 'success', @, state.defaultCallback
+
+    test3_Queue: (cb)->
+        state.loadOrCreate {id:"TEST-QUEUE", "test-queue",entity:"queue"}, (err, queue)=>
+            return cb(err) if err
+            queue.on 'success', 'queueSuccess', @id
+            queue.user = settings.USER
+            queue.address = '127.0.0.1'
+            queue.submit {id:"TEST-WORKER",entity:"shell",package:"worker",command:['ps']}, (err)=>
+                return cb(err) if err
+                queue.start(cb)

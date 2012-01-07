@@ -11,8 +11,7 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
     # Create, configure and start services
     # passed as params.services
     start: (params..., cb) ->
-        exports.log.info "Start service group #{@id}"
-
+        exports.log.info "Start service group", @id
         @mode = "start"
         @mute 'success', 'suicide', @id
         @mute 'failure', 'suicide', @id
@@ -22,7 +21,7 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
     # Accepted params:
     # data = (keep|delete) Keep or delete data and group itself after shutdown
     stop: (params..., cb) ->
-        exports.log.info "Stop service group #{@id}"
+        exports.log.debug "Stop service group #{@id}"
 
         @mode = "shutdown"
 
@@ -41,9 +40,9 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
 
     # Service state event handler
     serviceState: (event, cb)->
+        exports.log.debug "Service group state", event.state, event.message
         # Update group state from services
-        @message = event.message
-        @updateState (err)=>
+        @updateState event.state, event.message, (err)=>
             return cb(err) if err
             # If group starting up or shutting down, repeat this
             if @mode == 'startup' and @state != 'up'

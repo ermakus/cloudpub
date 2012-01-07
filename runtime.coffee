@@ -7,23 +7,13 @@ exports.Runtime = class Runtime extends service.Service
         super()
         @name = 'cloudpub-runtime'
 
-    startup: (params, cb) ->
-        if typeof(params) == 'function'
-            cb = params
-            params = {}
-      
+    startup: (params..., cb) ->
         exports.log.info "#{@name} startup", params
         cb(null)
 
-    shutdown: (params, cb) ->
-        if typeof(params) == 'function'
-            cb = params
-            params = {}
-
+    shutdown: (params..., cb) ->
         exports.log.info "#{@name} shutdown", params
-        
         cb(null)
-
 
     install: (cb) ->
         exports.log.info "#{@name} install"
@@ -64,5 +54,5 @@ exports.Runtime = class Runtime extends service.Service
             success:
                 state:'down'
                 message: 'Runtime uninstalled'
-        }, cb)
+            }, cb)
 

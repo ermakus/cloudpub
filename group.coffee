@@ -48,15 +48,17 @@ exports.Group = class Group extends state.State
             p = _.clone params
             # Append callback
             p.push cb
-            instance[method].apply(instance, params)
+            instance[method].apply(instance, p)
 
         # Load children  and call method
-        process = (id, cb) ->
+        process = (id, cb) =>
             # In case of blueprint we can create object
-            state.loadOrCreate id, (err, instance) ->
+            state.loadOrCreate id, (err, instance) =>
                 return cb and cb(err) if err
                 # If object is just created
                 if not instance.stump
+                    # Swap blueprint by created object ID
+                    @children[ @children.indexOf( id ) ] = instance.id
                     # Save it before call
                     instance.save (err)->
                         return cb(err) if err
@@ -87,18 +89,16 @@ exports.Group = class Group extends state.State
 
         async.forEach children, checkState, (err)=>
             return cb and cb(err) if err
-            st = 'maintain'
             if states['up'] == children.length
-                st = 'up'
+                return cb(null,'up')
             if states['down'] == children.length
-                st = 'down'
+                return cb(null,'down')
             if states['error'] > 0
-                st = 'error'
-           
-            cb(null, st)
+                return cb(null,'error')
+            cb(null, "maintain")
  
     # Update group state and fire events 
-    updateState: (cb)->
+    updateState: (childState, childMessage, cb)->
         exports.log.info "Update group #{@id} state"
         async.waterfall [
             # Get children state
@@ -106,7 +106,7 @@ exports.Group = class Group extends state.State
                 @groupState(@children,cb)
             # Update group state
             (st, cb)=>
-                @setState(st, cb)
+                @setState(st, childMessage, cb)
             # Fire success
             (cb)=>
                 if @state == 'up'
@@ -135,7 +135,7 @@ exports.Group = class Group extends state.State
     start: (params..., cb)->
         async.series [
             (cb) => @each('start', params..., cb)
-            (cb) => @updateState(cb)
+            #(cb) => @updateState(cb)
         ], cb
 
     # Stop children and update state
@@ -145,7 +145,7 @@ exports.Group = class Group extends state.State
             params = {}
         async.series [
             (cb) => @each('stop', params..., cb)
-            (cb) => @updateState(cb)
+            #(cb) => @updateState(cb)
         ], cb
 
     # Remove with childrens

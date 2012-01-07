@@ -98,11 +98,11 @@ exports.State = class State
     # Handle event, called internally by router
     eventTarget: (name, event, cb)->
         if not event?.method
-            return cb( new Error("Target method not set", event) )
+            return cb( new Error("Target event.method not set: " + event?.type() ) )
         if typeof( @[event.method] ) == 'function'
             @[event.method](event, cb)
         else
-            return cb( new Error("Target method not found", event) )
+            return cb( new Error("Target method not found: " + @type() + "." + event.method) )
 
 
     # Register event handler
@@ -125,18 +125,17 @@ exports.State = class State
 # If target object is not local, route it over socket.io
 state.emit = (name, event, cb=state.defautCallback)->
     if not event?.target
-        exports.log.error "Bad event", event
         cb(new Error("Event target not set"))
     # Load target object
     state.load event.target, (err, obj)->
         return cb(err) if err
         # if object instance is local (i.e. equals ID)
         if not obj.instance or (obj.instance == settings.ID)
-            exports.log.info "Route locally", event.target
+            exports.log.debug "Route event to", event.target
             # then handle event locally
             obj.eventTarget name, event, cb
         else
-            exports.log.info "Route remote", event.target, obj.instance
+            exports.log.debug "Route remote", event.target, obj.instance
             # else route event over socket.io
             io.emit name, event, cb
 

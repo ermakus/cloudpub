@@ -11,10 +11,11 @@ exports.Queue = class Queue extends group.Group
 
     # Start executing of workers in queue
     start: (params...,cb) ->
-        exports.log.info "Start queue", @id
         if @children.length
+            exports.log.debug "Queue: Start", @children[0]
             @startWorker @children[0], params, cb
         else
+            exports.log.info "Queue: Empty"
             @emit 'success', @, cb
 
     # Stop and delete all workers
@@ -33,10 +34,10 @@ exports.Queue = class Queue extends group.Group
         state.create params, (err, worker) =>
             return cb and cb(err) if err
 
-            # Worker inherit queue params
-            _.defaults worker, @
-            # Except dependencies
-            worker.depends = undefined
+            # Inherit defaults from queue 
+            worker.user    = @user    or worker.user
+            worker.address = @address or worker.address
+            worker.home    = @home    or worker.home
 
             worker.on 'failure', 'workerFailure', @id
             worker.on 'success', 'workerSuccess', @id
@@ -44,7 +45,6 @@ exports.Queue = class Queue extends group.Group
             async.series [
                 (cb) => worker.save(cb)
                 (cb) => @add(worker.id, cb)
-                (cb) => @reorder(cb)
                 (cb) => @save(cb)
             ], cb
 
@@ -56,8 +56,9 @@ exports.Queue = class Queue extends group.Group
    
     # Start worker with specific ID
     startWorker: (id, params, cb)->
-        state.loadOrCreate id, (err, worker)=>
-            return cb(err) if (err or worker.state == 'up')
+        state.load id, (err, worker)=>
+            return cb(err) if (err)
+            return cb(null) if worker.state == 'up'
             async.waterfall [
                     (cb) => @setState(worker.state, worker.message, cb)
                     (cb) => worker.setState( 'up', cb )
@@ -94,15 +95,15 @@ exports.Queue = class Queue extends group.Group
                     cb(null)
             # Stop worker
             (cb)=>
-                    @stopWorker(worker.id, [], cb)
+                @stopWorker(worker.id, [], cb)
             # Start queue again
             (cb)=>
-                    # On the next tick
-                    process.nextTick =>
-                        exports.log.info "Queue: Continue", @id
-                        @start (err) ->
-                            if err then exports.log.error "Queue: Continue error", err.message
-                    cb(null)
+                # On the next tick
+                process.nextTick =>
+                    exports.log.info "Queue: Continue", @children
+                    @start (err) ->
+                        if err then exports.log.error "Queue: Continue error", err.message
+                cb(null)
             ], cb
 
 

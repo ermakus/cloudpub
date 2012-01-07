@@ -25,7 +25,7 @@ exports.Suite = class Suite extends queue.Queue
             if method.indexOf('test') == 0
                 # Create new instance for each test method and submit to queue
                 test = {
-                    id:(package + '.' +  entity + '.' + method)
+                    id:( "TEST_" + name + "_" + method)
                     entity
                     package
                     testMethod:method
