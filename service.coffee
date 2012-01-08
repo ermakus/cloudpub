@@ -147,10 +147,6 @@ exports.Service = class Service extends queue.Queue
                 # Fill queue by startup commands
                 (cb) =>
                     @startup(cb)
-                # Subscribe to success event
-                (cb) =>
-                    @on 'success', 'started', @id
-                    @save(cb)
                 # Start queue
                 (cb) =>
                     queue.Queue.prototype.start.call( @, cb )
@@ -159,10 +155,15 @@ exports.Service = class Service extends queue.Queue
                 if err == "BREAK" then return cb(null)
                 cb(err)
 
+    # Queue success event
+    success: (event, cb)->
+        @emit 'started', event, cb
+
+
+    # Service started event
     started: (event, cb)->
         exports.log.info "Service started: #{@id}"
-        @setState "running", cb
-
+        cb(null)
 
     # Stop service
     stopping: (params..., cb)->

@@ -104,6 +104,12 @@ exports.Queue = class Queue extends group.Group
             # Stop worker
             (cb)=>
                 @stopWorker(worker.id, [], cb)
+            # Emit success event
+            (cb)=>
+                if not @children.length
+                    @emit 'success', @, cb
+                else
+                    cb(null)
             # Start queue again
             (cb)=>
                 # On the next tick
@@ -113,6 +119,10 @@ exports.Queue = class Queue extends group.Group
                 cb(null)
             ], cb
 
+    
+    # Queue manage state defferently from group
+    updateState: (event, cb)->
+        cb(null)
 
 
 exports.init = (app, cb)->

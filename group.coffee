@@ -19,8 +19,9 @@ exports.Group = class Group extends state.State
         exports.log.info "Add #{id} to #{@id}"
         @children.push id
         async.series [
-                (cb)=> sugar.route('success', id, 'updateState', @id, cb)
-                (cb)=> sugar.route('failure', id, 'updateState', @id, cb)
+                (cb)=> sugar.route('state', id, 'updateState', @id, cb)
+                (cb)=> sugar.route('started', id, 'start', @id, cb)
+                #(cb)=> sugar.route('failure', id, 'updateState', @id, cb)
                 (cb)=> @save cb
             ], (err)->cb(err)
 
@@ -30,8 +31,9 @@ exports.Group = class Group extends state.State
             exports.log.info "Remove #{id} from #{@id}"
             @children = _.without @children, id
             async.series [
-                (cb)=> sugar.unroute('success', id, 'updateState', @id, cb)
-                (cb)=> sugar.unroute('failure', id, 'updateState', @id, cb)
+                (cb)=> sugar.unroute('state', id, 'updateState', @id, cb)
+                #(cb)=> sugar.unroute('success', id, 'updateState', @id, cb)
+                #(cb)=> sugar.unroute('failure', id, 'updateState', @id, cb)
                 (cb)=> @save cb
             ], (err)->cb(err)
         else
@@ -104,7 +106,7 @@ exports.Group = class Group extends state.State
  
     # Update group state and fire events 
     updateState: (event, cb)->
-        exports.log.info "Update group #{@id} state"
+        exports.log.info "Update group #{@id} state", event.message
         async.waterfall [
             # Get children state
             (cb)=>

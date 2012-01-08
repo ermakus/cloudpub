@@ -19,7 +19,7 @@ exports.Instance = class Instance extends serviceGroup.ServiceGroup
         # Port to listen
         @port = "8080"
 
-    start: (event, cb) ->
+    launch: (event, cb) ->
         exports.log.info "Start instance", @id
         # Instance is equal to ID for this class
         @instance = @id
@@ -50,7 +50,7 @@ exports.Instance = class Instance extends serviceGroup.ServiceGroup
                 async.forEachSeries children, ((item, cb)=>@add(item.id, cb)), cb
             # Call super
             (cb)=>
-                serviceGroup.ServiceGroup.prototype.start.call @, event, cb
+                @start event, cb
         ], (err)->cb(err)
 
 # List instancies for account
