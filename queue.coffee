@@ -58,6 +58,9 @@ exports.Queue = class Queue extends group.Group
         async.forEachSeries list, ((item, cb)=>@submit(item, cb)), cb
 
     # Internals
+
+    success: (event, cb) ->
+        cb(null)
    
     # Start worker with specific ID
     startWorker: (id, params, cb)->

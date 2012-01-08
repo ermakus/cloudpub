@@ -79,7 +79,7 @@ exports.State = class State
             @emit 'state', @, cb
 
     # Emit event to registered handlers
-    emit: (name, event, cb)->
+    emit: (name, event, cb=state.defaultCallback)->
         # Helper to call event listener
         callHandler = (handler, cb) =>
             # Clone event from original
@@ -88,13 +88,21 @@ exports.State = class State
             cloneEvent.target = handler.id
             cloneEvent.method = handler.handler
             # Marshall event over system rourer
-            exports.log.error "Emit #{name} to #{handler.handler} (#{handler.id})"
+            exports.log.error "Emit #{name} from \##{@id} as #{handler.handler} to \##{handler.id}"
             state.emit name, cloneEvent, cb
 
-        if name of @events
-            async.forEach @events[name], callHandler, cb
-        else
-            cb(null)
+        callLocal = (cb)=>
+            if typeof(@[name]) == 'function'
+                exports.log.warn "Call local handler"
+                @[name](event, cb)
+            else
+                cb(null)
+
+        callLocal (err)=>
+            if name of @events
+                async.forEach @events[name], callHandler, cb
+            else
+                cb(null)
 
     # Handle event, called internally by router
     eventTarget: (name, event, cb)->

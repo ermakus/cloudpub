@@ -48,7 +48,7 @@ exports.Group = class Group extends state.State
             @save(cb)
 
     # Call method for each children
-    each: (method, params..., cb)->
+    each: (method, params..., cb=state.defaultCallback)->
 
         # Call method on instance
         makeCall = (instance, cb)->
@@ -137,12 +137,22 @@ exports.Group = class Group extends state.State
             cb and cb(null)
 
     # Start children and update state
-    start: (params..., cb)->
-        @each('start', params..., cb)
+    start: (event, cb)->
+        exports.log.info "Group start", @id
+        @goal = 'start'
+        @each('start', event, cb)
 
     # Stop children and update state
-    stop: (params..., cb)->
-        @each('stop', params..., cb)
+    stop: (event, cb)->
+        exports.log.info "Group stop", @id
+        @goal = 'stop'
+        @each('stop', event, cb)
+
+    # Group successed
+    success: (event, cb)->
+        if @goal == 'start'
+            process.nextTick => @start('start',@,state.defaultCallback)
+        cb(null)
 
     # Remove with childrens
     deepClear: (cb)->

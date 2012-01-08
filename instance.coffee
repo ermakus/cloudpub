@@ -19,28 +19,39 @@ exports.Instance = class Instance extends serviceGroup.ServiceGroup
         # Port to listen
         @port = "8080"
 
-    start: (params..., cb) ->
+    start: (event, cb) ->
         exports.log.info "Start instance", @id
         # Instance is equal to ID for this class
         @instance = @id
 
-        if params[0]
-            # Merge some params (TODO)
-            @account = params[0].account or @account
-            @address = params[0].address or @address
-            @user    = params[0].user    or @user
-            @port    = params[0].port    or @port
+        if event
+            # Merge some params
+            @account = event.account or @account
+            @address = event.address or @address
+            @user    = event.user    or @user
+            @port    = event.port    or @port
 
         if not (@address and @user)
-            return cb and cb( new Error('Invalid address or user') )
+            return cb( new Error('Invalid address or user') )
 
         # Declare services
-        @children = [
-            { id:"cloudpub", entity:'cloudpub', domain:@address, address:@address, port:(@port+1), depends:['runtime','proxy'] }
+        children = [
             { id:"runtime",  entity:'runtime' }
             { id:"proxy",    entity:'proxy',    domain:@address, default:true, port:@port, depends:['runtime'] }
+            { id:"cloudpub", entity:'cloudpub', domain:@address, address:@address, port:(@port+1), depends:['runtime','proxy'] }
         ]
-        super(params..., cb)
+
+        async.waterfall [
+            # Create services
+            (cb)=>
+                async.map children, state.loadOrCreate, cb
+            # Add as children
+            (children, cb)=>
+                async.forEachSeries children, ((item, cb)=>@add(item.id, cb)), cb
+            # Call super
+            (cb)=>
+                serviceGroup.ServiceGroup.prototype.start.call @, event, cb
+        ], (err)->cb(err)
 
 # List instancies for account
 listInstances = (entity, params, cb)->

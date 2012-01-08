@@ -10,7 +10,7 @@ sugar    = require './sugar'
 
 # Service object
 #
-# We use upstart compatible statuses here
+# We use upstart compatible statuses in @state field
 #
 # • waiting : initial state.
 # • starting : job is about to start.
@@ -27,6 +27,7 @@ exports.Service = class Service extends queue.Queue
 
     init: ->
         super()
+        @state = 'waiting'
         # Service goal (start or stop)
         @goal = undefined
         # Owner account ID
@@ -98,14 +99,27 @@ exports.Service = class Service extends queue.Queue
     # Start service
     start: (params...,cb)->
         exports.log.info "Start service #{@id}"
-        if @state in ['pre-start','running'] then return cb(null)
+        if @state not in ['waiting','stopping']
+            return cb(null)
         @goal = "start"
         @state = "pre-start"
         # On start handler
-        @on 'starting', 'starting', @id
         @configure params..., (err) =>
             return cb(err) if err
             @emit 'starting', @, cb
+
+    # Stop service
+    stop: (params...,cb)->
+        exports.log.info "Stop service #{@id}"
+        if @state not in ['running']
+            return cb(null)
+        @goal = "stop"
+        @state = "stopping"
+        # On start handler
+        @configure params..., (err) =>
+            return cb(err) if err
+            @emit 'stopping', @, cb
+
 
     # Default 'starting' event handler
     starting: (event, cb)->
@@ -146,11 +160,12 @@ exports.Service = class Service extends queue.Queue
                 cb(err)
 
     started: (event, cb)->
-        exports.log.error "Service started: #{@id}"
-        cb(null)
+        exports.log.info "Service started: #{@id}"
+        @setState "running", cb
+
 
     # Stop service
-    stop: (params..., cb)->
+    stopping: (params..., cb)->
         exports.log.info "Stop service #{@id}"
         
         stop  = queue.Queue.prototype.stop

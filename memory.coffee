@@ -120,7 +120,9 @@ exports.loadOrCreate = loadOrCreate = (id, entity, package, cb )->
         package = entity = null
     load id, entity, package, (err, obj)->
         return cb and cb(null, obj) if not err
-        create id, entity, package, cb
+        create id, entity, package, (err, obj)->
+            obj.save (err)->
+                cb(err, obj)
 
 exports.loadWithChildren = loadWithChildren = (id, cb)->
     load id, (err, item)->
