@@ -8,15 +8,6 @@ state   = require './state'
 # 
 exports.ServiceGroup = class ServiceGroup extends group.Group
 
-    # Create, configure and start services
-    # passed as params.services
-    start: (params..., cb) ->
-        exports.log.info "Start service group", @id
-        @mode = "start"
-        @on 'success', 'serviceState', @id
-        @on 'failure', 'serviceState', @id
-        super(params..., cb)
-
     # Stop service group
     # Accepted params:
     # data = (keep|delete) Keep or delete data and group itself after shutdown
@@ -38,14 +29,6 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
             (cb)=> group.Group.prototype.stop.call(@, params..., cb)
         ], cb
 
-    # Service state event handler
-    serviceState: (event, cb)->
-        # Update group state from services
-        @updateState event.state, event.message, (err)=>
-            exports.log.debug "Service group state", @state, @message
-            return cb(err) if err
-            cb(null)
- 
     # Service state handler called when uninstall. 
     # Commits suicide after work complete
     suicide: (app, cb)->

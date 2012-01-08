@@ -11,18 +11,23 @@ exports.Queue = class Queue extends group.Group
 
     # Start executing of workers in queue
     start: (params...,cb) ->
-        if @children.length
-            exports.log.debug "Queue: Start", @children[0]
-            @startWorker @children[0], params, cb
-        else
-            exports.log.info "Queue: Empty"
-            @emit 'success', @, cb
+        @continue(params..., cb)
 
     # Stop and delete all workers
     stop: (params...,cb)->
         exports.log.info "Stop queue #{@id}"
         # Clear all workers
         async.forEach @children,((id,cb)=>@stopWorker(id,params...,cb)), cb
+
+    # Start executing of workers in queue
+    continue: (params...,cb) ->
+        if @children.length
+            exports.log.debug "Queue: Continue", @children[0]
+            @startWorker @children[0], params, cb
+        else
+            exports.log.info "Queue: Empty"
+            cb(null)
+
 
     # Submit task
     submit: ( params, cb ) ->
@@ -43,10 +48,10 @@ exports.Queue = class Queue extends group.Group
             worker.on 'success', 'workerSuccess', @id
 
             async.waterfall [
-                (cb) => worker.save(cb)
-                (cb) => @add(worker.id, cb)
-                (cb) => @save(cb)
-            ], cb
+                    (cb) => worker.save(cb)
+                    (cb) => @add(worker.id, cb)
+                    (cb) => @save(cb)
+                ], (err)->cb(err)
 
     # Submit job list
     submitAll: ( list, cb ) ->
@@ -100,8 +105,7 @@ exports.Queue = class Queue extends group.Group
             (cb)=>
                 # On the next tick
                 process.nextTick =>
-                    exports.log.info "Queue: Continue", @children
-                    @start (err) ->
+                    @continue (err) ->
                         if err then exports.log.error "Queue: Continue error", err.message
                 cb(null)
             ], cb

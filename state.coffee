@@ -88,6 +88,7 @@ exports.State = class State
             cloneEvent.target = handler.id
             cloneEvent.method = handler.handler
             # Marshall event over system rourer
+            exports.log.error "Emit #{name} to #{handler.handler} (#{handler.id})"
             state.emit name, cloneEvent, cb
 
         if name of @events
@@ -141,24 +142,22 @@ state.emit = (name, event, cb=state.defautCallback)->
 
 # Call method from backend stack
 backendHandler = (method)->
-    return (args...)->
-        callback = _.find args, _.isFunction
-        res = undefined
-        callBackend = (backend, cb)->
-            if method not of backend then return cb(null)
-            # Change original callback 
-            myargs = _.without args, callback
-            myargs.push ->
-                if (not arguments[0]) and arguments[1]
-                    res = arguments
-                cb( arguments[0] )
+
+    return (args..., callback)->
+
+        exports.log.debug "Call backend method", method
+        callBackend = (memo, backend, cb)->
+            # Avoid strange (async?) bug with null item
+            if not backend
+                return
+            if (not backend) or (method not of backend)
+                return cb(null, memo)
             # Call backend
-            backend[method].apply backend, myargs
+            backend[method] args..., (err, result...)->
+                cb( err, result )
 
-        async.forEachSeries BACKENDS, callBackend, (err)->
-            if err or not res then return callback.call @, err
-            callback.apply @, res
-
+        async.reduce BACKENDS, [], callBackend, (err, result)->
+            callback( err, result... )
 
 # Init proxy storage methods
 for method in BACKEND_METHODS

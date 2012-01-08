@@ -48,7 +48,7 @@ catch e
 log.level = nconf.get('log-level') or 2
 
 # Monkey patch for separate test context
-if process.argv.join(' ').indexOf('kya test') > 0
+if true #process.argv.join(' ').indexOf('kya test') > 0
     @log.warn "In test mode"
     file = __dirname + '/test-snapshot.json'
     nconf.file {file}

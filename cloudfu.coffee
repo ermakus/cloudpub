@@ -16,9 +16,14 @@ exports.Command = class Command extends state.State
     stop: (cb)->
         cb(null)
 
+# print helper
+hr = (symbol)->
+    for i in [0..6]
+        symbol = symbol+symbol
+    symbol + "\n"
+
 #
 # Main ClodFu command handler
-# Singleton TBD
 #
 exports.Cloudfu = class extends Command
 
@@ -33,24 +38,29 @@ exports.Cloudfu = class extends Command
         @stdout "Look at #{__filename} for available commands"
         cb( new Error("Help not implemented" ) )
 
-    # Show local object cache
-    list: (params, cb)->
-        hr = (symbol)->
-            for i in [0..6]
-                symbol = symbol+symbol
-            symbol + "\n"
-
-        state.query params.arg0 or 'service', (err, states)=>
+    # Query object storage
+    query: (params, cb)->
+        state.query params.arg0 or '*', params, (err, states)=>
             return cb(err) if err
             count = 0
             @stdout hr('-')
-            @stdout "CACHE:\n"
+            @stdout "Object Index:\n"
             @stdout hr('-')
             for obj in states
                 @stdout "\##{obj.id}\t#{obj.package}.#{obj.entity}\t[#{obj.state}]\t#{obj.message}\n"
                 count += 1
             @stdout hr('-')
             @stdout "Total: #{count} object(s)\n"
+            @stdout hr('-')
+            cb(null)
+
+    # Get object by ID
+    get: (params, cb)->
+        state.load params.arg0, params, (err, obj)=>
+            return cb(err) if err
+            count = 0
+            @stdout hr('-')
+            @stdout JSON.stringify obj
             @stdout hr('-')
             cb(null)
 
@@ -96,16 +106,20 @@ exports.kya = (command, params, cb)->
     if command.length < 1
         cb( new Error("No command specified") )
     # First is method name
-    method = command[0]
-    # Second is object ID or default Cloudfu handler
-    id = command[1] or "cloudfu"
-    # Other args is pass to params as arg0..argN keys
-    args = command[1...]
+    # Other args is pass as params arg0..argN
+    method = undefined
     argIndex = 0
-    for arg in args
+    for arg in command
+        if arg[0] == '-'
+            continue
+        if not method
+            method = arg
+            continue
         params["arg#{argIndex}"] = arg
-    # Load or create object
-    state.loadOrCreate id, 'cloudfu', (err, state)->
+        argIndex++
+
+    # Create Cloudfu object
+    state.create null, 'cloudfu', (err, state)->
         return cb( err ) if err
         # Run method with params
         if method of state

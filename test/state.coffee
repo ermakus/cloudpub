@@ -30,6 +30,8 @@ exports.StateTest = class extends checker.Checker
 
     queueSuccess: (queue)->
         @emit 'success', @, state.defaultCallback
+        state.loadOrCreate queue.id, (err, queue)=>
+            queue.clear( state.defaultCallback )
 
     test3_Queue: (cb)->
         state.loadOrCreate {id:"TEST-QUEUE", "test-queue",entity:"queue"}, (err, queue)=>

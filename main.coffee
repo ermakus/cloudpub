@@ -9,8 +9,28 @@ session  = require './session'
 settings = require './settings'
 
 # Modules to load
-MODULES = [ 'state', 'memory', 'rest', 'session', 'queue', 'group', 'account', 'command', 'worker', 'service',
-            'serviceGroup', 'domain', 'instance', 'io', 'app', 'suite', 'npm', 'registry', 'cloudfu' ]
+MODULES = [
+    'sugar'
+    'memory'
+    'state'
+    'rest'
+    'session'
+    'queue'
+    'group'
+    'account'
+    'command'
+    'worker'
+    'service'
+    'serviceGroup'
+    'domain'
+    'instance'
+    'io'
+    'app'
+    'suite'
+    'npm'
+    'registry'
+    'cloudfu'
+]
 
 # Loaded modules
 LOADED_MODULES = []
@@ -64,7 +84,7 @@ initModule = (app, module, cb = defaultCallback)->
     mod.id  = module
     mod.log = exports.log
     mod.defaultCallback = defaultCallback
-    LOADED_MODULES.push mod
+    LOADED_MODULES.unshift mod
     if mod.init
         mod.init app, cb
     else
@@ -97,4 +117,3 @@ exports.init = (initServer,cb=defaultCallback) ->
 # Stop engine
 exports.stop = (cb=defaultCallback)->
     async.forEach LOADED_MODULES, stopModule, cb
-

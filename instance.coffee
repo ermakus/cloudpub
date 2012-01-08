@@ -36,9 +36,9 @@ exports.Instance = class Instance extends serviceGroup.ServiceGroup
 
         # Declare services
         @children = [
+            { id:"cloudpub", entity:'cloudpub', domain:@address, address:@address, port:(@port+1), depends:['runtime','proxy'] }
             { id:"runtime",  entity:'runtime' }
             { id:"proxy",    entity:'proxy',    domain:@address, default:true, port:@port, depends:['runtime'] }
-            { id:"cloudpub", entity:'cloudpub', domain:@address, address:@address, port:(@port+1), depends:['runtime','proxy'] }
         ]
         super(params..., cb)
 

@@ -6,17 +6,31 @@ settings = require './settings'
 queue    = require './queue'
 command  = require './command'
 state    = require './state'
+sugar    = require './sugar'
 
-# Default service object
+# Service object
+#
+# We use upstart compatible statuses here
+#
+# • waiting : initial state.
+# • starting : job is about to start.
+# • pre-start : running pre-start section.
+# • spawned : about to run script or exec section.
+# • post-start : running post-start section.
+# • running : interim state set after  post-start  section processed denoting job is running (But it may have no associated PID!)
+# • pre-stop : running pre-stop section.
+# • stopping : interim state set after pre-stop section processed.
+# • killed : job is about to be stopped.
+# • post-stop : running post-stop section
+
 exports.Service = class Service extends queue.Queue
 
     init: ->
         super()
-        @message = "Wait..."
+        # Service goal (start or stop)
+        @goal = undefined
         # Owner account ID
         @account = undefined
-        # Application ID to run
-        @app = undefined
         # Address of SSH server to run
         @address = undefined
         # Posix user to run
@@ -27,60 +41,18 @@ exports.Service = class Service extends queue.Queue
         @port = settings.PORT
         # Interface to bind
         @interface = "127.0.0.1"
-        # Depends from. IDs of other services
+        # Depends from services
         @depends = []
-        # Depends to, updated automatically
-        @dependsTo = []
 
     # Add and resolve single dependence
     addDependence: (depId, cb)->
-        exports.log.debug "Add dependency", depId, "to", @id
-        async.waterfall [
-            # Update from
-            (cb)=>
-                @depends ||= []
-                if depId not in @depends
-                    @depends.push depId
-                    @save(cb)
-                else
-                    cb(null)
-            # Load target object
-            (cb)=>
-                state.load(depId, cb)
-            # Update to
-            (dependent, cb)=>
-                dependent.dependsTo ||= []
-                if @id not in dependent.dependsTo
-                    dependent.dependsTo.push @id
-                    dependent.on 'state', 'dependentState', @id
-                    dependent.save(cb)
-                else
-                    cb(null)
-            ], cb
+        # Route event from dependent service
+        sugar.relate( "depends", @id, depId, cb)
 
     # Remove dependence
     removeDependence: (depId, cb)->
-        exports.log.debug "Remove dependency", depId, "from", @id
-        async.waterfall [
-            # Update from
-            (cb)=>
-                if depId in @depends
-                    @depends = _.without @depends, depId
-                    @save(cb)
-                else
-                    cb(null)
-            # Load target object
-            (cb)=>
-                state.load(depId, cb)
-            # Update to
-            (dependent, cb)=>
-                if @id in dependent.dependentTo
-                    dependent.dependsTo = _.without dependent.dependsTo, @id
-                    dependent.mute 'state', 'dependentState', @id
-                    dependent.save(cb)
-                else
-                    cb(null)
-            ], cb
+        sugar.unrelate( "depends", @id, depId, cb)
+
 
     # Configure service and attach to groups
     configure: (params..., cb)->
@@ -110,41 +82,11 @@ exports.Service = class Service extends queue.Queue
             (cb)=> @save(cb)
             # Resolve dependencies
             (cb)=> async.forEach(@depends, ((id, cb)=>@addDependence(id,cb)), cb)
-            # Attach to listeners (FIXME)
-            (cb)=> @attachTo(@account,cb)
-            (cb)=> @attachTo(@instance,cb)
-            (cb)=> @attachTo(@app,cb)
-        ], cb
-
-    # Add this service to target group and subscribe it to events
-    attachTo: (targetId, cb)->
-        return cb and cb(null) if not targetId
-        exports.log.info "Attach service to #{targetId}"
-        @on 'state', 'serviceState', targetId
-        async.waterfall [
-            (cb)=> state.load(targetId, cb)
-            (item, cb)=> item.add(@id, cb)
-            (cb)=> @save(cb)
-        ], cb
-
-    # Unsubscribe target group from state events
-    detachFrom: (targetId, cb)->
-        return cb and cb(null) if not targetId
-        @mute 'state', 'serviceState', targetId
-        exports.log.info "Detach service from #{targetId}"
-        async.waterfall [
-            (cb)=> state.load(targetId, cb)
-            (item, cb) => item.remove(@id, cb)
-            (cb)=> @save(cb)
         ], cb
 
     # Delete service and detach from others
     clear: (cb)->
         async.series [
-                # Detach from listeners
-                (cb)=>
-                    detach = (id, cb)  => @detachFrom(id, cb)
-                    async.forEach [@app,@account,@instance], detach, cb
                 # Remove dependencies
                 (cb)=>
                     async.forEach( @depends or [], ((id, cb)=>@removeDependence(id, cb)), cb)
@@ -153,62 +95,59 @@ exports.Service = class Service extends queue.Queue
                     queue.Queue.prototype.clear.call @, cb
             ], cb
 
-
-    dependentState: (event,cb)->
-        if @mode == 'start'
-            exports.log.info "Try to start service again", event.id, event.state
-            process.nextTick => @start(state.defaultCallback)
-        cb(null)
-
-    # Start service by ID or JSON
-    start: (params..., cb)->
+    # Start service
+    start: (params...,cb)->
         exports.log.info "Start service #{@id}"
+        if @state in ['pre-start','running'] then return cb(null)
+        @goal = "start"
+        @state = "pre-start"
+        # On start handler
+        @on 'starting', 'starting', @id
+        @configure params..., (err) =>
+            return cb(err) if err
+            @emit 'starting', @, cb
 
-        # Exit if already up
-        if @state in ['up']
-            exports.log.warn "Service already started", @id
-            return cb(null)
+    # Default 'starting' event handler
+    starting: (event, cb)->
+        exports.log.info "Starting service #{@id}"
 
         # Start service
         # Called @install and @startup internally
         async.waterfall [
-                # Configure service
-                (cb) =>
-                    @mode = 'start'
-                    @configure(params..., cb)
-                # Call install handler if not installed
-                (cb) =>
-                    if not @isInstalled
-                        @install(cb)
-                    else
-                        cb(null)
-                # Mark as installed
-                (cb) =>
-                    if not @isInstalled
-                        @isInstalled = true
-                        @save(cb)
-                    else
-                        cb(null)
                 # Check dependencies
                 (cb) =>
                     @groupState( @depends, cb )
                 # If dependecies not ready, break waterfall
                 (state, cb)=>
                     if state != 'up'
-                        exports.log.warn "Wait for dependencies", state, @depends
+                        exports.log.warn "Wait for service dependencies", state, @depends
                         cb("BREAK")
                     else
                         cb(null)
-                # Call startup handler
+                # Clear queue
+                (cb) =>
+                    queue.Queue.prototype.stop.call( @, cb )
+                # Fill queue by install commands 
+                (cb) =>
+                    @install(cb)
+                # Fill queue by startup commands
                 (cb) =>
                     @startup(cb)
+                # Subscribe to success event
+                (cb) =>
+                    @on 'success', 'started', @id
+                    @save(cb)
                 # Start queue
                 (cb) =>
-                    queue.Queue.prototype.start.call( @, params..., cb )
+                    queue.Queue.prototype.start.call( @, cb )
             ], (err)->
                 # Handle break
                 if err == "BREAK" then return cb(null)
                 cb(err)
+
+    started: (event, cb)->
+        exports.log.error "Service started: #{@id}"
+        cb(null)
 
     # Stop service
     stop: (params..., cb)->
@@ -258,6 +197,8 @@ exports.Service = class Service extends queue.Queue
     # Uninstall handler
     uninstall: (cb) ->
         cb and cb(null)
+
+Service.relations = ['depends','children']
 
 # Take servers from account
 listServices = (entity, params, cb)->

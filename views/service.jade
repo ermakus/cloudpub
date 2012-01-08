@@ -40,13 +40,13 @@ script.list-template(type="text/template")
                         <% }); %>
                 td.control
                     <% if(item.state != "up") { %>
-                    img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="startup")
+                    img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="start")
                     <% } %>
-                    img.btn.command(src="command-stop.png",data-id="<%=item.id%>",data-command="shutdown")
+                    img.btn.command(src="command-stop.png",data-id="<%=item.id%>",data-command="stop")
             <% }); %>
 
 // Start dialog
-script.startup-template(type="text/template")
+script.start-template(type="text/template")
     .start.modal.hide.fade
         .modal-header
             a.close(href="#") × 
@@ -58,7 +58,7 @@ script.startup-template(type="text/template")
             a.btn.secondary.cancel(href="#") Cancel
 
 // Stop dialog
-script.shutdown-template(type="text/template")
+script.stop-template(type="text/template")
     .modal.hide.fade
         .modal-header
             a.close(href="#") × 

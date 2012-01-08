@@ -2,6 +2,7 @@ _       = require 'underscore'
 async   = require 'async'
 state   = require './state'
 tsort   = require './topologicalSort.js'
+sugar   = require './sugar'
 
 # Object group
 exports.Group = class Group extends state.State
@@ -17,14 +18,22 @@ exports.Group = class Group extends state.State
         if id in @children then return cb and cb(null)
         exports.log.info "Add #{id} to #{@id}"
         @children.push id
-        @save cb
+        async.series [
+                (cb)=> sugar.route('success', id, 'updateState', @id, cb)
+                (cb)=> sugar.route('failure', id, 'updateState', @id, cb)
+                (cb)=> @save cb
+            ], (err)->cb(err)
 
     # Remove children from group
     remove: (id, cb) ->
         if id in @children
             exports.log.info "Remove #{id} from #{@id}"
             @children = _.without @children, id
-            @save cb
+            async.series [
+                (cb)=> sugar.unroute('success', id, 'updateState', @id, cb)
+                (cb)=> sugar.unroute('failure', id, 'updateState', @id, cb)
+                (cb)=> @save cb
+            ], (err)->cb(err)
         else
             cb and cb(null)
 
@@ -94,7 +103,7 @@ exports.Group = class Group extends state.State
             cb(null, "maintain")
  
     # Update group state and fire events 
-    updateState: (childState, childMessage, cb)->
+    updateState: (event, cb)->
         exports.log.info "Update group #{@id} state"
         async.waterfall [
             # Get children state
@@ -102,7 +111,7 @@ exports.Group = class Group extends state.State
                 @groupState(@children,cb)
             # Update group state
             (st, cb)=>
-                @setState(st, childMessage, cb)
+                @setState(st, event.message, cb)
             # Fire success
             (cb)=>
                 if @state == 'up'

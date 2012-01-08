@@ -61,7 +61,7 @@ exports.clear =(entity, cb)->
         exports.log.info "Delete object #{entity.id}"
         # Remove from backend
         nconf.clear('object:' + entity.id)
-        nconf.clear( entity.entity + ":" + entity.id )
+        nconf.clear('index:' + entity.entity + ":" + entity.id )
         nconf.save (err) =>
             cb and cb(err)
 
@@ -70,7 +70,7 @@ exports.save = (entity, cb)->
         # Save to cache and backend
         CACHE[ entity.id ] = entity
         nconf.set("object:" + entity.id, entity)
-        nconf.set( entity.entity + ":" + entity.id, @id)
+        nconf.set("index:" + entity.entity + ":" + entity.id, entity.message)
         nconf.save (err) =>
             cb and cb(err)
 
@@ -131,14 +131,27 @@ exports.loadWithChildren = loadWithChildren = (id, cb)->
         else
             return cb and cb(null, item)
 
+
 # Query states by params and cb( error, [entities] )
 exports.query = query = (entity, params, cb) ->
+
     if typeof(params) == 'function'
         cb = params
         params = []
-    json = nconf.get(entity)
+
+
+    # Get all indexes
+    if(entity=='*')
+        indexes = nconf.get('index')
+        async.map _.keys(indexes), query, (err, entities)->
+            results = _.reduce entities, (memo, list)-> memo.concat list
+            return cb( err, results )
+
+    # Load items from index
+    json = nconf.get('index:' + entity)
     if not json or (_.isArray(json) and json.length == 0)
         json =  {}
+
 
     # Load async each entity by key
     async.map _.keys(json), loadWithChildren, cb

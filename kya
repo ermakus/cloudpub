@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 var cloudpub = undefined;
-// Fix console to look like logger
-console.info = console.debug = console.warn = console.error = console.log
 
 try {
     cloudpub = require('./index.js');
@@ -23,7 +21,6 @@ cloudpub.init( false, function(err, server) {
         if(err) {
             log.stderr("Error: " + err.message);
             cloudpub.stop();
-            process.exit(1);
         };
         if(!background) {
             cloudpub.stop();
