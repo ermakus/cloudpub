@@ -17,11 +17,12 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
         if params.data
             params.doUninstall = (params.data == 'delete')
 
-        if params.doUninstall
-            # Subscribe suicide event handler
-            @on 'failure', 'suicide', @id
-            @on 'success', 'suicide', @id
-        
+            if params.doUninstall
+                # Subscribe to suicide if unistall
+                @on 'success', 'suicide', @id
+            else
+                @mute 'success', 'suicide', @id
+
         async.series [
             # Save
             (cb)=> @save(cb)
@@ -31,13 +32,15 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
 
     # Service state handler called when uninstall. 
     # Commits suicide after work complete
-    suicide: (app, cb)->
-        exports.log.info "Suicide service group: #{@id}"
+    suicide: (event, cb)->
+        exports.log.info "Suicide service group: #{@id}", cb
         # Delete object on next tick
         process.nextTick =>
             async.series [
-                (cb) => @each 'clear', cb
-                (cb) => @setState 'down', 'Deleted', cb
-                (cb) => @clear(cb)
-            ], cb
+                    (cb) => @each('clear', cb)
+                    (cb) => @setState('delete', 'Deleted', cb)
+                    (cb) => @clear(cb)
+                ], (err)->
+                    if err then exports.log.error "Suicide failed", err.message
+
         cb(null)

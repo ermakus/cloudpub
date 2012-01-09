@@ -59,25 +59,6 @@ exports.State = class State
         else
             cb and cb( null )
 
-    # Logging: update state name and last message
-    setState: (state, message, cb) ->
-        if state
-            @state = state
-        if typeof(message) == 'function'
-            cb = message
-        else
-            @message = message
-    
-        write = exports.log.info
-        if @state == 'down'
-            write = exports.log.warn
-        if @state == 'error'
-            write = exports.log.error
-        write.call exports.log, "State: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
-        @save (err)=>
-            return cb and cb(err) if err
-            @emit 'state', @, cb
-
     # Emit event to registered handlers
     emit: (name, event, cb=state.defaultCallback)->
         # Helper to call event listener
@@ -127,6 +108,26 @@ exports.State = class State
     mute: (name, handler, id)->
         if name of @events
             @events[name] = _.filter( @events[name], (h)->( not ((h.id == id) and (h.handler == handler)) ) )
+
+    # Update state and message
+    # also emit 'state' event
+    setState: (state, message, cb) ->
+        if state
+            @state = state
+        if typeof(message) == 'function'
+            cb = message
+        else
+            @message = message
+    
+        write = exports.log.info
+        if @state == 'down'
+            write = exports.log.warn
+        if @state == 'error'
+            write = exports.log.error
+        write.call exports.log, "State: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
+        @save (err)=>
+            return cb and cb(err) if err
+            @emit 'state', @, cb
 
 
 # Emit event to event.target

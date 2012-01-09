@@ -51,31 +51,22 @@ exports.Group = class Group extends state.State
 
     # Call method for each children
     each: (method, params, cb)->
-        # params is optional
-        if typeof(params) == 'function'
+    
+        if(typeof(params)=='function')
             cb = params
-            params = {}
+            params=undefined
 
-        # Call method on children instance
-        makeCall = (instance, cb)->
-            exports.log.debug "Call method", method, "of", instance.id
-            instance[method](params, cb)
-
-        # Load children  and call method
+        # Load target and call method
         process = (id, cb) =>
             # In case of blueprint we can create object
             state.load id, (err, instance) =>
-                return cb and cb(err) if err
+                return cb(err) if err
                 # If object is just created
-                if not instance.stump
-                    # Swap blueprint by created object ID
-                    @children[ @children.indexOf( id ) ] = instance.id
-                    # Save it before call
-                    instance.save (err)->
-                        return cb(err) if err
-                        makeCall(instance, cb)
+                exports.log.debug "Call method", method, "of", instance.id
+                if params
+                    instance[method](params, cb)
                 else
-                    makeCall(instance, cb)
+                    instance[method](cb)
 
         async.forEach @children, process, (err)->
             cb(err)
@@ -88,7 +79,7 @@ exports.Group = class Group extends state.State
         
         exports.log.info "Group: Create " + JSON.stringify(params)
 
-        state.create params, (err, worker) =>
+        state.loadOrCreate params, (err, worker) =>
             return cb and cb(err) if err
 
             # Inherit some defaults
@@ -103,7 +94,7 @@ exports.Group = class Group extends state.State
 
     # Submit job list
     createAll: ( list, cb ) ->
-        async.forEachSeries list, ((item, cb)=>@submit(item, cb)), cb
+        async.forEachSeries list, ((item, cb)=>@create(item, cb)), cb
 
 
     # Update group state and fire events 
@@ -119,11 +110,13 @@ exports.Group = class Group extends state.State
                 @setState(st, event.message, cb)
             # Fire success
             (cb)=>
-                if @state == 'up'
-                    exports.log.info "Group #{@id} success"
-                    @emit('success', @, cb)
-                else
-                    cb(null)
+                if (@state == 'up') and (@goal == 'start')
+                    exports.log.info "Group #{@id} started"
+                    return @emit('success', @, cb)
+                if (@state == 'down') and (@goal == 'stop')
+                    exports.log.info "Group #{@id} stopped"
+                    return @emit('success', @, cb)
+                cb(null)
             # Fire failure
             (cb)=>
                 if @state == 'error'
@@ -157,10 +150,10 @@ exports.Group = class Group extends state.State
     continue: (event, cb)->
         if @goal == 'start'
             # Restart group until all services is up
-            process.nextTick => @start({}, state.defaultCallback)
+            process.nextTick => @start(state.defaultCallback)
         if @goal == 'stop'
             # Stop group until all services is down
-            process.nextTick => @stop({}, state.defaultCallback)
+            process.nextTick => @stop(state.defaultCallback)
         cb(null)
 
     # Remove with childrens
@@ -168,4 +161,4 @@ exports.Group = class Group extends state.State
         async.series [
             (cb) => @each('clear', cb)
             (cb) => @clear(cb)
-        ], cb
+        ], (err)->cb(err)

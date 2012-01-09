@@ -29,7 +29,7 @@ exports.InstanceStopTest = class extends checker.Checker
              (cb)=>
                 @expect 'down', 'Runtime uninstalled', cb
              (cb)=>
-                @expect 'deleted', 'Deleted', cb
+                @expect 'delete', 'Deleted', cb
              (cb)=>
                 @inst.on 'state', 'onState', @id
                 @inst.stop {

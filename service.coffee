@@ -43,7 +43,8 @@ exports.Service = class Service extends queue.Queue
 
     # Remove dependence
     removeDependence: (depId, cb)->
-        sugar.unrelate( "depends", @id, depId, cb)
+        # Ignore non-existend references
+        sugar.unrelate( "depends", @id, depId, ((err)->cb(null)))
 
 
     # Configure service and attach to groups
@@ -67,7 +68,7 @@ exports.Service = class Service extends queue.Queue
  
         # Init home 
         @home = "/home/#{@user}/.cloudpub"
-        @doUninstall = params.doUninstall or @doUninstall
+        @doUninstall = (params and params.doUninstall) or @doUninstall
 
         # Configure service
         async.waterfall [
@@ -90,6 +91,10 @@ exports.Service = class Service extends queue.Queue
 
     # Start service
     start: (params,cb)->
+        if typeof(params)=='function'
+            cb = params
+            params = undefined
+
         exports.log.info "Service start", @id
         if @state == 'up'
             exports.log.warn "Service already started"
@@ -151,6 +156,9 @@ exports.Service = class Service extends queue.Queue
     # Stop service
     stop: (params,cb)->
         exports.log.info "Service stop", @id
+        if typeof(params)=='function'
+            cb = params
+            params = undefined
         if @state == 'down'
             exports.log.warn "Service already stopped", @state
             return cb(null)
@@ -165,7 +173,7 @@ exports.Service = class Service extends queue.Queue
     # Stop service
     stopping: (params, cb)->
         exports.log.info "Service stopping", @id, @state
-        
+
         ifUninstall = (cb)=>
             if @doUninstall
                 exports.log.info "Service uninstalling", @id

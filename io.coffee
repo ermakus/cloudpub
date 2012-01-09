@@ -98,10 +98,10 @@ initListener = (app)->
         getSession sessionID, (err, session)->
             if err
                 # Wrong session
-                exports.log.warn "Session for socket is not found", sesionID
+                exports.log.warn "Session for socket is not found", sessionID
                 accept null, false
             if not session.expired
-                session.setLifetime 5000
+                session.setLifetime 1000 * 60 * 60
             if err or not session
                 exports.log.error "Session not found", err
                 accept err and err.message, false

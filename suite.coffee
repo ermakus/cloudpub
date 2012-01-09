@@ -46,9 +46,7 @@ exports.Suite = class Suite extends queue.Queue
 
     success: (entity, cb)->
         setTimeout =>
-            checker.dumpCache()
             exports.log.info "Test suite done. #{@count} test(s) executed."
-            process.exit(0)
         , 500 # Give a time to execute callbacks
         @clear cb
 

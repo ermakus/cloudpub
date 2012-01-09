@@ -5,6 +5,9 @@ state    = require './state'
 io       = require './io'
 settings = require './settings'
 
+# Dry run mode used by tests
+DRY_RUN=true
+
 RUN_TIMEOUT=500
 #
 # Worker process
@@ -22,6 +25,10 @@ exports.Worker = class Worker extends state.State
         options = {
             env: _.clone( process.env )
         }
+
+        if DRY_RUN
+            process.nextTick => @emit('success', @, state.defaultCallback)
+            return cb(null)
 
         ch = spawn run[0], run[1...], options
 

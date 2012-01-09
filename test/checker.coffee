@@ -10,19 +10,6 @@ hr = (symbol)->
         symbol = symbol+symbol
     symbol
 
-exports.dumpCache = ->
-    count = 0
-    exports.log.info hr('-')
-    exports.log.info "CACHE:"
-    exports.log.info hr('-')
-    for key of state.cache
-        obj = state.cache[key]
-        exports.log.info "\##{key}\t#{obj.package}.#{obj.entity}\t[#{obj.state}]\t#{obj.message}"
-        count += 1
-    exports.log.info hr('-')
-    exports.log.info "Total: #{count} object(s)"
-    exports.log.info hr('-')
-
 exports.Checker = class Checker extends state.State
 
     init: ->

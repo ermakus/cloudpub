@@ -100,7 +100,8 @@ exports.load = load = (id, entity, package, cb) ->
             package = stored.package
 
     if id and not stored
-        return cb and cb( new Error("Reference not found: [#{id}]") )
+        #return cb( null, { id:id, state:'error', message:'Ghost reference' } )
+        return cb( new Error("Reference not found: [#{id}]") )
  
     create id, entity, package, (err, obj)->
         return cb and cb(err) if err
