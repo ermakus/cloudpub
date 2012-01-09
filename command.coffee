@@ -6,7 +6,6 @@ state   = require './state'
 settings = require './settings'
 
 ENTITY_NEW       = 'new'
-ALLOWED_COMMANDS = ['start','stop']
 
 COMMAND_FORMS =
     app_start: form(
@@ -23,7 +22,7 @@ COMMAND_FORMS =
         form.validate("id").required().is(/^[a-zA-Z0-9\-\.]+$/)
         form.validate("data").required().is(/^(keep|delete)$/)
     )
-    instance_start: form(
+    instance_launch: form(
         form.validate("command").required()
         form.validate("id").required().is(/^[a-zA-Z0-9\.\-]+$/)
         form.filter("cloud").trim().toLower()
@@ -86,22 +85,25 @@ execCommand = (entity, factory, req,resp) ->
 # Return anonymous function to handle API command
 #
 exports.handler = handler = (entity, factory)->
-
+    # Handler function
     return (req, resp)->
-        if not (req.param("command") in ALLOWED_COMMANDS)
+        command = req.param("command")
+        if not command
             return resp.send 'Invalid command', 500
         if not req.params.id
             return resp.send 'Invalid entity ID', 500
             
-        form = COMMAND_FORMS[ entity + '_' + req.param("command") ]
+        form = COMMAND_FORMS[ entity + '_' + command ]
         if form
+            # Validate form
             form req, resp, ->
                 if req.form.isValid
+                    # Execute command
                     execCommand entity, factory, req, resp
                 else
                     resp.send (req.form.errors.join '\n'), 500
         else
-            resp.send "Form for #{entity} is not defined", 500
+            resp.send "Command  #{command} is not allowed", 500
 
 
 # Return anonymous function that used to create CRUD REST API handlers

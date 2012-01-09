@@ -102,3 +102,36 @@ exports.unroute = (fromEvent, from, toEvent, to, cb)->
                 fromObj.save(cb)
         ], (err)->cb(null)
 
+
+# Return group state from children states
+# null (type) = Children is null or empty
+# up          = all children is up
+# down        = all children is down
+# error       = at least 1 child error
+# maintain    = any other
+# result state passed to callback
+exports.groupState = (children, cb)->
+
+    if _.isEmpty(children) then return cb(null,null)
+
+    states = {up:0,maintain:0,down:0,error:0}
+
+    checkState = (id, cb)->
+        state.load id, (err, child)->
+            # Non-exist children in error state
+            if err
+                states[ 'error' ] += 1
+            else
+                states[ child.state ] += 1
+            cb and cb(null)
+
+    async.forEach children, checkState, (err)=>
+        return cb and cb(err) if err
+        if states['up'] == children.length
+            return cb(null,'up')
+        if states['down'] == children.length
+            return cb(null,'down')
+        if states['error'] > 0
+            return cb(null,'error')
+        cb(null, "maintain")
+

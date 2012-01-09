@@ -2,4 +2,5 @@
 killall nginx
 killall node
 rm test-snapshot.json
-node ./kya test --debug $@
+node ./kya --debug --snapshot='./test-snapshot.json' test $@
+node ./kya --snapshot='./test-snapshot.json' query

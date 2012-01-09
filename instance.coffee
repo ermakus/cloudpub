@@ -4,8 +4,11 @@ account      = require './account'
 serviceGroup = require './serviceGroup'
 state        = require './state'
 settings     = require './settings'
+sugar        = require './sugar'
 
-# Instance class
+#
+# Instance is remote host to execute services
+#
 exports.Instance = class Instance extends serviceGroup.ServiceGroup
 
     init: ->
@@ -19,8 +22,12 @@ exports.Instance = class Instance extends serviceGroup.ServiceGroup
         # Port to listen
         @port = "8080"
 
+    
+    # Launch instance
+    # Will start some core services
     launch: (event, cb) ->
         exports.log.info "Start instance", @id
+
         # Instance is equal to ID for this class
         @instance = @id
 
@@ -42,16 +49,19 @@ exports.Instance = class Instance extends serviceGroup.ServiceGroup
         ]
 
         async.waterfall [
-            # Create services
-            (cb)=>
-                async.map children, state.loadOrCreate, cb
-            # Add as children
-            (children, cb)=>
-                async.forEachSeries children, ((item, cb)=>@add(item.id, cb)), cb
-            # Call super
-            (cb)=>
-                @start event, cb
-        ], (err)->cb(err)
+                # Create services
+                (cb)=>
+                    async.map children, state.loadOrCreate, cb
+                # Add services as children
+                (children, cb)=>
+                    async.forEachSeries children, ((item, cb)=>@add(item.id, cb)), cb
+                # Link with account
+                (cb)=>
+                    sugar.relate 'children', @account, @id, cb
+                # Call start
+                (cb)=>
+                    @start(event, cb)
+            ], (err)->cb(err)
 
 # List instancies for account
 listInstances = (entity, params, cb)->

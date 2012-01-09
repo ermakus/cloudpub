@@ -11,10 +11,8 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
     # Stop service group
     # Accepted params:
     # data = (keep|delete) Keep or delete data and group itself after shutdown
-    stop: (params..., cb) ->
+    stop: (params, cb) ->
         exports.log.debug "Stop service group #{@id}"
-
-        @mode = "shutdown"
 
         doUninstall = params.data == 'delete'
         if doUninstall
@@ -26,7 +24,7 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
             # Save
             (cb)=> @save(cb)
             # Call parent stop method
-            (cb)=> group.Group.prototype.stop.call(@, params..., cb)
+            (cb)=> group.Group.prototype.stop.call(@, params, cb)
         ], cb
 
     # Service state handler called when uninstall. 

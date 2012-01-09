@@ -96,6 +96,10 @@ initListener = (app)->
 
         # Load session from storage
         getSession sessionID, (err, session)->
+            if err
+                # Wrong session
+                exports.log.warn "Session for socket is not found", sesionID
+                accept null, false
             if not session.expired
                 session.setLifetime 5000
             if err or not session

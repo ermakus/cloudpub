@@ -27,7 +27,7 @@ $ ->
     $('.cloud').live 'click', ->
         init_cloud_type $(this).val()
 
-    $('.start').live 'shown', ->
+    $('.launch').live 'shown', ->
         item = $(this).data('item')
         return if not item
         init_cloud_type item.entity
@@ -60,7 +60,7 @@ $ ->
             user: 'cloudpub'
             port: '8080'
 
-        handler = new CommandHandler( 'instance', 'start', item, (err)-> listing.reload())
+        handler = new CommandHandler( 'instance', 'launch', item, (err)-> listing.reload())
         handler.show()
 
 

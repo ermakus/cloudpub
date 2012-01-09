@@ -8,28 +8,20 @@ command  = require './command'
 state    = require './state'
 sugar    = require './sugar'
 
+#
 # Service object
 #
-# We use upstart compatible statuses in @state field
-#
-# • waiting : initial state.
-# • starting : job is about to start.
-# • pre-start : running pre-start section.
-# • spawned : about to run script or exec section.
-# • post-start : running post-start section.
-# • running : interim state set after  post-start  section processed denoting job is running (But it may have no associated PID!)
-# • pre-stop : running pre-stop section.
-# • stopping : interim state set after pre-stop section processed.
-# • killed : job is about to be stopped.
-# • post-stop : running post-stop section
 
 exports.Service = class Service extends queue.Queue
 
     init: ->
         super()
-        @state = 'waiting'
+        # State, one of 'up', 'down', 'maintain'
+        @state = 'down'
         # Service goal (start or stop)
         @goal = undefined
+        # Default message
+        @message = 'waiting'
         # Owner account ID
         @account = undefined
         # Address of SSH server to run
@@ -47,7 +39,6 @@ exports.Service = class Service extends queue.Queue
 
     # Add and resolve single dependence
     addDependence: (depId, cb)->
-        # Route event from dependent service
         sugar.relate( "depends", @id, depId, cb)
 
     # Remove dependence
@@ -56,16 +47,16 @@ exports.Service = class Service extends queue.Queue
 
 
     # Configure service and attach to groups
-    configure: (params..., cb)->
-        exports.log.info "Configure service #{@id}:", params
+    configure: (params, cb)->
+        exports.log.info "Configure service",  @id, params
 
         config = (name)=>
-            if name of params[0]
-                @[name] = params[0][name]
+            if name of params
+                @[name] = params[name]
             if not @[name]
                 throw new Error("Service param #{name} not set")
 
-        if params[0]
+        if params
             try
                 config "account"
                 config "address"
@@ -97,44 +88,34 @@ exports.Service = class Service extends queue.Queue
             ], cb
 
     # Start service
-    start: (params...,cb)->
-        exports.log.info "Start service #{@id}"
-        if @state not in ['waiting','stopping']
+    start: (params,cb)->
+        exports.log.info "Start service", @id
+        if @state == 'up'
+            exports.log.warn "Service in invalid state", @state, @message
             return cb(null)
         @goal = "start"
-        @state = "pre-start"
+        @state = "maintain"
         # On start handler
-        @configure params..., (err) =>
+        @configure params, (err) =>
             return cb(err) if err
             @emit 'starting', @, cb
-
-    # Stop service
-    stop: (params...,cb)->
-        exports.log.info "Stop service #{@id}"
-        if @state not in ['running']
-            return cb(null)
-        @goal = "stop"
-        @state = "stopping"
-        # On start handler
-        @configure params..., (err) =>
-            return cb(err) if err
-            @emit 'stopping', @, cb
 
 
     # Default 'starting' event handler
     starting: (event, cb)->
-        exports.log.info "Starting service #{@id}"
+        exports.log.info "Service starting", @id
 
         # Start service
         # Called @install and @startup internally
         async.waterfall [
                 # Check dependencies
                 (cb) =>
-                    @groupState( @depends, cb )
+                    sugar.groupState( @depends, cb )
                 # If dependecies not ready, break waterfall
                 (state, cb)=>
+                    state ||= 'up'
                     if state != 'up'
-                        exports.log.warn "Wait for service dependencies", state, @depends
+                        exports.log.warn "Start dependencies first", @depends
                         cb("BREAK")
                     else
                         cb(null)
@@ -143,7 +124,10 @@ exports.Service = class Service extends queue.Queue
                     queue.Queue.prototype.stop.call( @, cb )
                 # Fill queue by install commands 
                 (cb) =>
-                    @install(cb)
+                    if not @isInstalled
+                        @install(cb)
+                    else
+                        cb(null)
                 # Fill queue by startup commands
                 (cb) =>
                     @startup(cb)
@@ -155,30 +139,34 @@ exports.Service = class Service extends queue.Queue
                 if err == "BREAK" then return cb(null)
                 cb(err)
 
-    # Queue success event
-    success: (event, cb)->
-        @emit 'started', event, cb
-
-
     # Service started event
     started: (event, cb)->
-        exports.log.info "Service started: #{@id}"
-        cb(null)
+        exports.log.info "Service started", @id
+        @isInstalled = true
+        @save(cb)
 
     # Stop service
-    stopping: (params..., cb)->
-        exports.log.info "Stop service #{@id}"
-        
-        stop  = queue.Queue.prototype.stop
-        start = queue.Queue.prototype.start
-        
-        if @state in ['down','maintain','error']
+    stop: (params,cb)->
+        exports.log.info "Stop service", @id
+        if @state not in ['up','maintain']
+            exports.log.warn "Service in invalid state", @state
             return cb(null)
-        
-        @mode = 'stop'
+        @goal = "stop"
+        @state = "maintain"
+        # On start handler
+        @configure params, (err) =>
+            return cb(err) if err
+            @emit 'stopping', @, cb
 
+
+    # Stop service
+    stopping: (params, cb)->
+        exports.log.info "Service stopping", @id
+        
+        doUninstall = (params.data == 'delete')
+        
         ifUninstall = (cb)=>
-            if @doUninstall and @isInstalled
+            if doUninstall
                 @uninstall (err)=>
                     return cb(err) if err
                     @isInstalled = false
@@ -186,12 +174,48 @@ exports.Service = class Service extends queue.Queue
             else
                 cb(null)
 
-        async.series [
-            (cb) => stop.call(@, cb)
-            (cb) => @shutdown(cb)
-            (cb) => ifUninstall(cb)
-            (cb) => start.call(@, params..., cb)
-        ], cb
+        # Stop service
+        async.waterfall [
+                # Check dependencies
+                (cb) =>
+                    sugar.groupState( @_depends, cb )
+                # If dependecies not ready, break waterfall
+                (state, cb)=>
+                    state ||= 'down'
+                    if state != 'down'
+                        exports.log.warn "Stop dependencies first", @_depends
+                        cb("BREAK")
+                    else
+                        cb(null)
+                # Clear queue
+                (cb) =>
+                    queue.Queue.prototype.stop.call( @, cb )
+                # Submit shutdown job
+                (cb) =>
+                    @shutdown(cb)
+                # Submit uninstall job
+                (cb) =>
+                    ifUninstall(cb)
+                # Start queue
+                (cb) =>
+                    queue.Queue.prototype.start.call( @, params, cb)
+            ], (err)->
+                if err == "BREAK" then cb(null)
+                cb(err)
+
+    # Service stopped event
+    stopped: (event, cb)->
+        exports.log.info "Service stopped", @id
+        cb(null)
+
+    # Queue success event
+    success: (event, cb)->
+        if @goal == 'start'
+            return @emit 'started', event, cb
+        if @goal == 'stop'
+            return @emit 'stopped', event, cb
+        cb(null)
+
 
     # Dependent services state event handler
     serviceState: (event, cb)->
@@ -213,8 +237,6 @@ exports.Service = class Service extends queue.Queue
     # Uninstall handler
     uninstall: (cb) ->
         cb and cb(null)
-
-Service.relations = ['depends','children']
 
 # Take servers from account
 listServices = (entity, params, cb)->

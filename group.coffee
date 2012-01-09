@@ -20,8 +20,8 @@ exports.Group = class Group extends state.State
         @children.push id
         async.series [
                 (cb)=> sugar.route('state', id, 'updateState', @id, cb)
-                (cb)=> sugar.route('started', id, 'start', @id, cb)
-                #(cb)=> sugar.route('failure', id, 'updateState', @id, cb)
+                (cb)=> sugar.route('started', id, 'continue', @id, cb)
+                (cb)=> sugar.route('stopped', id, 'continue', @id, cb)
                 (cb)=> @save cb
             ], (err)->cb(err)
 
@@ -32,8 +32,8 @@ exports.Group = class Group extends state.State
             @children = _.without @children, id
             async.series [
                 (cb)=> sugar.unroute('state', id, 'updateState', @id, cb)
-                #(cb)=> sugar.unroute('success', id, 'updateState', @id, cb)
-                #(cb)=> sugar.unroute('failure', id, 'updateState', @id, cb)
+                (cb)=> sugar.unroute('started', id, 'continue', @id, cb)
+                (cb)=> sugar.unroute('stopped', id, 'continue', @id, cb)
                 (cb)=> @save cb
             ], (err)->cb(err)
         else
@@ -50,17 +50,17 @@ exports.Group = class Group extends state.State
             @save(cb)
 
     # Call method for each children
-    each: (method, params..., cb=state.defaultCallback)->
+    each: (method, params, cb)->
 
         # Call method on instance
         makeCall = (instance, cb)->
-            exports.log.info "Call method", method, "params", params
-            instance[method].call(instance, params..., cb)
+            exports.log.debug "Call method", method, "of", instance.id
+            instance[method](params, cb)
 
         # Load children  and call method
         process = (id, cb) =>
             # In case of blueprint we can create object
-            state.loadOrCreate id, (err, instance) =>
+            state.load id, (err, instance) =>
                 return cb and cb(err) if err
                 # If object is just created
                 if not instance.stump
@@ -73,46 +73,20 @@ exports.Group = class Group extends state.State
                 else
                     makeCall(instance, cb)
 
-        async.forEach @children, process, cb
+        async.forEach @children, process, (err)->
+            cb(err)
 
 
-    # Return group state from children states
-    # up       = all children is up
-    # down     = all children is down
-    # error    = at least 1 child error
-    # maintain = any other
-    # result state passed to callback
-    groupState: (children, cb)->
-        states   = {up:0,maintain:0,down:0,error:0}
-
-        checkState = (id, cb)->
-            state.load id, (err, child)->
-                # Non-exist children in error state
-                if err
-                    states[ 'error' ] += 1
-                else
-                    states[ child.state ] += 1
-                cb and cb(null)
-
-        async.forEach children, checkState, (err)=>
-            return cb and cb(err) if err
-            if states['up'] == children.length
-                return cb(null,'up')
-            if states['down'] == children.length
-                return cb(null,'down')
-            if states['error'] > 0
-                return cb(null,'error')
-            cb(null, "maintain")
- 
     # Update group state and fire events 
     updateState: (event, cb)->
-        exports.log.info "Update group #{@id} state", event.message
+        exports.log.info "Update group state", @id, event.message
         async.waterfall [
             # Get children state
             (cb)=>
-                @groupState(@children,cb)
+                sugar.groupState(@children,cb)
             # Update group state
             (st, cb)=>
+                st ||= 'up' # Empty group is in up state
                 @setState(st, event.message, cb)
             # Fire success
             (cb)=>
@@ -151,9 +125,13 @@ exports.Group = class Group extends state.State
         @each('stop', event, cb)
 
     # Group successed
-    success: (event, cb)->
+    continue: (event, cb)->
         if @goal == 'start'
-            process.nextTick => @start('start',@,state.defaultCallback)
+            # Restart group until all services is up
+            process.nextTick => @start({}, state.defaultCallback)
+        if @goal == 'stop'
+            # Stop group until all services is down
+            process.nextTick => @stop({}, state.defaultCallback)
         cb(null)
 
     # Remove with childrens

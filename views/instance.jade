@@ -39,13 +39,13 @@ script.list-template(type="text/template")
                         <% });%>
                 td.control
                     <% if(item.state != "up") { %>
-                    img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="start")
+                    img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="launch")
                     <% } %>
                     img.btn.command(src="command-stop.png",data-id="<%=item.id%>",data-command="stop")
             <% }); %>
 
-script.start-template(type="text/template")
-    .start.modal.hide.fade
+script.launch-template(type="text/template")
+    .launch.modal.hide.fade
         .modal-header
             a.close(href="#") × 
             h3 Start Server

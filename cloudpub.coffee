@@ -28,7 +28,7 @@ exports.Cloudpub = class Cloudpub extends service.Service
         @submit({
             entity: 'shell'
             package: "worker"
-            message: "Stop Clodupub"
+            message: "Stop Cloudpub"
             state:   "maintain"
             command:["kya", "params"]
             success:

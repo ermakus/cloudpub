@@ -152,9 +152,8 @@ state.emit = (name, event, cb=state.defautCallback)->
 backendHandler = (method)->
 
     return (args..., callback)->
-
-        exports.log.debug "Call backend method", method
         callBackend = (memo, backend, cb)->
+
             # Avoid strange (async?) bug with null item
             if not backend
                 return
