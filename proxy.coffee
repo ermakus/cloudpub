@@ -59,7 +59,9 @@ exports.Proxy = class Proxy extends service.Service
                     message: 'Offline'
             }], cb)
 
-    install: (cb) -> @submit( {
+    install: (cb) ->
+
+        @submit({
                 entity:  'shell'
                 package: 'worker'
                 message: "Compile proxy"
@@ -69,9 +71,11 @@ exports.Proxy = class Proxy extends service.Service
                 success:
                     state: "maintain"
                     message: "Proxy installed"
-           }, cb)
+            }, cb)
 
-    uninstall: (cb) -> @submit({
+    uninstall: (cb) ->
+
+        @submit({
                 state: 'maintain'
                 message: 'Uninstall proxy'
                 entity:  'shell'

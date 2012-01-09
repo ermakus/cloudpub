@@ -67,6 +67,7 @@ exports.Service = class Service extends queue.Queue
  
         # Init home 
         @home = "/home/#{@user}/.cloudpub"
+        @doUninstall = params.doUninstall or @doUninstall
 
         # Configure service
         async.waterfall [
@@ -155,7 +156,6 @@ exports.Service = class Service extends queue.Queue
             return cb(null)
         @goal = "stop"
         @state = "maintain"
-        @doUninstall = params.doUninstall or @doUninstall
         # On start handler
         @configure params, (err) =>
             return cb(err) if err
@@ -168,6 +168,7 @@ exports.Service = class Service extends queue.Queue
         
         ifUninstall = (cb)=>
             if @doUninstall
+                exports.log.info "Service uninstalling", @id
                 @uninstall (err)=>
                     return cb(err) if err
                     @isInstalled = false
