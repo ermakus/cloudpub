@@ -70,7 +70,7 @@ exports.Cloudfu = class extends Command
             (cb) -> state.create('test-suite', 'suite', cb)
             (suite, cb)->
                 suite.submitTests [
-                        'state'
+                        'core'
                         'instanceStart'
 #                        'appStart'
 #                        'appStop'

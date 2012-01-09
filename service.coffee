@@ -89,9 +89,9 @@ exports.Service = class Service extends queue.Queue
 
     # Start service
     start: (params,cb)->
-        exports.log.info "Start service", @id
+        exports.log.info "Service start", @id
         if @state == 'up'
-            exports.log.warn "Service in invalid state", @state, @message
+            exports.log.warn "Service already started"
             return cb(null)
         @goal = "start"
         @state = "maintain"
@@ -142,17 +142,20 @@ exports.Service = class Service extends queue.Queue
     # Service started event
     started: (event, cb)->
         exports.log.info "Service started", @id
+        @state = 'up'
+        @goal  = undefined
         @isInstalled = true
         @save(cb)
 
     # Stop service
     stop: (params,cb)->
-        exports.log.info "Stop service", @id
-        if @state not in ['up','maintain']
-            exports.log.warn "Service in invalid state", @state
+        exports.log.info "Service stop", @id
+        if @state == 'down'
+            exports.log.warn "Service already stopped", @state
             return cb(null)
         @goal = "stop"
         @state = "maintain"
+        @doUninstall = params.doUninstall or @doUninstall
         # On start handler
         @configure params, (err) =>
             return cb(err) if err
@@ -161,12 +164,10 @@ exports.Service = class Service extends queue.Queue
 
     # Stop service
     stopping: (params, cb)->
-        exports.log.info "Service stopping", @id
-        
-        doUninstall = (params.data == 'delete')
+        exports.log.info "Service stopping", @id, @state
         
         ifUninstall = (cb)=>
-            if doUninstall
+            if @doUninstall
                 @uninstall (err)=>
                     return cb(err) if err
                     @isInstalled = false
@@ -183,7 +184,7 @@ exports.Service = class Service extends queue.Queue
                 (state, cb)=>
                     state ||= 'down'
                     if state != 'down'
-                        exports.log.warn "Stop dependencies first", @_depends
+                        exports.log.warn "Service dependencies is running", @_depends
                         cb("BREAK")
                     else
                         cb(null)
@@ -206,7 +207,9 @@ exports.Service = class Service extends queue.Queue
     # Service stopped event
     stopped: (event, cb)->
         exports.log.info "Service stopped", @id
-        cb(null)
+        @state = 'down'
+        @goal  = undefined
+        @save(cb)
 
     # Queue success event
     success: (event, cb)->

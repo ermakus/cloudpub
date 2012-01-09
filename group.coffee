@@ -19,7 +19,7 @@ exports.Group = class Group extends state.State
         exports.log.info "Add #{id} to #{@id}"
         @children.push id
         async.series [
-                (cb)=> sugar.route('state', id, 'updateState', @id, cb)
+                (cb)=> sugar.route('state',   id, 'updateState', @id, cb)
                 (cb)=> sugar.route('started', id, 'continue', @id, cb)
                 (cb)=> sugar.route('stopped', id, 'continue', @id, cb)
                 (cb)=> @save cb
@@ -51,8 +51,12 @@ exports.Group = class Group extends state.State
 
     # Call method for each children
     each: (method, params, cb)->
+        # params is optional
+        if typeof(params) == 'function'
+            cb = params
+            params = {}
 
-        # Call method on instance
+        # Call method on children instance
         makeCall = (instance, cb)->
             exports.log.debug "Call method", method, "of", instance.id
             instance[method](params, cb)
@@ -75,6 +79,31 @@ exports.Group = class Group extends state.State
 
         async.forEach @children, process, (err)->
             cb(err)
+
+    # Create and init children
+    create: ( params, cb ) ->
+        # If array passed then submit all
+        if params and _.isArray(params)
+            return @createAll(params, cb)
+        
+        exports.log.info "Group: Create " + JSON.stringify(params)
+
+        state.create params, (err, worker) =>
+            return cb and cb(err) if err
+
+            # Inherit some defaults
+            worker.user    = @user    or worker.user
+            worker.address = @address or worker.address
+            worker.home    = @home    or worker.home
+
+            async.waterfall [
+                    (cb) => worker.save(cb)
+                    (cb) => @add(worker.id, cb)
+                ], (err)->cb(err)
+
+    # Submit job list
+    createAll: ( list, cb ) ->
+        async.forEachSeries list, ((item, cb)=>@submit(item, cb)), cb
 
 
     # Update group state and fire events 

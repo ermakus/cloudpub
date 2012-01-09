@@ -14,8 +14,10 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
     stop: (params, cb) ->
         exports.log.debug "Stop service group #{@id}"
 
-        doUninstall = params.data == 'delete'
-        if doUninstall
+        if params.data
+            params.doUninstall = (params.data == 'delete')
+
+        if params.doUninstall
             # Subscribe suicide event handler
             @on 'failure', 'suicide', @id
             @on 'success', 'suicide', @id

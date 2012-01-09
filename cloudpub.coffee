@@ -8,8 +8,8 @@ exports.Cloudpub = class Cloudpub extends service.Service
 
     # Configure service by params dictionary
     configure: (params..., cb)->
-        @source = __dirname
-        @name = "cloudpub"
+        @source = "test"
+        @name = "test"
         super params..., cb
 
     startup: (params..., cb) ->
@@ -57,7 +57,7 @@ exports.Cloudpub = class Cloudpub extends service.Service
             package: 'worker'
             command:["npm", "-g", "--prefix", @home, 'uninstall', @name]
             success:
-                state:'maintain'
+                state:'down'
                 message: 'Cloudpub Uninstalled'
         }, cb)
 

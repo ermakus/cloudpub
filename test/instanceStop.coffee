@@ -12,14 +12,22 @@ exports.InstanceStopTest = class extends checker.Checker
                 @expect 'maintain', 'Stop Cloudpub', cb
              (cb)=>
                 @expect 'maintain', 'Terminated', cb
-              (cb)=>
+             (cb)=>
+                @expect 'maintain', 'Uninstall Cloudpub', cb
+             (cb)=>
+                @expect 'maintain', 'Cloudpub Uninstalled', cb
+             (cb)=>
                 @expect 'maintain', 'Stop Proxy', cb
              (cb)=>
                 @expect 'maintain', 'Offline', cb
              (cb)=>
-                @expect 'maintain', 'Uninstall service', cb
+                @expect 'maintain', 'Uninstall proxy', cb
              (cb)=>
-                @expect 'maintain', 'Service uninstalled', cb
+                @expect 'maintain', 'Proxy uninstalled', cb
+             (cb)=>
+                @expect 'maintain', 'Uninstall runtime', cb
+             (cb)=>
+                @expect 'maintain', 'Runtime uninstalled', cb
              (cb)=>
                 @expect 'down', 'Deleted', cb
              (cb)=>
