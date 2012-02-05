@@ -31,7 +31,7 @@ exports.install = -> {
     entity: 'shell'
     message: "Install Cloudpub"
     state:   "maintain"
-    command:["npm","-g","install",__dirname]
+    command:["npm","-g","install", "cloudpub"]
     success:
         state:'maintain'
         message: 'Cloudpub Installed'
