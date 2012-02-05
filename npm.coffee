@@ -19,7 +19,7 @@ exports.Npm = class Npm extends service.Service
             cb = params
             params = {}
 
-        @submit({
+        @create({
             entity: 'shell'
             package: "worker"
             message: "Start app"
@@ -35,7 +35,7 @@ exports.Npm = class Npm extends service.Service
         if typeof(params) == 'function'
             cb = params
             params = {}
-        @submit({
+        @create({
             entity: 'shell'
             package: "worker"
             message: "Stop service"
@@ -49,7 +49,7 @@ exports.Npm = class Npm extends service.Service
 
 
     install: (cb) ->
-        @submit({
+        @create({
             entity: 'shell'
             package: "worker"
             message: "Install app"
@@ -62,7 +62,7 @@ exports.Npm = class Npm extends service.Service
         }, cb)
 
     uninstall: (cb) ->
-        @submit({
+        @create({
             state: 'maintain'
             message: "Uninstall app"
             entity:  'shell'

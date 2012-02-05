@@ -1,4 +1,4 @@
-h1 Active Commands
+h1 Sessions
 // Put controls into this div
 .page
     .loading
@@ -20,8 +20,8 @@ script.list-template(type="text/template")
     table.bordered-table.zebra-striped
         thead
             tr
-                th.state Service
-                th.domain Domain
+                th.state Session
+                th.domain Data
                 th.control &nbsp;
         tbody
             <% _.each(items, function(item) { %>
@@ -60,7 +60,6 @@ script.instances-template(type="text/template")
             .state-info-small
                 label.instance-address(for="<%= item.id %>") &nbsp;<%= item.address %>
         <% }); %>
-
 
 // Start dialog
 script.startup-template(type="text/template")

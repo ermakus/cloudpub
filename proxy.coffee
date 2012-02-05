@@ -1,88 +1,69 @@
-async = require 'async'
-service = require './service'
+#### Nginx proxy module
 
-exports.Proxy = class Proxy extends service.Service
-    
-    init: ->
-        super()
-        @name = 'cloudpub-proxy'
+##### Startup commands
+exports.startup = -> [
+    {
+        entity:  "shell"
+        message: "Configure proxy"
+        state:   "maintain"
+        context:
+            id: @id
+            home: @home
+            port: @port
+            domain: @domain
+            default: true
+            services: null
+        command: ['domain','enable']
+        success:
+            state:'maintain'
+            message: 'Proxy configured'
+    },
+    {
+        entity:  "shell"
+        message: "Start Proxy"
+        state:   "maintain"
+        command: ["daemon", "start", @id, "./sbin/nginx", "-c", "#{@home}/conf/nginx.conf" ]
+        success:
+            state:'up'
+            message: 'Online'
+    }
+]
 
-    startup: (params, cb) ->
-        if typeof(params) == 'function'
-            cb = params
-            params = {}
-      
-        @submit [
-            {
-                entity:  "shell"
-                package: "worker"
-                message: "Configure proxy"
-                state:   "maintain"
-                context:
-                    id: @id
-                    home: @home
-                    port: @port
-                    domain: @domain
-                    default: true
-                    services: null
-                command: ['domain','enable']
-                success:
-                    state:'maintain'
-                    message: 'Proxy configured'
-            },
-            {
-                entity:  "shell"
-                package: "worker"
-                message: "Start Proxy"
-                state:   "maintain"
-                command: ["daemon","start", @id, "./sbin/nginx", "-c", "#{@home}/conf/nginx.conf" ]
-                success:
-                    state:'up'
-                    message: 'Online'
-            }], cb
+##### Shutdown commands
+exports.shutdown = -> {
+    entity:  "shell"
+    message: "Stop Proxy"
+    state:   "maintain"
+    context:
+        id: @instance
+    command:["daemon", "stop", @id]
+    success:
+        state:   'down'
+        message: 'Offline'
+}
 
-    shutdown: (params, cb) ->
-        if typeof(params) == 'function'
-            cb = params
-            params = {}
 
-        @submit([{
-                entity:  "shell"
-                package: "worker"
-                message: "Stop Proxy"
-                state:   "maintain"
-                context:
-                    id: @instance
-                command:["daemon", "stop", @id]
-                success:
-                    state:   'down'
-                    message: 'Offline'
-            }], cb)
+##### Compile and install nginx
+exports.install = -> {
+    entity:  'shell'
+    message: "Compile proxy"
+    state:   "maintain"
+    home: @home
+    command:["install-proxy", @home]
+    success:
+        state: "maintain"
+        message: "Proxy installed"
+}
 
-    install: (cb) ->
 
-        @submit({
-                entity:  'shell'
-                package: 'worker'
-                message: "Compile proxy"
-                state:   "maintain"
-                home: @home
-                command:["install-proxy", @home]
-                success:
-                    state: "maintain"
-                    message: "Proxy installed"
-            }, cb)
-
-    uninstall: (cb) ->
-
-        @submit({
-                state: 'maintain'
-                message: 'Uninstall proxy'
-                entity:  'shell'
-                package: 'worker'
-                command:['kya','params']
-                success:
-                    state:'down'
-                    message: 'Proxy uninstalled'
-            }, cb)
+##### Uninstall nginx
+exports.uninstall = -> {
+    state: 'maintain'
+    message: 'Uninstall proxy'
+    entity:  'shell'
+    command:['echo','params']
+    success:
+        state:'down'
+        message: 'Proxy uninstalled'
+}
 

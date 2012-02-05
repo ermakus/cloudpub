@@ -235,8 +235,13 @@
   // Export API
   //
 
+
   var uuid = v4;
   uuid.v1 = v1;
+  
+//  var TESTID=1;
+//  uuid.v1 = function() { return TESTID++; }
+
   uuid.v4 = v4;
   uuid.parse = parse;
   uuid.unparse = unparse;

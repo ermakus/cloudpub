@@ -35,7 +35,7 @@ script.list-template(type="text/template")
                         li
                             .state-icon-small
                                 img(src="state-<%= service.state %>.png")
-                            .state-info-small <%= service.message %>
+                            .state-info-small <%= service.name %>: <%= service.message %>
                         <% });%>
                 td.control
                     <% if(item.state != "up") { %>

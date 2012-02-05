@@ -10,14 +10,6 @@ if settings.MASTER
 else
     master = undefined
 
-# Clear entity from cache
-exports.clear =(entity, cb)->
-    cb and cb( null )
-
-# Save entity to storage
-exports.save = (entity, cb, ccb)->
-    cb and cb( null )
-
 # Load state from module
 exports.load = load = (id, entity, package, cb) ->
     if typeof(package) == 'function'
@@ -38,7 +30,7 @@ exports.query = query = (entity, params, cb) ->
     if typeof(params) == 'function'
         cb = params
         params = []
-    cb and cb( null )
+    cb(null)
 
 # Init web service
 exports.init = (app, cb)->

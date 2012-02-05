@@ -23,7 +23,7 @@ fi
 if [ ! -f "$TARGET/sbin/nginx" ] ; then
     echo "Building nginx"
     cd nginx-1.0.11
-    ./configure --prefix=$TARGET
+    ./configure --prefix=$TARGET --without-http_rewrite_module
     make
     make install
 fi

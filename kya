@@ -4,7 +4,7 @@ var cloudpub = undefined;
 try {
     cloudpub = require('./index.js');
 } catch( ex ) {
-    console.error("cloudpub not installed", ex);
+    console.error(ex.message, ex.stack );
     process.exit(1);
 }
 

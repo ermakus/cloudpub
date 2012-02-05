@@ -26,12 +26,13 @@ exports.create = create = (id, entity, package, cb) ->
         return cb and cb( new Error("Entity type or package not set") )
     if not id
         id = uuid.v1()
-    exports.log.debug "Create #{package}.#{entity} [#{id}]"
     if not (package and entity)
         return cb and cb( new Error("Can't create null entity") )
 
     if id of CACHE
         return cb and cb( null, CACHE[id] )
+
+    exports.log.debug "Create #{package}.#{entity} [#{id}]"
 
     try
         module = require('./' + package)
@@ -58,12 +59,13 @@ exports.create = create = (id, entity, package, cb) ->
 exports.clear =(entity, cb)->
         # Clear local cache
         delete CACHE[entity.id]
-        exports.log.info "Delete object #{entity.id}"
         # Remove from backend
         nconf.clear('object:' + entity.id)
         nconf.clear('index:' + entity.entity + ":" + entity.id )
+        if _.isEmpty( nconf.get('index:'+entity.state ) )
+            nconf.clear('index:' + entity.entity )
         nconf.save (err) =>
-            cb and cb(err)
+            cb(err)
 
 # Save entity to storage
 exports.save = (entity, cb)->
@@ -91,7 +93,11 @@ exports.load = load = (id, entity, package, cb) ->
         id = stored.id
 
     if id
-        stored = nconf.get("object:" + id)
+        fromdb = nconf.get("object:" + id)
+        if stored
+            _.defaults stored, fromdb
+        else
+            stored = fromdb
 
     if stored
         if stored.entity
@@ -120,8 +126,9 @@ exports.loadOrCreate = loadOrCreate = (id, entity, package, cb )->
         cb = entity
         package = entity = null
     load id, entity, package, (err, obj)->
-        return cb and cb(null, obj) if not err
+        return cb(null, obj) if not err
         create id, entity, package, (err, obj)->
+            return cb(err) if err
             obj.save (err)->
                 cb(err, obj)
 

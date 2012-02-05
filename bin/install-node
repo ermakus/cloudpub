@@ -27,3 +27,4 @@ if [ ! -f "$TARGET/bin/node" ] ; then
     make
     make install
 fi
+echo "Node runtime installed"

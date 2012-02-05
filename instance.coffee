@@ -1,15 +1,15 @@
 async        = require 'async'
 _            = require 'underscore'
 account      = require './account'
-serviceGroup = require './serviceGroup'
+group        = require './group'
 state        = require './state'
 settings     = require './settings'
 sugar        = require './sugar'
 
 #
-# Instance is remote host to execute services
+# Instance is remote host that run bunch of services
 #
-exports.Instance = class Instance extends serviceGroup.ServiceGroup
+exports.Instance = class Instance extends group.Group
 
     init: ->
         super()
@@ -20,36 +20,51 @@ exports.Instance = class Instance extends serviceGroup.ServiceGroup
         # Owner account
         @account = undefined
         # Port to listen
-        @port = "8080"
-
+        @port = 8080
+        # Home dir
+        @home = settings.HOME + '/cloudpub'
     
-    # Launch instance
-    # Will start some core services
+    # Launch instance and start some core services
+    # This method called from WEB
     launch: (event, cb) ->
         exports.log.info "Start instance", @id
 
-        if event
-            # Merge some params
-            @account = event.account or @account
-            @address = event.address or @address
-            @user    = event.user    or @user
-            @port    = event.port    or @port
-
+        # Init some params
+        @account = event.account or @account
+        @address = event.address or @address
+        @user    = event.user    or @user
+        @port    = parseInt(event.port or @port)
+    
         if not (@address and @user)
             return cb( new Error('Invalid address or user') )
 
+        # Init home dir
+        @home = (if @user == 'root' then '/root' else '/home/' + @user ) + '/cloudpub'
+
+        # Define IDs
+        RUNTIME  = @id + "-RUNTIME"
+        PROXY    = @id + "-PROXY"
+        CLOUDPUB = @id + "-CLOUDPUB"
+
         # Declare services
         services = [
-            { id:"runtime",  entity:'runtime' }
-            { id:"proxy",    entity:'proxy',    domain:@address, default:true, port:@port, depends:['runtime'] }
-            { id:"cloudpub", entity:'cloudpub', domain:@address, address:@address, port:(@port+1), depends:['runtime','proxy'] }
+            { id:RUNTIME,  entity:'module', name:'runtime',  port:'NONE' }
+            { id:PROXY,    entity:'module', name:'proxy',    domain:'localhost', default:true, port:@port }
+            { id:CLOUDPUB, entity:'module', name:'cloudpub', domain:'localhost', port:(@port+1) }
         ]
 
         async.waterfall [
                 # Create services
                 (cb)=>
                     @create(services, cb)
-                # Link instance with account
+                # Route events
+                (cb)=> sugar.route( 'started', RUNTIME,  'start',   PROXY,    cb )
+                (cb)=> sugar.route( 'started', PROXY,    'start',   CLOUDPUB, cb )
+                (cb)=> sugar.route( 'started', CLOUDPUB, 'started', @id,      cb )
+                (cb)=> sugar.route( 'success', CLOUDPUB, 'stop',    PROXY,    cb )
+                (cb)=> sugar.route( 'success', PROXY,    'stop',    RUNTIME,  cb )
+                (cb)=> sugar.route( 'success', RUNTIME,  'stopped', @id,      cb )
+                 # Link instance with account
                 (cb)=>
                     sugar.relate 'children', @account, @id, cb
                 # Route events to account
@@ -57,12 +72,33 @@ exports.Instance = class Instance extends serviceGroup.ServiceGroup
                     sugar.route 'state', @id, 'serviceState', @account, cb
                 # Start services
                 (cb)=>
-                    @start(event, cb)
+                    @start(cb)
             ], (err)->cb(err)
 
+    # Startup event handler
+    startup: (me, cb)->
+        # Start main service
+        # other services will start by events routing defined above
+        sugar.emit( 'start', @id + '-RUNTIME', cb)
+
+    # Stop instance (called from WEB)
+    stop: (params, cb)->
+        @doUninstall = @commitSuicide = (params.data == 'delete')
+        super(params, cb)
+
+    # Shutdown event handler
+    shutdown: (me, cb)->
+        async.series [
+            # Pass uninstall flag to each children
+            (cb)=> @each('set', {doUninstall:@doUninstall}, cb)
+            # Stop master service
+            (cb)=> sugar.emit( 'stop', @id + '-CLOUDPUB', cb)
+        ], cb
+
     clear: (cb)->
-        sugar.unrelate 'children', @account, @id, state.defaultCallback
-        super(null)
+        # Detach from account
+        sugar.unrelate 'children', @account, @id, (err)=>
+            group.Group.prototype.clear.call @, cb
 
 
 # List instancies for account

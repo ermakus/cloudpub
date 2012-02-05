@@ -69,11 +69,9 @@ exports.Cloudfu = class extends Command
         async.waterfall [
             (cb) -> state.create('test-suite', 'suite', cb)
             (suite, cb)->
-                suite.submitTests [
+                suite.createTests [
                         'core'
                         'instanceStart'
-#                        'appStart'
-#                        'appStop'
                         'instanceStop'
                 ], (err)-> cb( err, suite )
             (suite, cb) -> suite.start(cb)
@@ -127,41 +125,19 @@ exports.kya = (command, params, cb)->
         else
             cb( new Error("Method #{method} not supported") )
 
-# Get list of all executing commands of account
-listCommands = (entity, params, cb)->
+# List all sessions for current user
+listSessions = (entity, params, cb)->
+    # Load account and instancies
+    state.query 'session', cb
 
-    commands = []
+# Create or load session
+getSession = (params, entity, cb) ->
+    state.load params.id, entity, cb
 
-    # Get service commands
-    getCommands = (service, cb)->
-        service.resolve (err)->
-            cb(err) if err
-            for worker in service._children
-                commands.push worker
-            cb( null )
-
-    async.waterfall [
-        # Load account
-        (cb) ->
-            state.load params.account, cb
-        # Load services
-        (account, cb)->
-            async.map account.children, state.loadWithChildren, cb
-        # Collect commands from services
-        (services, cb)->
-            async.forEach services, getCommands, cb
-    ], (err)-> cb(err, commands)
-
-
-# Return command handler
-getCommand = (id, entity, cb)->
-    exports.log.info "Execute command: ", id
-    state.loadOrCreate id, 'cloudfu', cb
-
-# Init module
+# Init HTTP request handlers
 exports.init = (app, cb)->
     return cb(null) if not app
-    app.register 'cloudfu', listCommands, getCommand
+    app.register 'cloudfu', listSessions, getSession
     app.post '/kya', account.ensure_login, (req, resp)->
         req.params.account = req.session.uid
         exports.kya req.param('command').split(" "), req.params, (err)->

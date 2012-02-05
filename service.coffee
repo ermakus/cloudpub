@@ -1,31 +1,46 @@
-fs      = require 'fs'
-_       = require 'underscore'
-async   = require 'async'
-
+fs       = require 'fs'
+_        = require 'underscore'
+async    = require 'async'
+assert   = require 'assert'
 settings = require './settings'
-queue    = require './queue'
 command  = require './command'
 state    = require './state'
 sugar    = require './sugar'
 
+#### Service class
 #
-# Service object
+# Base class for all services.
 #
+##### Service life cycle events:
+#
+# - starting
+# - install (*)
+# - installed (*)
+# - startup
+# - started
+#
+# - shutdown
+# - stopped
+# - uninstall (*)
+# - uninstalled (*)
+# - success or failure
+#
+# (*) - is optional events
 
-exports.Service = class Service extends queue.Queue
+exports.Service = class Service extends state.State
 
     init: ->
         super()
-        # State, one of 'up', 'down', 'maintain'
+        # State, one of **up**, **down**, **maintain**
         @state = 'down'
-        # Service goal (start or stop)
+        # Service goal (**start**, **stop** or undefined)
         @goal = undefined
-        # Default message
-        @message = 'waiting'
-        # Owner account ID
+        # Default state message
+        @message = 'Waiting...'
+        # Service owner account ID
         @account = undefined
         # Address of SSH server to run
-        @address = undefined
+        @address = settings.INTERFACE
         # Posix user to run
         @user = settings.USER
         # Service public domain
@@ -34,227 +49,216 @@ exports.Service = class Service extends queue.Queue
         @port = settings.PORT
         # Interface to bind
         @interface = "127.0.0.1"
-        # Depends from services
-        @depends = []
 
-    # Add and resolve single dependence
+    #### Add and resolve single dependence
     addDependence: (depId, cb)->
+        sugar.vargs( arguments )
         sugar.relate( "depends", @id, depId, cb)
 
-    # Remove dependence
+    #### Remove dependence
     removeDependence: (depId, cb)->
+        sugar.vargs( arguments )
         # Ignore non-existend references
         sugar.unrelate( "depends", @id, depId, ((err)->cb(null)))
 
 
-    # Configure service and attach to groups
-    configure: (params, cb)->
+    #### Configure service and attach to groups
+    configure: (params..., cb)->
+        sugar.vargs( arguments )
         exports.log.info "Configure service",  @id, params
-
-        config = (name)=>
-            if name of params
-                @[name] = params[name]
-            if not @[name]
-                throw new Error("Service param #{name} not set")
-
-        if params
-            try
-                config "account"
-                config "address"
-                config "user"
-                config "port"
-            catch err
-                return cb(err)
- 
-        # Init home 
-        @home = "/home/#{@user}/.cloudpub"
-        @doUninstall = (params and params.doUninstall) or @doUninstall
-
+        
         # Configure service
-        async.waterfall [
+        async.series [
             # Save config
             (cb)=> @save(cb)
             # Resolve dependencies
-            (cb)=> async.forEach(@depends, ((id, cb)=>@addDependence(id,cb)), cb)
-        ], cb
+            (cb)=> async.forEach(@depends or [], ((id, cb)=>@addDependence(id,cb)), cb)
+        ], (err)->cb(err)
 
-    # Delete service and detach from others
+    #### Start service
+    # - *params* passed to `configure`
+    start: (params...,cb)->
+        sugar.vargs( arguments )
+        exports.log.info "Service start", @id
+        # Check depndenies
+        sugar.groupState @depends or [], (err, st)=>
+            return cb(err) if err
+            # If all is up then starting
+            if st == null or st == 'up' or st == 'error'
+                @goal = "start"
+                @state = "maintain"
+                # Configure service first
+                @configure params..., (err) =>
+                    return cb(err) if err
+                    @emit 'starting', @, cb
+            # else do nothing
+            else
+                cb(null)
+
+
+    #### Delete service and detach it from dependcies
     clear: (cb)->
+        sugar.vargs( arguments )
+        exports.log.info "Service delete", @id
         async.series [
-                # Remove dependencies
+                # Detach from dependencies
                 (cb)=>
                     async.forEach( @depends or [], ((id, cb)=>@removeDependence(id, cb)), cb)
                 # Call super
                 (cb)=>
-                    queue.Queue.prototype.clear.call @, cb
-            ], cb
+                    state.State.prototype.clear.call( @, cb )
+            ], (err)->cb(err)
 
-    # Start service
-    start: (params,cb)->
-        if typeof(params)=='function'
-            cb = params
-            params = undefined
+    #### Update state and message
+    # also emit 'state' event
+    # Can be called with service object as first parameter
+    # (useful for state event handling)
+    setState: (state, message, cb) ->
+        sugar.vargs(arguments)
+        if _.isFunction(message)
+            cb = message
+            message = null
 
-        exports.log.info "Service start", @id
-        if @state == 'up'
-            exports.log.warn "Service already started"
+        if state and _.isObject(state)
+            message = state.message
+            state = state.state
+        else
+            
+            message = message or @message
+            state   = state or @state
+
+        # Do not fire same event twice
+        fire = (message != @message) or (state != @state)
+        @state = state
+        @message = message
+        
+        exports.log.info "State: \##{@id} [#{@state}] #{@message}"
+
+        if not fire
             return cb(null)
-        @goal = "start"
-        @state = "maintain"
-        # On start handler
-        @configure params, (err) =>
+
+        @save (err)=>
             return cb(err) if err
-            @emit 'starting', @, cb
+            @emit 'state', @, cb
 
 
-    # Default 'starting' event handler
-    starting: (event, cb)->
+    #### Starting event handler
+    starting: (service, cb)->
+        sugar.vargs( arguments )
         exports.log.info "Service starting", @id
+        if not @isInstalled
+            @emit('install', @, cb)
+        else
+            @emit('startup', @, cb)
 
-        # Start service
-        # Called @install and @startup internally
-        async.waterfall [
-                # Check dependencies
-                (cb) =>
-                    sugar.groupState( @depends, cb )
-                # If dependecies not ready, break waterfall
-                (state, cb)=>
-                    state ||= 'up'
-                    if state != 'up'
-                        exports.log.warn "Start dependencies first", @depends
-                        cb("BREAK")
-                    else
-                        cb(null)
-                # Clear queue
-                (cb) =>
-                    queue.Queue.prototype.stop.call( @, cb )
-                # Fill queue by install commands 
-                (cb) =>
-                    if not @isInstalled
-                        @install(cb)
-                    else
-                        cb(null)
-                # Fill queue by startup commands
-                (cb) =>
-                    @startup(cb)
-                # Start queue
-                (cb) =>
-                    queue.Queue.prototype.start.call( @, cb )
-            ], (err)->
-                # Handle break
-                if err == "BREAK" then return cb(null)
-                cb(err)
+    #### Install event handler
+    install: (service, cb) ->
+        sugar.vargs( arguments )
+        exports.log.debug "Service install", @id
+        @emit 'installed', @, cb
 
-    # Service started event
-    started: (event, cb)->
+    #### Installed event handler
+    installed: (service, cb)->
+        sugar.vargs( arguments )
+        exports.log.debug "Service installed", @id
+        @isInstalled = true
+        @save (err)=>
+            return cb(err) if err
+            @emit('startup', @, cb)
+
+    #### Startup handler
+    startup: (service, cb) ->
+        sugar.vargs( arguments )
+        exports.log.debug "Service startup", @id
+        @emit 'started', @, cb
+
+    #### Started event handler
+    started: (service, cb)->
+        sugar.vargs( arguments )
         exports.log.info "Service started", @id
         @state = 'up'
         @goal  = undefined
-        @isInstalled = true
-        @save(cb)
+        @save cb
 
-    # Stop service
-    stop: (params,cb)->
+    #### Stop service
+    # - *params* is passed to `configure`
+    stop: (params...,cb)->
+        sugar.vargs( arguments )
         exports.log.info "Service stop", @id
-        if typeof(params)=='function'
-            cb = params
-            params = undefined
-        if @state == 'down'
-            exports.log.warn "Service already stopped", @state
-            return cb(null)
-        @goal = "stop"
-        @state = "maintain"
-        # On start handler
-        @configure params, (err) =>
+        # Check depndenies
+        sugar.groupState @_depends or [], (err, st)=>
             return cb(err) if err
-            @emit 'stopping', @, cb
-
-
-    # Stop service
-    stopping: (params, cb)->
-        exports.log.info "Service stopping", @id, @state
-
-        ifUninstall = (cb)=>
-            if @doUninstall
-                exports.log.info "Service uninstalling", @id
-                @uninstall (err)=>
+            # If all is down then stopping
+            if true #st == null or st == 'down'
+                @goal = "stop"
+                @state = "maintain"
+                @configure params..., (err) =>
                     return cb(err) if err
-                    @isInstalled = false
-                    @save(cb)
+                    @emit 'shutdown', @, cb
             else
+                # else do nothing
                 cb(null)
 
-        # Stop service
-        async.waterfall [
-                # Check dependencies
-                (cb) =>
-                    sugar.groupState( @_depends, cb )
-                # If dependecies not ready, break waterfall
-                (state, cb)=>
-                    state ||= 'down'
-                    if state != 'down'
-                        exports.log.warn "Service dependencies is running", @_depends
-                        cb("BREAK")
-                    else
-                        cb(null)
-                # Clear queue
-                (cb) =>
-                    queue.Queue.prototype.stop.call( @, cb )
-                # Submit shutdown job
-                (cb) =>
-                    @shutdown(cb)
-                # Submit uninstall job
-                (cb) =>
-                    ifUninstall(cb)
-                # Start queue
-                (cb) =>
-                    queue.Queue.prototype.start.call( @, params, cb)
-            ], (err)->
-                if err == "BREAK" then cb(null)
-                cb(err)
+    #### Shutdown event handler
+    shutdown: (service, cb) ->
+        sugar.vargs( arguments )
+        exports.log.info "Service shutdown", @id
+        @emit 'stopped', @, cb
 
-    # Service stopped event
-    stopped: (event, cb)->
-        exports.log.info "Service stopped", @id
+    #### Stopping event handler
+    stopped: (service, cb)->
+        sugar.vargs( arguments )
+        exports.log.info "Service stopped", @id, @state
         @state = 'down'
         @goal  = undefined
-        @save(cb)
+        @save (err)=>
+            return cb(err) if err
+            if @doUninstall
+                @emit 'uninstall', @, cb
+            else
+                @emit 'success', @, (err)=>
+                    return cb(err) if err
+                    if @commitSuicide
+                        @clear(cb)
+                    else
+                        cb(null)
 
-    # Queue success event
-    success: (event, cb)->
-        if @goal == 'start'
-            return @emit 'started', event, cb
-        if @goal == 'stop'
-            return @emit 'stopped', event, cb
-        cb(null)
+    #### Uninstall event handler
+    uninstall: (service, cb) ->
+        sugar.vargs( arguments )
+        exports.log.info "Service uninstall", @id
+        @installed = false
+        @save (err)=>
+            return cb(err) if err
+            @emit 'uninstalled', @, cb
+
+    #### Uninstalled event handler
+    uninstalled: (service, cb)->
+        sugar.vargs( arguments )
+        exports.log.info "Service uninstalled", @id
+        @emit 'success', @, (err)=>
+            return cb(err) if err
+            if @commitSuicide
+                @clear(cb)
+            else
+                @save(cb)
 
 
-    # Dependent services state event handler
-    serviceState: (event, cb)->
-        exports.log.info "Service state event", event
-        cb(null)
-
-    # Startup handler
-    startup: (cb) ->
-        cb and cb(new Error("Service: Startup not implemented"))
-
-    # Shutdown handler
-    shutdown: (cb) ->
-        cb and cb(null)
-
-    # Install handler
-    install: (cb) ->
-        cb and cb(new Error("Service: Install not implemented"))
-
-    # Uninstall handler
-    uninstall: (cb) ->
-        cb and cb(null)
-
-# Take servers from account
+# Get list of all services for account
 listServices = (entity, params, cb)->
-    state.load params.account, (err, account)->
-        return cb and cb(err) if err
-        async.map account.children, state.loadWithChildren, cb
+
+    async.waterfall [
+        # Load account
+        (cb) ->
+            state.load params.account, cb
+        # Load services
+        (account, cb)->
+            async.map account.children, state.loadWithChildren, cb
+        # Merge services in one collection
+        (services, cb)->
+            cb(null, _.reduce( services, ((memo, item)->memo.concat(item._children)), [] ))
+    ], cb
+
 
 # Init request handlers here
 exports.init = (app, cb)->

@@ -13,7 +13,7 @@ LocalStrategy  = require('passport-local').Strategy
 GoogleStrategy = require('passport-google').Strategy
 
 FORCE_USER=false
-AFTER_LOGIN='/app'
+AFTER_LOGIN='/instance'
 USER_PREFIX='user-'
 
 exports.log = console

@@ -8,7 +8,7 @@ settings = require './settings'
 ENTITY_NEW       = 'new'
 
 COMMAND_FORMS =
-    app_start: form(
+    service_launch: form(
         form.validate("command").required()
         form.validate("id").required().is(/^[a-zA-Z0-9\-\.]+$/)
         form.filter("source").trim().toLower(),
@@ -17,7 +17,7 @@ COMMAND_FORMS =
         form.validate("domain").required().is(/^[a-z0-9\.]+$/)
         form.validate("instance").required()
     )
-    app_stop: form(
+    service_stop: form(
         form.validate("command").required()
         form.validate("id").required().is(/^[a-zA-Z0-9\-\.]+$/)
         form.validate("data").required().is(/^(keep|delete)$/)
@@ -36,12 +36,6 @@ COMMAND_FORMS =
         form.validate("command").required()
         form.validate("id").required().is(/^[a-zA-Z0-9\.\-]+$/)
         form.validate("data").required().is(/^(keep|delete)$/)
-    )
-    service_start: form(
-        form.validate("command").required()
-    )
-    service_stop: form(
-        form.validate("command").required()
     )
     cloudfu_start: form(
         form.validate("command").required()
@@ -79,6 +73,7 @@ execCommand = (entity, factory, req,resp) ->
                 return resp.send err.message, 500
             # Send object state to client as JSON
             obj._children = undefined
+            exports.log.info "Command executed"
             resp.send obj
 
 #

@@ -1,63 +1,49 @@
-async = require 'async'
-state = require './state'
-service = require './service'
+#
+# Cloudpub module
+#
 
-# This class implements the main cloudpub service
+##### Startup commands
+exports.startup = -> [
+    {
+        entity:  "shell"
+        message: "Start Cloudpub"
+        state:   "maintain"
+        command: ["daemon", "-b", "#{@home}/lib/node_modules/cloudpub/",
+                  "start", @id, "#{@home}/lib/node_modules/cloudpub/server", '--port=' + @port ]
+        success:
+            state:'up'
+            message: 'Online'
+    }
+]
 
-exports.Cloudpub = class Cloudpub extends service.Service
+##### Shutdown commands
+exports.shutdown = -> {
+    entity:  "shell"
+    message: "Stop Cloudpub"
+    state:   "maintain"
+    command:["daemon", "stop", @id]
+    success:
+        state:   'down'
+        message: 'Offline'
+}
 
-    # Configure service by params dictionary
-    configure: (params..., cb)->
-        @source = "test"
-        @name = "test"
-        super params..., cb
+exports.install = -> {
+    entity: 'shell'
+    message: "Install Cloudpub"
+    state:   "maintain"
+    command:["npm","-g","install",__dirname]
+    success:
+        state:'maintain'
+        message: 'Cloudpub Installed'
+}
 
-    startup: (params..., cb) ->
-        @submit({
-            entity: 'shell'
-            package: "worker"
-            message: "Start Cloudpub"
-            state:   "maintain"
-            command:["kya", "params"]
-            success:
-                state:'up'
-                message: 'Online'
-        }, cb)
-
-    shutdown: (params..., cb) ->
-        @submit({
-            entity: 'shell'
-            package: "worker"
-            message: "Stop Cloudpub"
-            state:   "maintain"
-            command:["kya", "params"]
-            success:
-                state:'down'
-                message: 'Terminated'
-        }, cb)
-
-
-    install: (cb) ->
-        @submit({
-            entity: 'shell'
-            package: "worker"
-            message: "Install Cloudpub"
-            state:   "maintain"
-            command:["npm", "-g", "--prefix", @home, 'install', @source]
-            success:
-                state:'maintain'
-                message: 'Cloudpub Installed'
-        }, cb)
-
-    uninstall: (cb) ->
-        @submit({
-            state: 'maintain'
-            message: "Uninstall Cloudpub"
-            entity:  'shell'
-            package: 'worker'
-            command:["npm", "-g", "--prefix", @home, 'uninstall', @name]
-            success:
-                state:'down'
-                message: 'Cloudpub Uninstalled'
-        }, cb)
+exports.uninstall = -> {
+    state: 'maintain'
+    message: "Uninstall Cloudpub"
+    entity:  'shell'
+    command:["npm","-g","uninstall","cloudpub"]
+    success:
+        state:'down'
+        message: 'Cloudpub Uninstalled'
+}
 

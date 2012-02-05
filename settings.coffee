@@ -16,6 +16,9 @@ nconf.env()
 # Port to listen
 @PORT   = PORT   = nconf.get('port') or 4000
 
+# Network interface to run
+@INTERFACE= nconf.get('interface') or '127.0.0.1'
+
 # Master node domain
 @MASTER = nconf.get('master') or undefined
 
@@ -30,6 +33,12 @@ nconf.env()
 
 # Public key file path
 @PUBLIC_KEY_FILE = "#{@HOME}/.ssh/id_rsa.pub"
+
+# Dry run - do not execute shell commands
+@DRY_RUN = nconf.get('dry-run') or false
+
+# Debug mode
+@DEBUG = nconf.get('debug') or false
 
 # Public key file
 try

@@ -22,9 +22,9 @@ check() {
 }
 
 USER=$(whoami)
-HOMEDIR=/home/$USER/.cloudpub
-PIDFILES=$HOMEDIR/var/pid
 WORKDIR=$PWD
+HOMEDIR=$PWD
+PIDFILES=$HOMEDIR/var/pid
 mkdir -p $PIDFILES
 
 while getopts "hb:" OPTION

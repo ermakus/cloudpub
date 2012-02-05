@@ -3,19 +3,30 @@ h1 Services
 .page
     .loading
 
+a.btn.primary.launch-new(href="#") Install Service
+
+.popover
+    ol
+        li a folder on servers that containing a program described by a package.json file
+        li a gzipped tarball containing (1)
+        li a url that resolves to (2)
+        li a [name]@[version] that is published on the registry with (3)
+        li a [name]@[tag] that points to (4)
+        li a [name] that has a "latest" tag satisfying (5)
+        li a git url that, when cloned, results in (1).
+
 // Module script
 != js('/js/service.js')
 
-// Below is client-side _.templates (use <% %>!)
+// Below is client-side _.templates (use <% %> and other identation!)
 // Items list
 script.list-template(type="text/template")
     table.bordered-table.zebra-striped
         thead
             tr
                 th.state Service
-                th.domain Domain
-                th.worker Work Queue
-                th.control &nbsp;
+                th.domain Endpoint
+                th.control &nbsp; 
         tbody
             <% _.each(items, function(item) { %>
             tr
@@ -25,34 +36,81 @@ script.list-template(type="text/template")
                             img(src="state-<%=item.state%>.png")
                             .state-hole <%= item.children && item.children.length || 0 %>
                     .state-info
-                        h3 <%=item.name || item.source %>
+                        h3 <%=item.name || item.source%>
                         span <%= item.message %> 
-                 td.domain
+                td.domain
                     h3
-                        a(href="http://<%=item.domain%>:<%=item.port%>", target="new") <%=item.domain%>:<%=item.port%>
-                td.worker
-                    ul.state-list
-                        <% _.each(item._children, function(worker) { %>
-                        li
-                            .state-icon-small
-                                img(src="state-<%=worker.state%>.png")
-                            .state-info-small <%= worker.message %>
-                        <% }); %>
+                        <% if(item.port != 'NONE') { %>
+                        a(href="http://<%= item.domain %>:<%= item.port %>",target="_new") <%=item.domain%>:<%= item.port %>
+                        <% } %>
                 td.control
                     <% if(item.state != "up") { %>
-                    img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="start")
+                    img.btn.command(src="command-start.png",data-id="<%=item.id%>",data-command="launch")
                     <% } %>
                     img.btn.command(src="command-stop.png",data-id="<%=item.id%>",data-command="stop")
             <% }); %>
 
+// Instances list
+script.instances-template(type="text/template")
+    ul.state-list
+        <%  if(_.isEmpty(items)) { %>
+        input.required(type="hidden",name="instance")
+        li
+            a.important(href="/instance") Click here to add server first
+        <% } %>
+        <% _.each(items, function(item) { %>
+        li
+            .state-icon-small
+                img(src="state-<%=item.state%>.png")
+                input.required(id="<%= item.id %>",type="checkbox",name="instance",value="<%= item.id %>",checked="false")
+            .state-info-small
+                label.instance-address(for="<%= item.id %>") &nbsp;<%= item.address %>
+        <% }); %>
+
+  
 // Start dialog
-script.start-template(type="text/template")
-    .start.modal.hide.fade
+script.launch-template(type="text/template")
+    .launch.modal.hide.fade
         .modal-header
             a.close(href="#") × 
             h3 Start Service
         form.modal-body
-            .clearfix
+            ul.tabs
+                li.active
+                    a(href="#settings")  Settings
+                li
+                    a(href="#servers") Servers
+            .tab-content
+                #settings.active
+                    .clearfix
+                        label Source
+                        .input
+                            input.required.urlpopover(type="text",name="source",value="<%= item.name || item.source%>")
+                            span.help-block
+                                span Provide name or URL of the &nbsp;
+                                a(href="http://npmjs.org/", target="new",rel='twipsy',title='Node.js package manager') npm
+                                span &nbsp;compatible package that containing a&nbsp;
+                                a(href="http://npmjs.org/doc/json.html", target="new", rel='twipsy',title='File containing app configuration and dependencies') package.json
+                                span &nbsp;manifest.
+                    .clearfix
+                        label Domain Name
+                        .input
+                            input.required.domain(type="text",name="domain",value="<%= item.domain %>")
+                            span.help-block
+                                div Select public domain name for this service
+                                div Use [subdomain].cloudpub.us or enter your own domain name that point to server IP.
+                #servers
+                    .clearfix
+                        label Server to run
+                        .input
+                            #items
+                            span.help-block
+                                span Select server(s) to run app
+                                div If multiple servers is selected, load balancing will be performed.
+                                div 
+                                    span Use servers in
+                                    span(style="color: green") &nbsp;green&nbsp;
+                                    span state to avoid errors.
         .modal-footer
             a.btn.primary.execute(href="#") Start Service
             a.btn.secondary.cancel(href="#") Cancel
@@ -65,6 +123,19 @@ script.stop-template(type="text/template")
             h3 Stop Service
         form.modal-body
             .clearfix
+                label Service Data
+                .input
+                    ul.inputs-list
+                        li
+                            label
+                                input(type="radio", checked="true", name="data", value="keep")
+                                b Keep service data
+                                span.help-block You can restart service later
+                        li
+                            label
+                                input(type="radio", name="data", value="delete")
+                                span.red Uninstall service and purge data
+                                span.help-block This cannot be undone! Use this with caution.
         .modal-footer
             a.btn.primary.execute(href="#") Stop Service
             a.btn.secondary.cancel(href="#") Cancel

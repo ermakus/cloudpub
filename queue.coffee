@@ -1,130 +1,103 @@
 _       = require 'underscore'
 async   = require 'async'
+sugar   = require './sugar'
 state   = require './state'
 io      = require './io'
 group   = require './group'
 
 #
-# Work queue
+# Queue of services
+#
+# This is group of services that executed one by one
 #
 exports.Queue = class Queue extends group.Group
 
-    # Start executing of workers in queue
-    start: (params...,cb) ->
-        @continue(params..., cb)
+    # Start executing of services in queue
+    startup: ( me, cb ) ->
+        sugar.vargs arguments
+        exports.log.info "Queue: Start", @id
+        @emit 'started', @, (err)=>
+            return cb(err) if err
+            @continue(cb)
 
-    # Stop and delete all workers
-    stop: (params...,cb)->
-        exports.log.info "Stop queue #{@id}"
-        # Clear all workers
-        async.forEach @children,((id,cb)=>@stopWorker(id,params...,cb)), cb
+    # Start executing of services in queue
+    continue: (params..., cb) ->
+        sugar.vargs arguments
+        process.nextTick =>
+            if @children.length
+                exports.log.debug "Queue: Continue", @children[0]
+                @startService @children[0], params..., state.defaultCallback
+            else
+                exports.log.info "Queue: Empty"
+                @shutdown( @, state.defaultCallback )
+        cb(null)
 
-    # Start executing of workers in queue
-    continue: (params...,cb) ->
-        if @children.length
-            exports.log.debug "Queue: Continue", @children[0]
-            @startWorker @children[0], params, cb
-        else
-            exports.log.info "Queue: Empty"
-            cb(null)
-
-
-    # Submit task
-    submit: ( params, cb ) ->
-        # If array passed then submit all
-        if params and _.isArray(params)
-            return @submitAll params, cb
-
-        exports.log.info "Queue: Submit " + JSON.stringify(params)
-        state.create params, (err, worker) =>
-            return cb and cb(err) if err
-
-            # Inherit defaults from queue 
-            worker.user    = @user    or worker.user
-            worker.address = @address or worker.address
-            worker.home    = @home    or worker.home
-
-            worker.on 'failure', 'workerFailure', @id
-            worker.on 'success', 'workerSuccess', @id
-
-            async.waterfall [
-                    (cb) => worker.save(cb)
-                    (cb) => @add(worker.id, cb)
-                    (cb) => @save(cb)
+    # Start service with specific ID
+    startService: (id, params..., cb)->
+        sugar.vargs arguments
+        exports.log.debug "Queue: Start service", id
+        state.load id, (err, service)=>
+            return cb(err)  if (err)
+            return cb(null) if service.state == 'up'
+            async.series [
+                    (cb) => @setState(service.state, service.message, cb)
+                    (cb) => service.start( params..., cb )
                 ], (err)->cb(err)
 
-    # Submit job list
-    submitAll: ( list, cb ) ->
-        async.forEachSeries list, ((item, cb)=>@submit(item, cb)), cb
+    ###
+    # Stop execution
+    shutdown: ( me, cb )->
+        sugar.vargs arguments
+        exports.log.info "Queue: Stop", @id
+        # Stop all services
+        async.forEach @children,((id,cb)=>@stopService(id,params...,cb)), (err)=>
+            return cb(err) if err
+            Queue.__super__.shutdown.call @, params..., cb
 
-    # Internals
+    ###
 
-    success: (event, cb) ->
-        cb(null)
-   
-    # Start worker with specific ID
-    startWorker: (id, params, cb)->
-        state.load id, (err, worker)=>
-            return cb(err) if (err)
-            return cb(null) if worker.state == 'up'
-            async.waterfall [
-                    (cb) => @setState(worker.state, worker.message, cb)
-                    (cb) => worker.setState( 'up', cb )
-                    (cb) => worker.start( params..., cb )
-                ], cb
-
-    # Stop and delete worker
-    stopWorker: (id, params, cb)->
-        async.waterfall [
-                (cb) -> state.load( id, cb )
-                (worker, cb) -> worker.stop( params..., cb )
-                (cb) => @remove(id, cb)
-            ], cb
-
-
-    # Worker error handler
-    workerFailure: (worker, cb) ->
-        exports.log.error "Queue: Worker failed", worker.id
+    # Stop and delete service
+    stopService: (id, params..., cb)->
+        sugar.vargs arguments
+        exports.log.debug "Queue: Stop service", id, params
         async.series [
-            (cb) => worker.setState( 'error', cb )
-            (cb) => @setState( 'error', worker.message, cb )
+                (cb) => @remove(id, cb)
+                (cb) => sugar.emit('clear', id,  cb)
+            ], (err)->cb(err)
+
+    # Queue has different from group state management
+    serviceState: (name, params..., cb) ->
+        sugar.vargs arguments
+        if name == 'success'
+            return @serviceSuccess(params..., cb)
+        if name == 'failure'
+            return @serviceFailure(params..., cb)
+        cb(null)
+
+    # Service error handler
+    serviceFailure: (service, cb) ->
+        sugar.vargs arguments
+        exports.log.error "Queue: Service failed", service.id
+        async.series [
+            (cb) => service.setState( 'error', cb )
+            (cb) => @setState( 'error', service.message, cb )
             (cb) => @emit( 'failure', @, cb )
         ], cb
 
-    # Worker success handler
-    workerSuccess: (worker, cb) ->
-        exports.log.info "Queue: Worker succeeded", worker.id
+    # Service success handler
+    serviceSuccess: (service, cb) ->
+        sugar.vargs arguments
+        exports.log.debug "Queue: Service succeeded", service.id
         async.series [
-            # Activate success worker trigger (TODO: pass to submit)
+            # Activate success trigger (TODO: pass to submit)
             (cb)=>
-                if _.isObject(worker.success)
-                    @setState worker.success.state, worker.success.message, cb
+                if _.isObject(service.success)
+                    @setState service.success.state, service.success.message, cb
                 else
                     cb(null)
-            # Stop worker
+            # Stop service
             (cb)=>
-                @stopWorker(worker.id, [], cb)
-            # Emit success event
+                @stopService(service.id, service, cb)
             (cb)=>
-                if not @children.length
-                    @emit 'success', @, cb
-                else
-                    cb(null)
-            # Start queue again
-            (cb)=>
-                # On the next tick
-                process.nextTick =>
-                    @continue (err) ->
-                        if err then exports.log.error "Queue: Continue error", err.message
-                cb(null)
-            ], cb
-
-    
-    # Queue manage state defferently from group
-    updateState: (event, cb)->
-        cb(null)
-
-
-exports.init = (app, cb)->
-    if app then app.register 'queue'
-    cb and cb( null )
+                @continue(cb)
+            ], (err)-> cb(err)

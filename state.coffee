@@ -1,12 +1,19 @@
+#### This module contains persistent state management functions
+
 nconf    = require 'nconf'
 _        = require 'underscore'
 async    = require 'async'
 events   = require 'events'
+uuid     = require './uuid'
 io       = require './io'
 settings = require './settings'
+sugar    = require './sugar'
 
 # Module ref
 state = exports
+
+# UUID generator
+state.uuid = uuid.v1
 
 # List of storage backends
 BACKENDS = [
@@ -17,32 +24,36 @@ BACKENDS = [
 # Methods backend supported
 BACKEND_METHODS = [ 'create', 'load', 'save', 'clear', 'loadOrCreate', 'query', 'loadWithChildren' ]
 
-#
-# Persistent state
-#
+#### Persistent state
 exports.State = class State
 
-    # Create or load state
-    # @entity = entity name
-    # @id = entity ID (if not null then state retreived from storage)
+    #### Create or load state
+    # - *id* is entity ID
     constructor: (@id)->
         @init()
 
-    # Init state defaults
+    #### Init state defaults
     init: ->
+        # Event handlers
         @events = {}
-        @state = 'down'
         # Each object has machine instance ID
         @instance = settings.ID
 
-    # Return type of object
+    #### Return type of object
     type: ->
         results = (/function (.{1,})\(/).exec((this).constructor.toString())
         if results?.length then results[1] else "Unknown"
 
-    # Save state
+    # Set object properties and save
+    set: (props, cb)->
+        sugar.vargs arguments
+        _.extend( @, props )
+        @save(cb)
+
+    #### Save state
     save: (cb) ->
-        return cb and cb(null) unless @id
+        sugar.vargs(arguments)
+        return cb(null) unless @id
         exports.log.debug "Save: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
         # Remove resolved children before save
         @_children = undefined
@@ -50,109 +61,63 @@ exports.State = class State
         @stump = Date.now()
         exports.save @, cb
 
-    # Clear and remove from storage
+    #### Clear and remove from storage
     clear: (cb) ->
+        sugar.vargs(arguments)
         if @id
+            exports.log.debug "Delete state", @id
             exports.clear @, (err) =>
                 @id = undefined
-                cb and cb( null )
+                cb( null )
         else
-            cb and cb( null )
+            cb( null )
 
-    # Emit event to registered handlers
-    emit: (name, event, cb=state.defaultCallback)->
-        # Helper to call event listener
-        callHandler = (handler, cb) =>
-            # Clone event from original
-            cloneEvent = _.clone(event)
-            cloneEvent.source = @id
-            cloneEvent.target = handler.id
-            cloneEvent.method = handler.handler
-            # Marshall event over system rourer
-            exports.log.error "Emit #{name} from \##{@id} as #{handler.handler} to \##{handler.id}"
-            state.emit name, cloneEvent, cb
+    #### Handle event and dispatch to registered handlers
+    # This method will call this[name] function if defined
+    emit: (name, params..., cb)->
+        sugar.vargs(arguments)
+        async.series [
+            # Fire event to catch all hook, if registered
+            (cb)=>
+                if '*' of @events
+                    async.forEach(@events['*'], ((h, cb)->sugar.emit(h.handler, h.id, name, params..., cb)), cb)
+                else
+                    cb(null)
+            # Call local hook
+            (cb)=>
+                if typeof(@[name]) == 'function'
+                    exports.log.debug "Handle event #{name} by \##{@id}"
+                    @[name](params..., cb)
+                else
+                    cb(null)
+            # Route to subscribers
+            (cb)=>
+                if name of @events
+                    async.forEach(@events[name], ((h, cb)->sugar.emit(h.handler, h.id, params..., cb)), cb)
+                else
+                    cb(null)
+        ], (err)->cb(err)
 
-        callLocal = (cb)=>
-            if typeof(@[name]) == 'function'
-                exports.log.warn "Call local handler"
-                @[name](event, cb)
-            else
-                cb(null)
-
-        callLocal (err)=>
-            if name of @events
-                async.forEach @events[name], callHandler, cb
-            else
-                cb(null)
-
-    # Handle event, called internally by router
-    eventTarget: (name, event, cb)->
-        if not event?.method
-            return cb( new Error("Target event.method not set: " + event?.type() ) )
-        if typeof( @[event.method] ) == 'function'
-            @[event.method](event, cb)
-        else
-            return cb( new Error("Target method not found: " + @type() + "." + event.method) )
-
-
-    # Register event handler
-    # name = name of event
-    # handler = name of method(event, cb)
-    # id = object id to call handler
+    #### Register event handler
+    # - name is name of event
+    # - handler is name of method(event, cb)
+    # - id is object id to call handler
     on: (name, handler, id)->
         @mute name, handler, id
         @events[name] ?=[]
         @events[name].push {handler, id}
 
-    # Remove event handler
+    #### Remove event handler
     mute: (name, handler, id)->
         if name of @events
             @events[name] = _.filter( @events[name], (h)->( not ((h.id == id) and (h.handler == handler)) ) )
 
-    # Update state and message
-    # also emit 'state' event
-    setState: (state, message, cb) ->
-        if state
-            @state = state
-        if typeof(message) == 'function'
-            cb = message
-        else
-            @message = message
-    
-        write = exports.log.info
-        if @state == 'down'
-            write = exports.log.warn
-        if @state == 'error'
-            write = exports.log.error
-        write.call exports.log, "State: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
-        @save (err)=>
-            return cb and cb(err) if err
-            @emit 'state', @, cb
-
-
-# Emit event to event.target
-# Name is event namespace
-# If target object is not local, route it over socket.io
-state.emit = (name, event, cb=state.defautCallback)->
-    if not event?.target
-        cb(new Error("Event target not set"))
-    # Load target object
-    state.load event.target, (err, obj)->
-        return cb(err) if err
-        # if object instance is local (i.e. equals ID)
-        if not obj.instance or (obj.instance == settings.ID)
-            exports.log.debug "Route event to", event.target
-            # then handle event locally
-            obj.eventTarget name, event, cb
-        else
-            exports.log.debug "Route remote", event.target, obj.instance
-            # else route event over socket.io
-            io.emit name, event, cb
-
-# Call method from backend stack
+# Helper to call method from backend stack
 backendHandler = (method)->
 
-    return (args..., callback)->
+    return (args..., callback=state.defaultCallback)->
+        sugar.vargs(arguments)
+
         callBackend = (memo, backend, cb)->
 
             # Avoid strange (async?) bug with null item
@@ -167,7 +132,7 @@ backendHandler = (method)->
         async.reduce BACKENDS, [], callBackend, (err, result)->
             callback( err, result... )
 
-# Init proxy storage methods
+# Create backend methods
 for method in BACKEND_METHODS
     exports[method] = backendHandler method
 

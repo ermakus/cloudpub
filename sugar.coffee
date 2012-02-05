@@ -1,15 +1,57 @@
+#### Syntax sugar for some frequently used functions
+
+# Dependencies
 _     = require 'underscore'
 async = require 'async'
 state = require './state'
+assert = require 'assert'
 
+#### Validate correctness of the function call
 #
-# Syntax sugar for fOOp
+# Used for fighting callback hell
 #
+exports.vargs = vargs = (args)->
+    try
+        #exports.log.trace "Arguments", ("#{typeof(a)}:#{JSON.stringify(a)}" for a in args)
+        assert.ok(args.length > 0)
+        assert.ok(args[args.length-1])
+        assert.ok(_.isFunction(args[args.length-1]))
+    catch ex
+        exports.log.fatal "Bad arguments", ("#{typeof(a)}:#{JSON.stringify(a)}" for a in args)
+        exports.log.fatal item for item in (new Error().stack).split("\n")[2...]
+        process.exit(1)
 
-# Add bi-directional relation between obects
-# name = name of attribute
-# from, to = object IDs 
+#### Send event to target object by id
+#
+# This function is send event to the target object, 
+# even if object executed on other machine instance
+#
+# - *name* is name of event
+# - *target* ID or array of target(s)
+# - *params* Event handler parameters
+exports.emit = emit = (name, target, params..., cb=state.defaultCallback)->
+    vargs arguments
+    # Handle emit to group
+    if _.isArray(target)
+        return async.forEach target, ((id,cb)->emit(name, id, params..., cb)), cb
+    # Load object and handle event
+    exports.log.debug "Emit #{name} to \##{target}", params
+    state.load target, (err, obj)->
+        if err
+            if err.message.indexOf("Reference not found") == 0
+                exports.log.warn "Emit event to missing object", err.message
+                return cb(null)
+            return cb(err)
+        obj.emit(name, params..., cb)
+
+
+#### Add bi-directional relation between obects
+#
+# - *name* is name of attribute, that should be array of IDs
+# - *from*, *to* is IDs of source and target objects
+#
 exports.relate = (name, from, to, cb)->
+    assert.ok _.isFunction(cb)
     exports.log.debug "Link #{name} from #{from} to #{to}"
     async.waterfall [
         # Load source object
@@ -38,8 +80,12 @@ exports.relate = (name, from, to, cb)->
                 cb(null)
         ], cb
 
-# Remove relation
+#### Remove relation
+#
+# Arguments is the same as in `relate`
+#
 exports.unrelate = (name, from, to, cb)->
+    assert.ok _.isFunction(cb)
     exports.log.debug "Unlink #{name} from #{from} to #{to}"
     async.waterfall [
         # Load source object
@@ -68,65 +114,73 @@ exports.unrelate = (name, from, to, cb)->
                 cb(null)
         ], (err)->cb(err)
 
-# Route events from one object to another
-# fromEvent = name of event
-# from = source ID
-# toEvent = name of handler
-# to = target ID
+##### Route events from one object to another
+#
+# - *fromEvent* is name of the event
+# - *from* is source object ID
+# - *toEvent* is name of handler
+# - *to* is target object id
+#
 exports.route = (fromEvent, from, toEvent, to, cb)->
+    assert.ok _.isFunction(cb)
     exports.log.debug "Route event #{fromEvent} from (#{from}) to handler #{toEvent} (#{to})"
     async.waterfall [
             # Load source object
             (cb)->
                 state.load(from, cb)
-            # Update from.name array
+            # Subscribe to event and save
             (fromObj, cb)->
                 fromObj.on(fromEvent, toEvent, to)
                 fromObj.save(cb)
         ], (err)->cb(err)
 
-# Remove events routing
-# fromEvent = name of event
-# from = source ID
-# toEvent = name of handler
-# to = target ID
+#### Remove events routing
+#
+# Arguments is the same as in `route`
+#
 exports.unroute = (fromEvent, from, toEvent, to, cb)->
+    assert.ok _.isFunction(cb)
     exports.log.debug "Unroute event #{fromEvent} from (#{from}) to handler #{toEvent} (#{to})"
     async.waterfall [
             # Load source object
             (cb)->
                 state.load(from, cb)
-            # Update from.name array
+            # Unsubscribe from event
             (fromObj, cb)->
                 fromObj.mute(fromEvent, toEvent, to)
                 fromObj.save(cb)
         ], (err)->cb(null)
 
 
-# Return group state from children states
-# null (type) = Children is null or empty
-# up          = all children is up
-# down        = all children is down
-# error       = at least 1 child error
-# maintain    = any other
-# result state passed to callback
+#### Return state of the group by checking each object
+#
+# Result is passed in callback as:
+#
+# - "up" if all children is up
+# - "down" if all children is down
+# - "error" if at least 1 child error
+# - "maintain" if any other
+# - or *null* if children is empty
+#
 exports.groupState = (children, cb)->
+    assert.ok _.isFunction(cb)
 
-    if _.isEmpty(children) then return cb(null,null)
+    if _.isEmpty(children)
+        return cb(null,null)
 
     states = {up:0,maintain:0,down:0,error:0}
 
     checkState = (id, cb)->
         state.load id, (err, child)->
-            # Non-exist children in error state
+            # Non-exist children state is error
             if err
                 states[ 'error' ] += 1
             else
                 states[ child.state ] += 1
-            cb and cb(null)
+            cb(null)
 
     async.forEach children, checkState, (err)=>
-        return cb and cb(err) if err
+        return cb(err) if err
         if states['up'] == children.length
             return cb(null,'up')
         if states['down'] == children.length

@@ -14,7 +14,7 @@ main.init( function(err, server) {
             main.stop();
             process.exit(1);
         });
-        main.log.info("Server started on " + settings.DOMAIN + ":" + settings.PORT );
+        main.log.info("Server started on " + settings.INTERFACE + ":" + settings.PORT );
         server.listen( settings.PORT );
     }
 });

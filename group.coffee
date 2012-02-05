@@ -2,10 +2,11 @@ _       = require 'underscore'
 async   = require 'async'
 state   = require './state'
 tsort   = require './topologicalSort.js'
+service = require './service'
 sugar   = require './sugar'
 
 # Object group
-exports.Group = class Group extends state.State
+exports.Group = class Group extends service.Service
 
     # Init instance
     init: ->
@@ -14,68 +15,35 @@ exports.Group = class Group extends state.State
         @children = []
 
     # Add children to group
-    add: (id, cb) ->
+    add: (id, cb=state.defaultCallback) ->
+        sugar.vargs arguments
         if id in @children then return cb and cb(null)
         exports.log.info "Add #{id} to #{@id}"
         @children.push id
         async.series [
-                (cb)=> sugar.route('state',   id, 'updateState', @id, cb)
-                (cb)=> sugar.route('started', id, 'continue', @id, cb)
-                (cb)=> sugar.route('stopped', id, 'continue', @id, cb)
-                (cb)=> @save cb
+                (cb)=> @save(cb)
+                (cb)=> sugar.route('*', id, 'serviceState', @id, cb)
             ], (err)->cb(err)
 
     # Remove children from group
-    remove: (id, cb) ->
+    remove: (id, cb=state.defaultCallback) ->
+        sugar.vargs arguments
         if id in @children
             exports.log.info "Remove #{id} from #{@id}"
             @children = _.without @children, id
             async.series [
-                (cb)=> sugar.unroute('state', id, 'updateState', @id, cb)
-                (cb)=> sugar.unroute('started', id, 'continue', @id, cb)
-                (cb)=> sugar.unroute('stopped', id, 'continue', @id, cb)
-                (cb)=> @save cb
+                (cb)=> @save(cb)
+                (cb)=> sugar.unroute('*', id, 'serviceState',   @id, cb)
             ], (err)->cb(err)
         else
-            cb and cb(null)
-
-    # Reorder with dependency topological sort
-    reorder: (cb)->
-        async.map @children, state.load, (err, services)=>
-            reordered = []
-            for index in tsort.topologicalSort( services )
-                reordered.unshift @children[index]
-            exports.log.info "New order", reordered
-            @children = reordered
-            @save(cb)
-
-    # Call method for each children
-    each: (method, params, cb)->
-    
-        if(typeof(params)=='function')
-            cb = params
-            params=undefined
-
-        # Load target and call method
-        process = (id, cb) =>
-            # In case of blueprint we can create object
-            state.load id, (err, instance) =>
-                return cb(err) if err
-                # If object is just created
-                exports.log.debug "Call method", method, "of", instance.id
-                if params
-                    instance[method](params, cb)
-                else
-                    instance[method](cb)
-
-        async.forEach @children, process, (err)->
-            cb(err)
+            cb(null)
 
     # Create and init children
     create: ( params, cb ) ->
+        sugar.vargs arguments
         # If array passed then submit all
         if params and _.isArray(params)
-            return @createAll(params, cb)
+            return async.forEachSeries params, ((item, cb)=>@create(item, cb)), cb
         
         exports.log.info "Group: Create " + JSON.stringify(params)
 
@@ -86,79 +54,112 @@ exports.Group = class Group extends state.State
             worker.user    = @user    or worker.user
             worker.address = @address or worker.address
             worker.home    = @home    or worker.home
+        
+            exports.log.info "Group: Created " + JSON.stringify(worker)
 
-            async.waterfall [
+            async.series [
                     (cb) => worker.save(cb)
                     (cb) => @add(worker.id, cb)
                 ], (err)->cb(err)
 
-    # Submit job list
-    createAll: ( list, cb ) ->
-        async.forEachSeries list, ((item, cb)=>@create(item, cb)), cb
+    # Start all children
+    startup: (group, cb)->
+        sugar.vargs arguments
+        exports.log.debug "Group starting", @id
+        async.series [
+            (cb)=>@save(cb)
+            (cb)=>@each('start', cb)
+        ], cb
 
+    # Stop all children
+    shutdown: (group, cb)->
+        sugar.vargs arguments
+        exports.log.debug "Group stopping", @id
+        async.series [
+            (cb)=>@each('stop', cb)
+            (cb)=>
+                if not @children.length
+                    @emit 'stopped', @, cb
+                else
+                    cb(null)
+        ], cb
 
-    # Update group state and fire events 
-    updateState: (event, cb)->
-        exports.log.info "Update group state", @id, event.message
+    # Delete group and children
+    clear: (cb)->
+        sugar.vargs arguments
+        async.series [
+            (cb) => @each('clear', cb)
+            (cb) => Group.__super__.clear.call( @, cb )
+        ], (err)->cb(err)
+
+    # Reorder with dependency topological sort
+    reorder: (cb)->
+        sugar.vargs arguments
+        async.map @children, state.load, (err, services)=>
+            reordered = []
+            for index in tsort.topologicalSort( services )
+                reordered.unshift @children[index]
+            exports.log.debug "Group new order", reordered
+            @children = reordered
+            @save(cb)
+
+    # Call method for each children
+    each: (method, params..., cb)->
+        sugar.vargs arguments
+        # Load target and call method
+        process = (id, cb) =>
+            # In case of blueprint we can create object
+            state.load id, (err, instance) =>
+                return cb(err) if err
+                # If object is just created
+                exports.log.debug "Call method", method, "of", instance.id
+                instance[method](params..., cb)
+
+        async.forEach @children, process, (err)->
+            cb(err)
+
+    # Update group state and fire events
+    serviceState: ( name, params..., cb)->
+        sugar.vargs arguments
+        return cb(null) if name not in ['success', 'failure', 'state']
+        service = params[0]
         async.waterfall [
             # Get children state
             (cb)=>
                 sugar.groupState(@children,cb)
             # Update group state
             (st, cb)=>
-                st ||= 'up' # Empty group is in up state
-                @setState(st, event.message, cb)
+                # Handle empty group state
+                st ||= (if @goal == 'start' then 'up' else 'down')
+                # Emit state event
+                exports.log.debug "Group state", @id, st, service.message
+                @setState(st, service.message, cb)
             # Fire success
             (cb)=>
-                if (@state == 'up') and (@goal == 'start')
+                if (@state == 'up')
                     exports.log.info "Group #{@id} started"
-                    return @emit('success', @, cb)
-                if (@state == 'down') and (@goal == 'stop')
+                    return Group.__super__.startup.call( @, @, cb )
+                if (@state == 'down')
                     exports.log.info "Group #{@id} stopped"
-                    return @emit('success', @, cb)
-                cb(null)
-            # Fire failure
-            (cb)=>
-                if @state == 'error'
+                    return Group.__super__.shutdown.call( @, @, cb )
+                if (@state == 'error')
                     exports.log.error "Group #{@id} failure"
-                    @emit('failure', @, cb)
-                else
-                    cb(null)
-        ], cb
+                    return @emit('failure', @, cb)
+                cb(null)
+
+        ], (err)->cb(err)
+
+    continue: (event, cb)->
+        sugar.vargs arguments
+        cb(null)
 
     # Resolve children IDs to objects from storage
     # TODO: fix ugly _children
     resolve: (cb)->
+        sugar.vargs arguments
         async.map @children, state.load, (err, items)=>
             return cb and cb(err) if err
             @_children = items
             cb and cb(null)
 
-    # Start children and update state
-    start: (event, cb)->
-        exports.log.info "Group start", @id
-        @goal = 'start'
-        @each('start', event, cb)
 
-    # Stop children and update state
-    stop: (event, cb)->
-        exports.log.info "Group stop", @id
-        @goal = 'stop'
-        @each('stop', event, cb)
-
-    # Group successed
-    continue: (event, cb)->
-        if @goal == 'start'
-            # Restart group until all services is up
-            process.nextTick => @start(state.defaultCallback)
-        if @goal == 'stop'
-            # Stop group until all services is down
-            process.nextTick => @stop(state.defaultCallback)
-        cb(null)
-
-    # Remove with childrens
-    deepClear: (cb)->
-        async.series [
-            (cb) => @each('clear', cb)
-            (cb) => @clear(cb)
-        ], (err)->cb(err)

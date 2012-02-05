@@ -27,7 +27,7 @@ exports.init = (app, cb) ->
             return resp.send domain
         
         dns.resolve4 req.form.domain, (err, addrs) ->
-            if req.form.domain in ['demo']
+            if req.form.domain in ['localhost']
                 err = null
                 addrs = ['127.0.0.1']
             domain.addrs = addrs

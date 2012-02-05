@@ -42,9 +42,9 @@ class Logger
   write: (options) ->
     console.log @build_message(options)
     # Print caller from stack
-    if @level < 2
-        options.message  = "[grey]#{(new Error().stack).split("\n")[4]}[/grey]"
-        console.log @build_message(options)
+    #if @level < 1
+    #    options.message  = "[grey]#{(new Error().stack).split("\n")[4]}[/grey]"
+    #    console.log @build_message(options)
 
   build_message: (options) ->
     color = Logger.colors[options.severity]
@@ -66,6 +66,7 @@ Logger.define = (logger, level) ->
   logger[level] = (args...)-> logger.add level, args
 
 Logger.levels =
+  trace:  0
   debug:  1
   info:   2
   warn:   3
@@ -75,6 +76,7 @@ Logger.levels =
   stderr: 7
 
 Logger.colors =
+  trace:  'grey'
   debug:  'grey'
   info:   'white'
   warn:   'yellow'

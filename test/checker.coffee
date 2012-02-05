@@ -1,5 +1,6 @@
 settings = require '../settings'
 state    = require '../state'
+service  = require '../service'
 async    = require 'async'
 assert   = require 'assert'
 
@@ -10,13 +11,14 @@ hr = (symbol)->
         symbol = symbol+symbol
     symbol
 
-exports.Checker = class Checker extends state.State
+exports.Checker = class Checker extends service.Service
 
     init: ->
         super()
+        @expectedEvents = []
         @expected = []
 
-    start: (cb) ->
+    start: (params..., cb) ->
         async.series [
                 (cb)=>
                     @setState 'up', "Run #{@testMethod}", cb
@@ -25,24 +27,34 @@ exports.Checker = class Checker extends state.State
                     if @setUp
                         @setUp(cb)
                     else
-                        cb and cb(null)
+                        cb(null)
                 # Call test method
                 (cb)=>
                     if @testMethod
-                        @[@testMethod].call @, cb
+                        @[@testMethod].call(@, cb)
                     else
-                        cb and cb( new Error('Test method not defined') )
-            ], cb
+                        cb( new Error('Test method not defined') )
+            ], (err)->cb(err)
 
-    stop: (cb)->
-        @clear cb
 
-    expect: (state, message, cb)->
-        if typeof( message ) == 'function'
-            cb = message
-            message = undefined
-        @expected.push {state,message}
+    expect: (states, cb)->
+        for state in states
+            @expected.push { state:state[0], message:state[1] }
         @save cb
+
+
+    onEvent: (name, event..., cb)->
+        if name == 'serviceState' then return cb(null)
+        if name != @expectedEvents[0]
+            exports.log.error "Unexpected event: ", name
+            exports.log.error "expect: ", @expectedEvents[0]
+            console.trace()
+            process.exit(1)
+        exports.log.info hr('-')
+        exports.log.error "Expected event: ", name, event
+        exports.log.info hr('-')
+        @expectedEvents = @expectedEvents[1...]
+        cb(null)
 
     # Check state event by @expected queue
     onState: (event, cb)->
@@ -73,30 +85,22 @@ exports.Checker = class Checker extends state.State
     setUp: (callback)->
 
         async.waterfall [
-            # Load test app
-            (cb)->
-                state.loadOrCreate('test-app', 'app', cb)
-            # Save it
-            (app, cb)=>
-                @app = app
-                app.events = {}
-                app.save cb
-            # Load test instance
+            # Create test instance
             (cb)->
                 state.loadOrCreate settings.ID, 'instance', cb
             # Save it
             (inst, cb)=>
-                @inst = inst
+                @inst = inst.id
                 inst.address = '127.0.0.1'
-                inst.user = settings.USERNAME
+                inst.user = settings.USER
                 inst.events = {}
                 inst.save cb
-            # Load test account 
+            # Create test account 
             (cb)->
                 state.loadOrCreate 'test-user', 'account', cb
             # Save it
             (acc, cb)=>
-                @acc = acc
+                @acc = acc.id
                 acc.login = 'test'
                 acc.events = {}
                 acc.save cb

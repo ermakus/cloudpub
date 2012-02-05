@@ -17,7 +17,7 @@ exports.Suite = class Suite extends queue.Queue
         super()
         @count = 0
 
-    submitTest: (name, cb)->
+    createTest: (name, cb)->
         entity = name + 'Test'
         package = 'test/' + name
         # Submit method wrapper
@@ -31,7 +31,7 @@ exports.Suite = class Suite extends queue.Queue
                     testMethod:method
                 }
                 @count += 1
-                @submit test, cb
+                @create test, cb
             else
                 cb( null )
         
@@ -41,8 +41,8 @@ exports.Suite = class Suite extends queue.Queue
             # Iterate over all methods
             async.forEachSeries( _.functions(test), startMethod, cb )
 
-    submitTests: (params, cb)->
-        async.forEachSeries params, ((name, cb) => @submitTest(name, cb)), cb
+    createTests: (params, cb)->
+        async.forEachSeries params, ((name, cb) => @createTest(name, cb)), cb
 
     success: (entity, cb)->
         setTimeout =>
