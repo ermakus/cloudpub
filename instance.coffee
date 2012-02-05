@@ -115,15 +115,9 @@ exports.init = (app, cb)->
     item = (params, entity, cb) ->
         if params.cloud == 'ec2'
             entity = "ec2"
-        state.load params.id, entity, cb
+        state.loadOrCreate params.id, entity, cb
 
     # Register CRUD handler
     app.register 'instance', listInstances, item
 
-    # Create localhost instance
-    state.loadOrCreate settings.ID, 'instance', (err, instance)->
-        return cb(err) if err
-        instance.user = settings.USER
-        instance.address = settings.DOMAIN
-        instance.port = settings.PORT
-        instance.save cb
+    cb(null)

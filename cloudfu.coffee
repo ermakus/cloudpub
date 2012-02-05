@@ -130,14 +130,10 @@ listSessions = (entity, params, cb)->
     # Load account and instancies
     state.query 'session', cb
 
-# Create or load session
-getSession = (params, entity, cb) ->
-    state.load params.id, entity, cb
-
 # Init HTTP request handlers
 exports.init = (app, cb)->
     return cb(null) if not app
-    app.register 'cloudfu', listSessions, getSession
+    app.register 'cloudfu', listSessions
     app.post '/kya', account.ensure_login, (req, resp)->
         req.params.account = req.session.uid
         exports.kya req.param('command').split(" "), req.params, (err)->
@@ -145,5 +141,4 @@ exports.init = (app, cb)->
                 resp.send err.message, 500
             else
                 resp.send true
-
     cb(null)

@@ -259,10 +259,13 @@ listServices = (entity, params, cb)->
             cb(null, _.reduce( services, ((memo, item)->memo.concat(item._children)), [] ))
     ], cb
 
+getService = (params, entity, cb)->
+    state.loadOrCreate params.id, 'module', (err, module)->
+        cb(err, module)
 
 # Init request handlers here
 exports.init = (app, cb)->
     return cb(null) if not app
     # List of services
-    app.register 'service', listServices
+    app.register 'service', listServices, getService
     cb and cb(null)

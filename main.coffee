@@ -25,7 +25,6 @@ MODULES = [
     'instance'
     'io'
     'suite'
-    'npm'
     'registry'
     'cloudfu'
 ]

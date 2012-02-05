@@ -44,7 +44,7 @@ exports.Group = class Group extends service.Service
         # If array passed then submit all
         if params and _.isArray(params)
             return async.forEachSeries params, ((item, cb)=>@create(item, cb)), cb
-        
+
         exports.log.info "Group: Create " + JSON.stringify(params)
 
         state.loadOrCreate params, (err, worker) =>
@@ -54,12 +54,20 @@ exports.Group = class Group extends service.Service
             worker.user    = @user    or worker.user
             worker.address = @address or worker.address
             worker.home    = @home    or worker.home
-        
+
             exports.log.info "Group: Created " + JSON.stringify(worker)
 
             async.series [
+                    # Save worker
                     (cb) => worker.save(cb)
+                    # Add worker to childern
                     (cb) => @add(worker.id, cb)
+                    # Run if autostart flag passed
+                    (cb) ->
+                        if worker.autostart
+                            worker.start( cb )
+                        else
+                            cb(null)
                 ], (err)->cb(err)
 
     # Start all children
