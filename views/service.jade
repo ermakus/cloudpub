@@ -37,7 +37,7 @@ script.list-template(type="text/template")
                 td.domain
                     h3
                         <% if(item.port != 'NONE') { %>
-                        a(href="http://<%= item.domain %>:<%= item.port %>",target="_new") <%=item.domain%>:<%= item.port %>
+                        a(href="http://<%= item.domain %>:<%= item.proxy_port || item.proxy  %>",target="_new") <%=item.domain%>
                         <% } %>
                 td.control
                     <% if(item.state != "up") { %>
