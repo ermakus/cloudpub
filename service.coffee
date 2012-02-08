@@ -40,7 +40,7 @@ exports.Service = class Service extends state.State
         # Service owner account ID
         @account = undefined
         # Address of SSH server to run
-        @address = settings.INTERFACE
+        @address = settings.HOST
         # Posix user to run
         @user = settings.USER
         # Service public domain

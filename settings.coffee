@@ -17,7 +17,7 @@ nconf.env()
 @PORT   = PORT   = nconf.get('port') or 4000
 
 # Network interface to run
-@INTERFACE= nconf.get('interface') or '127.0.0.1'
+@HOST= nconf.get('host') or '127.0.0.1'
 
 # Master node domain
 @MASTER = nconf.get('master') or undefined

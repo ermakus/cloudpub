@@ -12,7 +12,7 @@ exports.Module = class Module extends service.Service
     configure: (params..., cb)->
         sugar.vargs arguments
         if not @name then return cb(new Error("Module name not set"))
-        @address = params.address or "127.0.0.1"
+        @host = params.host or "127.0.0.1"
         super(params..., cb)
 
     # Execute jobs in queue
@@ -22,7 +22,7 @@ exports.Module = class Module extends service.Service
         state.loadOrCreate {entity:'queue', commitSuicide:true}, (err, queue)=>
             return cb(err) if err
             queue.user    = @user
-            queue.address = @address
+            queue.host    = @host
             queue.home    = @home
             queue.on 'success', next, @id
             queue.on 'failure', 'failure', @id

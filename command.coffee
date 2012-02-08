@@ -87,8 +87,8 @@ exports.handler = handler = (entity, factory)->
             return resp.send 'Invalid command', 500
         if not req.params.id
             return resp.send 'Invalid entity ID', 500
-            
         form = COMMAND_FORMS[ entity + '_' + command ]
+
         if form
             # Validate form
             form req, resp, ->
@@ -107,10 +107,10 @@ exports.register = (app)->
     # Register entity CRUD handlers
     # Entity name, optional list and item callbacks
     return (entity, list, item)->
-        
+
         list ?= state.query
         item ?= (params, entity, cb) -> state.load( params.id, entity, cb )
-    
+
         # HTML page view
         app.get '/' + entity, account.force_login, (req, resp)->
             resp.render entity, {pubkey:settings.PUBLIC_KEY}

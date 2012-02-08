@@ -34,6 +34,8 @@ LOADED_MODULES = []
 
 publicDir = __dirname + '/public'
 
+process.chdir( __dirname )
+
 SessionStore = session.SessionStore
 
 # Init default logger

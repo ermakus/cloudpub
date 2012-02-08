@@ -11,7 +11,8 @@ exports.startup = -> [
         context:
             id:@id
             home:@home
-            address:@address
+            host:@host
+            domain:@domain
         command: ["daemon"
                   "-p"
                   "-b"
@@ -22,7 +23,7 @@ exports.startup = -> [
                   "--home=" + @home
                   "--port=" + @port
                   "--domain=" + @domain
-                  "--address=" + @address]
+                  "--host=" + @host]
         success:
             state:'up'
             message: 'Started'

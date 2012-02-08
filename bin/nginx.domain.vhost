@@ -1,4 +1,4 @@
-upstream ID {
+upstream ID.DOMAIN {
     SERVICES
 }
 
@@ -7,7 +7,7 @@ server {
     listen PORT;
 
     location / {
-        proxy_pass http://ID;
+        proxy_pass http://ID.DOMAIN;
         proxy_redirect off;
         proxy_set_header Host $host;
     }
