@@ -34,6 +34,7 @@ exports.Instance = class Instance extends group.Group
         @address = event.address or @address
         @user    = event.user    or @user
         @port    = parseInt(event.port or @port)
+        @domain  = @domain or 'localhost'
 
         if not (@address and @user)
             return cb( new Error('Invalid address or user') )
@@ -42,13 +43,13 @@ exports.Instance = class Instance extends group.Group
         @home = (if @user == 'root' then '/root' else '/home/' + @user ) + '/cloudpub'
 
         # Define IDs
-        @RUNTIME  = @id + "-RUNTIME"
-        @PROXY    = @id + "-PROXY"
+        @RUNTIME  = @id + "-runtime"
+        @PROXY    = @id + "-proxy"
 
         # Declare services
         services = [
-            { id:@RUNTIME,  entity:'module', name:'runtime',  port:'NONE' }
-            { id:@PROXY,    entity:'module', name:'proxy',    domain:@address, default:true, port:@port }
+            { id:@RUNTIME,  entity:'module', name:'runtime',  port:0 }
+            { id:@PROXY,    entity:'module', name:'proxy',    domain:@domain, default:true, port:@port }
         ]
 
         async.waterfall [
@@ -90,7 +91,7 @@ exports.Instance = class Instance extends group.Group
             # Pass uninstall flag to each children
             (cb)=> @each('set', {doUninstall:@doUninstall}, cb)
             # Stop master service
-            (cb)=> sugar.emit( 'stop', @PROXY, cb)
+            (cb)=> @each('stop', cb)
         ], cb
 
     clear: (cb)->

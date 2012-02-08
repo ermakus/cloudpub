@@ -13,6 +13,7 @@ PARAMS:
    daemon   Path to daemon exexutable
 OPTIONS:
    -h   Show this message
+   -p   Create PID file
    -b   Base dir
 EOF
 }
@@ -27,9 +28,14 @@ HOMEDIR=$PWD
 PIDFILES=$HOMEDIR/var/pid
 mkdir -p $PIDFILES
 
-while getopts "hb:" OPTION
+DOPTS=""
+
+while getopts "hpb:" OPTION
 do
     case $OPTION in
+         p)
+             DOPTS='--make-pidfile'
+             ;;
          b)
              WORKDIR=$OPTARG
              ;;
@@ -58,7 +64,7 @@ case $COMMAND in
 
     start)
         check "$DAEMON" "Daemon not set"
-    	start-stop-daemon --oknodo --start --chdir $WORKDIR --make-pidfile --background --pidfile $PIDFILES/$ID.pid --exec $DAEMON -- $@
+    	start-stop-daemon --oknodo --start --chdir $WORKDIR $DOPTS --background --pidfile $PIDFILES/$ID.pid --exec $DAEMON -- $@
         ;;
 
     stop)

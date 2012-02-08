@@ -14,6 +14,7 @@ exports.startup = -> [
             port:@port
             address:@address
         command: ["daemon"
+                  "-p"
                   "-b"
                   "#{@home}/lib/node_modules/#{@name}/"
                   "start"
