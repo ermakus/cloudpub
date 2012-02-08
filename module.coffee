@@ -38,6 +38,7 @@ exports.Module = class Module extends service.Service
         source  = params.source
         name    = params.source
         domain  = params.domain
+        port    = params.port
 
         if _.isEmpty( params.instance )
             cb( new Error("Servers not selected") )
@@ -59,6 +60,7 @@ exports.Module = class Module extends service.Service
                 name
                 domain
                 source
+                port
             }, cb
 
         async.waterfall [
@@ -69,9 +71,9 @@ exports.Module = class Module extends service.Service
             ], (err)->cb(err)
 
     # Stop service (called from WEB)
-    stop: (params, cb)->
+    stop: (params..., cb)->
         @doUninstall = @commitSuicide = (params.data == 'delete')
-        super(params, cb)
+        super(params..., cb)
 
     clear: (cb)->
         # Detach from instancies

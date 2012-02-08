@@ -99,6 +99,12 @@ script.launch-template(type="text/template")
                             span.help-block
                                 div Select public domain name for this service
                                 div Use [subdomain].cloudpub.us or enter your own domain name that point to server IP.
+                    .clearfix.custom
+                            label Private Port Number
+                            .input
+                                input.custom-input.required.port(type="text",name="port",value="<%= item.port %>")
+                                span.help-block
+                                    div Service local port number
                 #servers
                     .clearfix
                         label Server to run

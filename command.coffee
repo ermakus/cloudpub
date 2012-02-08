@@ -15,6 +15,7 @@ COMMAND_FORMS =
         form.validate("source").required().is(/^[a-z0-9\.\-\_]+$/)
         form.filter("domain").trim().toLower(),
         form.validate("domain").required().is(/^[a-z0-9\.]+$/)
+        form.validate("port").is(/^[0-9]+$/)
         form.validate("instance").required()
     )
     service_stop: form(
