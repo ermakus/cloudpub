@@ -57,6 +57,12 @@ ID=$2
 DAEMON=$3
 shift 3
 
+# Success if no daemon specified,
+# useful for packages without server script
+if [ ! -f $DAEMON ] ; then
+    exit 0
+fi
+
 check "$COMMAND" "command not set"
 check "$ID" "id not set"
 

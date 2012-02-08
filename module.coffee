@@ -58,6 +58,7 @@ exports.Module = class Module extends service.Service
                 autostart:true
                 instance:instance.id
                 proxy:instance.PROXY
+                proxy_port:instance.port
                 account
                 name
                 domain

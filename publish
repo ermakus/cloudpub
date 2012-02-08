@@ -1,4 +1,5 @@
 #!/bin/bash
 set -e
+rm -f snapshot*.json
 git push
 npm publish --force

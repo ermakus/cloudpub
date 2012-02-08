@@ -11,7 +11,6 @@ exports.startup = -> [
         context:
             id:@id
             home:@home
-            port:@port
             address:@address
         command: ["daemon"
                   "-p"
@@ -35,7 +34,7 @@ exports.startup = -> [
         context:
             id: @proxy
             home: @home
-            port: @port
+            port: @proxy_port
             domain: @domain
             default: false
             services: "server #{@address}:#{@port};"

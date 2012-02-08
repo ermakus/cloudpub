@@ -4,6 +4,7 @@ upstream ID {
 
 server {
     server_name DOMAIN;
+    listen PORT;
 
     location / {
         proxy_pass http://ID;
