@@ -2,7 +2,7 @@
   "author": "Anton Ermak <anton@ermak.us> (http://ermak.us)",
   "name": "cloudpub",
   "description": "Easy node.js cloud management tool",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "homepage": "http://cloudpub.us",
   "repository": {
     "url": "git@github.com:ermakus/cloudpub.git"
