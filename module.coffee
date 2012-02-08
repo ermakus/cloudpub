@@ -12,6 +12,7 @@ exports.Module = class Module extends service.Service
     configure: (params..., cb)->
         sugar.vargs arguments
         if not @name then return cb(new Error("Module name not set"))
+        @address = params.address or "127.0.0.1"
         super(params..., cb)
 
     # Execute jobs in queue
@@ -52,10 +53,11 @@ exports.Module = class Module extends service.Service
             exports.log.info "Launch service on", instance.id
             # Create and start service
             instance.create {
-                id:(instance.id + name)
+                id:(instance.id + '-' + name)
                 entity:"module"
                 autostart:true
                 instance:instance.id
+                proxy:instance.PROXY
                 account
                 name
                 domain
@@ -72,11 +74,12 @@ exports.Module = class Module extends service.Service
 
     # Stop service (called from WEB)
     stop: (params..., cb)->
-        @doUninstall = @commitSuicide = (params.data == 'delete')
+        if params.length
+            @doUninstall = @commitSuicide = (params[0].data == 'delete')
         super(params..., cb)
 
     clear: (cb)->
-        # Detach from instancies
+        # Detach from instance
         sugar.unrelate 'children', @instance, @id, (err)=>
             service.Service.prototype.clear.call @, cb
 

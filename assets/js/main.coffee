@@ -90,7 +90,7 @@ window.Listing = class Listing
                 alert data.message, style
                 # Push event to google analytics
                 if _gaq then _gaq.push(['_trackEvent', data.state, data.message])
-                @reload()
+                setTimeout( (=> @reload()), 500)
 
     # Stop auto-refreshing
     stopUpdate: ->

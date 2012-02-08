@@ -8,40 +8,71 @@ exports.startup = -> [
         entity:  "shell"
         message: "Start Service"
         state:   "maintain"
-        command: ["daemon", "-b", "#{@home}/lib/node_modules/#{@name}/",
-                  "start", @id, "#{@home}/lib/node_modules/#{@name}/server", '--port=' + @port, '--domain=' + @domain ]
+        context:
+            id:@id
+            home:@home
+            port:@port
+            address:@address
+        command: ["daemon"
+                  "-b"
+                  "#{@home}/lib/node_modules/#{@name}/"
+                  "start"
+                  @id
+                  "#{@home}/lib/node_modules/#{@name}/server"
+                  "--home=" + @home
+                  "--port=" + @port
+                  "--domain=" + @domain
+                  "--address=" + @address]
         success:
             state:'up'
-            message: 'Online'
+            message: 'Started'
     },
     {
         entity:  "shell"
-        message: "Configure proxy"
+        message: "Attach to proxy"
         state:   "maintain"
         context:
-            id: @id
+            id: @proxy
             home: @home
             port: @port
             domain: @domain
             default: false
-            services: "server localhost:#{@port};"
+            services: "server #{@address}:#{@port};"
         command: ['domain','enable']
         success:
             state:'maintain'
-            message: 'Proxy configured'
+            message: 'Online'
     }
 ]
 
 ##### Shutdown commands
-exports.shutdown = -> {
-    entity:  "shell"
-    message: "Stop Service"
-    state:   "maintain"
-    command:["daemon", "stop", @id]
-    success:
-        state:   'down'
-        message: 'Offline'
-}
+exports.shutdown = -> [
+    {
+        entity:  "shell"
+        message: "Detach from proxy"
+        state:   "maintain"
+        context:
+            id: @proxy
+            home: @home
+            port: @port
+            domain: @domain
+            default: false
+            services: "server #{@address}:#{@port};"
+        command: ['domain','disable']
+        success:
+            state:'maintain'
+            message: 'Offline'
+    },
+    {
+        entity:  "shell"
+        message: "Stop Service"
+        state:   "maintain"
+        command:["daemon", "stop", @id]
+        success:
+            state:   'down'
+            message: 'Stopped'
+    }
+]
 
 exports.install = -> {
     entity: 'shell'
@@ -50,16 +81,16 @@ exports.install = -> {
     command:["npm","-g","install", @name]
     success:
         state:'maintain'
-        message: 'Cloudpub Installed'
+        message: 'Installed'
 }
 
 exports.uninstall = -> {
     state: 'maintain'
-    message: "Uninstall Cloudpub"
+    message: "Uninstall service"
     entity:  'shell'
     command:["npm","-g","uninstall", @name]
     success:
         state:'down'
-        message: 'Cloudpub Uninstalled'
+        message: 'Uninstalled'
 }
 

@@ -51,22 +51,9 @@ script.launch-template(type="text/template")
             h3 Start Server
         form.modal-body
             ul.tabs
-                li.hidden
-                    a(href="#cloud") Allocate from cloud
                 li.active
                     a(href="#ssh")  Add by SSH
             .tab-content
-                #cloud
-                    .clearfix
-                        ul.inputs-list
-                            li
-                                label
-                                    input.cloud(type="radio", name="cloud", value="usa")
-                                    b USA 
-                            li
-                                label
-                                    input.cloud(type="radio", checked="true", name="cloud", value="europe")
-                                    span Europe
                 #ssh.active
                     .clearfix.custom
                             label Server address

@@ -62,7 +62,7 @@ case $1 in
         $SED -i "s/PORT/$PORT/g" $CONFIG
         $SED -i "s/SERVICES/$SERVICES/g" $CONFIG
         $SED -i "s/DOMAIN/$DOMAIN/g" $CONFIG
- 
+
         if [[ "$DEFAULT" != "true" ]] ; then
             # create symlink to enable site
             ln -f -s $CONFIG $NGINX_SITES_ENABLED/$DOMAIN.conf

@@ -23,7 +23,7 @@ exports.Instance = class Instance extends group.Group
         @port = 8080
         # Home dir
         @home = settings.HOME + '/cloudpub'
-    
+
     # Launch instance and start some core services
     # This method called from WEB
     launch: (event, cb) ->
@@ -34,7 +34,7 @@ exports.Instance = class Instance extends group.Group
         @address = event.address or @address
         @user    = event.user    or @user
         @port    = parseInt(event.port or @port)
-    
+
         if not (@address and @user)
             return cb( new Error('Invalid address or user') )
 
@@ -42,15 +42,13 @@ exports.Instance = class Instance extends group.Group
         @home = (if @user == 'root' then '/root' else '/home/' + @user ) + '/cloudpub'
 
         # Define IDs
-        RUNTIME  = @id + "-RUNTIME"
-        PROXY    = @id + "-PROXY"
-        CLOUDPUB = @id + "-CLOUDPUB"
+        @RUNTIME  = @id + "-RUNTIME"
+        @PROXY    = @id + "-PROXY"
 
         # Declare services
         services = [
-            { id:RUNTIME,  entity:'module', name:'runtime',  port:'NONE' }
-            { id:PROXY,    entity:'module', name:'proxy',    domain:'localhost', default:true, port:@port }
-            { id:CLOUDPUB, entity:'module', name:'cloudpub', domain:'localhost', port:(@port+1) }
+            { id:@RUNTIME,  entity:'module', name:'runtime',  port:'NONE' }
+            { id:@PROXY,    entity:'module', name:'proxy',    domain:@address, default:true, port:@port }
         ]
 
         async.waterfall [
@@ -58,12 +56,12 @@ exports.Instance = class Instance extends group.Group
                 (cb)=>
                     @create(services, cb)
                 # Route events
-                (cb)=> sugar.route( 'started', RUNTIME,  'start',   PROXY,    cb )
-                (cb)=> sugar.route( 'started', PROXY,    'start',   CLOUDPUB, cb )
-                (cb)=> sugar.route( 'started', CLOUDPUB, 'started', @id,      cb )
-                (cb)=> sugar.route( 'success', CLOUDPUB, 'stop',    PROXY,    cb )
-                (cb)=> sugar.route( 'success', PROXY,    'stop',    RUNTIME,  cb )
-                (cb)=> sugar.route( 'success', RUNTIME,  'stopped', @id,      cb )
+                (cb)=> sugar.route( 'started', @RUNTIME,  'start',   @PROXY,    cb )
+                (cb)=> sugar.route( 'started', @PROXY,    'started', @id,      cb )
+                (cb)=> sugar.route( 'success', @PROXY,    'stop',    @RUNTIME,  cb )
+                (cb)=> sugar.route( 'failure', @PROXY,    'stopped', @id,      cb )
+                (cb)=> sugar.route( 'success', @RUNTIME,  'stopped', @id,      cb )
+                (cb)=> sugar.route( 'failure', @RUNTIME,  'stopped', @id,      cb )
                  # Link instance with account
                 (cb)=>
                     sugar.relate 'children', @account, @id, cb
@@ -79,7 +77,7 @@ exports.Instance = class Instance extends group.Group
     startup: (me, cb)->
         # Start main service
         # other services will start by events routing defined above
-        sugar.emit( 'start', @id + '-RUNTIME', cb)
+        sugar.emit( 'start', @RUNTIME, cb)
 
     # Stop instance (called from WEB)
     stop: (params, cb)->
@@ -92,7 +90,7 @@ exports.Instance = class Instance extends group.Group
             # Pass uninstall flag to each children
             (cb)=> @each('set', {doUninstall:@doUninstall}, cb)
             # Stop master service
-            (cb)=> sugar.emit( 'stop', @id + '-CLOUDPUB', cb)
+            (cb)=> sugar.emit( 'stop', @PROXY, cb)
         ], cb
 
     clear: (cb)->
@@ -111,13 +109,6 @@ listInstances = (entity, params, cb)->
 # Init HTTP request handlers
 exports.init = (app, cb)->
     return cb(null) if not app
-    # Create or load instance
-    item = (params, entity, cb) ->
-        if params.cloud == 'ec2'
-            entity = "ec2"
-        state.loadOrCreate params.id, entity, cb
-
     # Register CRUD handler
-    app.register 'instance', listInstances, item
-
+    app.register 'instance', listInstances
     cb(null)

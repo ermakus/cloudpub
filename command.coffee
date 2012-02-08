@@ -26,7 +26,6 @@ COMMAND_FORMS =
     instance_launch: form(
         form.validate("command").required()
         form.validate("id").required().is(/^[a-zA-Z0-9\.\-]+$/)
-        form.filter("cloud").trim().toLower()
         form.filter("user").trim().toLower()
         form.validate("user").is(/^[a-z0-9]+$/)
         form.validate("port").is(/^[0-9]+$/)
@@ -38,7 +37,8 @@ COMMAND_FORMS =
         form.validate("id").required().is(/^[a-zA-Z0-9\.\-]+$/)
         form.validate("data").required().is(/^(keep|delete)$/)
     )
-    cloudfu_start: form(
+    # Disable on production
+    __cloudfu_start: form(
         form.validate("command").required()
         form.validate("instance").required()
     )
