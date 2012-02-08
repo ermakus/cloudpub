@@ -17,6 +17,9 @@ By default cloudpub use plain JSON files to store cluster state.
 
 Start
 -----
+You need to have default ssh keypair for adding other servers.
+So, please run ssh-keygen first.
+
 > node server.js
 
 or
@@ -29,4 +32,3 @@ License
 -------
 
 Please see LICENSE file.
-
