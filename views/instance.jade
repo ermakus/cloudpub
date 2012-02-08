@@ -59,12 +59,15 @@ script.launch-template(type="text/template")
                             label Server address
                             .input
                                 input.custom-input.required.address(type="text",name="address",value="<%= item.address %>")
-                                span.help-block Enter your server domain name or IP address
+                                span.help-block 
+                                  span Enter your 
+                                  a(href="#",rel="popover", title="Currently tested on Ubuntu only!",data-content="We will build nginx and nodejs from the source on the target host, so build-essential and libssl-dev packages should be available. <br> The first install can take up to few minuts, please be patient.") server
+                                  span &nbsp;IP address or domain name
                     .clearfix.custom
                             label SSH login
                             .input
                                 input.custom-input.required.login(type="text",name="user",value="<%= item.user %>")
-                                span.help-block Specify user account for setup runtime.
+                                span.help-block Specify user account that setup runtime.
                     .clearfix.custom
                             label
                                 div SSH public key

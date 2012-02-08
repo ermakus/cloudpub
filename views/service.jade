@@ -6,10 +6,9 @@ h1 Services
 a.btn.primary.launch-new(href="#") Install Service
 
 .popover
-    ol
-        li a [name]@[version] that is published on the registry with (3)
-        li a [name]@[tag] that points to (4)
-        li a [name] that has a "latest" tag satisfying (5)
+    p name of the npm package published in default node.js repository.
+    p Package can have 'server' script that should start service on the port.
+    p The port number and some other params is passed as environment and command line.
 
 // Module script
 != js('/js/service.js')
@@ -94,13 +93,13 @@ script.launch-template(type="text/template")
                             input.required.domain(type="text",name="domain",value="<%= item.domain %>")
                             span.help-block
                                 div Select public domain name for this service
-                                div Use [subdomain].cloudpub.us or enter your own domain name that point to server IP.
+                                div Traffic from this domain will be proxied to service port.
                     .clearfix.custom
                             label Private Port Number
                             .input
                                 input.custom-input.required.port(type="text",name="port",value="<%= item.port %>")
                                 span.help-block
-                                    div Service local port number
+                                    div Service local port number. Use free unique port for each service.
                 #servers
                     .clearfix
                         label Server to run

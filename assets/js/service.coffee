@@ -7,7 +7,8 @@ $ ->
         # App defaults
         item =
             id: 'new'
-            domain: 'app.cloudpub.us'
+            port: 8081
+            domain: 'demo.cloudpub.us'
 
         handler = new CommandHandler( 'service', 'launch', item, (err)-> listing.reload())
         handler.show()
