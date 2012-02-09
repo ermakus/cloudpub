@@ -20,8 +20,9 @@ script.list-template(type="text/template")
         thead
             tr
                 th.state Service
-                th.domain Endpoint
-                th.control &nbsp; 
+                th.domain Domain
+                th.domain Port
+                th.control &nbsp;
         tbody
             <% _.each(items, function(item) { %>
             tr
@@ -35,8 +36,13 @@ script.list-template(type="text/template")
                         span <%= item.message %> 
                 td.domain
                     h3
-                        <% if(item.port != 'NONE') { %>
-                        a(href="http://<%= item.domain %>:<%= item.proxy_port || item.proxy  %>",target="_new") <%=item.domain%>
+                        <% if(item.port != '0') { %>
+                        a(href="http://<%= item.domain %>:<%= item.proxy_port || item.proxy  %>",target="_new") <%= item.domain %>
+                        <% } %>
+                td.domain
+                    h3
+                        <% if(item.port != '0') { %>
+                        <%= item.port %>
                         <% } %>
                 td.control
                     <% if(item.state != "up") { %>
@@ -89,10 +95,14 @@ script.launch-template(type="text/template")
                                 span &nbsp;manifest.
                     .clearfix
                         label Domain Name
+                        .input-append.input
+                            input.span4.required.domain(type="text",name="domain",value="<%= item.domain %>")
+                            span.add-on
+                                input.public(type="checkbox", id="public", name="public", data-domain="<%= item.domain %>")
+                    .clearfix
                         .input
-                            input.required.domain(type="text",name="domain",value="<%= item.domain %>")
-                            span.help-block
-                                div Select public domain name for this service
+                            div.help-block
+                                div You can set public domain name for this service.
                                 div Traffic from this domain will be proxied to service port.
                     .clearfix.custom
                             label Private Port Number

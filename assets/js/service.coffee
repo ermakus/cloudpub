@@ -17,6 +17,25 @@ $ ->
     $('.launch').live 'shown', ->
         instances = new Listing('#items', 'instance', 'instances')
 
+        # Public checkbox and domian input logic
+        domain = $('input[name=domain]')
+        public = $('#public')
+        domain.attr('data-domain',domain.val())
+
+        # Checkbox event handler
+        public_checkbox_handler = ->
+            if not $(this).is(':checked')
+                domain.attr('data-domain',domain.val())
+                domain.val('localhost').addClass('uneditable-input').attr('readonly', true)
+            else
+                domain.val(domain.attr('data-domain')).removeClass('uneditable-input').attr('readonly', false)
+        public.change( public_checkbox_handler )
+
+        # Set default checkbox state
+        if domain.val() != 'localhost'
+            public.attr('checked',true)
+        public.change()
+
         # Server list validation
         $('form.modal-body').validate({
             messages:

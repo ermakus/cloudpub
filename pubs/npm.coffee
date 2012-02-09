@@ -2,9 +2,10 @@
 # npm module
 #
 
-##### Startup commands
-exports.startup = -> [
-    {
+##### Startup command
+exports.startup = ->
+    # Start daemon
+    start = {
         entity:  "shell"
         message: "Start Service"
         state:   "maintain"
@@ -27,8 +28,9 @@ exports.startup = -> [
         success:
             state:'up'
             message: 'Started'
-    },
-    {
+    }
+    # Attach to proxy
+    attach = {
         entity:  "shell"
         message: "Attach to proxy"
         state:   "maintain"
@@ -44,11 +46,16 @@ exports.startup = -> [
             state:'maintain'
             message: 'Online'
     }
-]
+    # We only attach to proxy if public domain set
+    if @domain == 'localhost'
+        return [start]
+    else
+        return [start, attach]
 
-##### Shutdown commands
-exports.shutdown = -> [
-    {
+##### Shutdown command
+exports.shutdown = ->
+    # Detach from proxy
+    detach = {
         entity:  "shell"
         message: "Detach from proxy"
         state:   "maintain"
@@ -63,8 +70,9 @@ exports.shutdown = -> [
         success:
             state:'maintain'
             message: 'Offline'
-    },
-    {
+    }
+    # Stop daemon
+    stop = {
         entity:  "shell"
         message: "Stop Service"
         state:   "maintain"
@@ -73,8 +81,13 @@ exports.shutdown = -> [
             state:   'down'
             message: 'Stopped'
     }
-]
+    # detach only if public domain
+    if @domain == 'localhost'
+        return [stop]
+    else
+        return [detach, stop]
 
+# Install npm package
 exports.install = -> {
     entity: 'shell'
     message: "Install Service"
@@ -85,6 +98,7 @@ exports.install = -> {
         message: 'Installed'
 }
 
+# Uninstall npm package
 exports.uninstall = -> {
     state: 'maintain'
     message: "Uninstall service"
