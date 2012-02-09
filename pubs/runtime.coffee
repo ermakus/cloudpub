@@ -1,4 +1,5 @@
 #### NodeJs runtime module
+path = require 'path'
 
 ##### Install commands
 exports.install = -> [
@@ -9,7 +10,7 @@ exports.install = -> [
                 message: "Sync service files"
                 state:   "maintain"
                 home:    "/"
-                source: __dirname + "/../bin"
+                source: path.dirname( __dirname  )+ "/bin"
                 target: "#{@home}/" # Slash important!
                 success:
                     state:'maintain'

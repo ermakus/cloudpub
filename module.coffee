@@ -22,6 +22,7 @@ exports.Module = class Module extends service.Service
         state.loadOrCreate {entity:'queue', commitSuicide:true}, (err, queue)=>
             return cb(err) if err
             queue.user    = @user
+            queue.address = @address
             queue.host    = @host
             queue.home    = @home
             queue.on 'success', next, @id

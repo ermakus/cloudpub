@@ -34,7 +34,7 @@ exports.Instance = class Instance extends group.Group
         @address = event.address or @address
         @user    = event.user    or @user
         @port    = parseInt(event.port or @port)
-        @domain  = @domain or 'localhost'
+        @domain  = event.domain or @domain or 'localhost'
 
         if not (@address and @user)
             return cb( new Error('Invalid address or user') )

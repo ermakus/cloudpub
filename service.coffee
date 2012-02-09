@@ -48,7 +48,7 @@ exports.Service = class Service extends state.State
         # Service public port
         @port = settings.PORT
         # Interface to bind
-        @interface = "127.0.0.1"
+        @host = settings.HOST
 
     #### Add and resolve single dependence
     addDependence: (depId, cb)->
@@ -66,7 +66,7 @@ exports.Service = class Service extends state.State
     configure: (params..., cb)->
         sugar.vargs( arguments )
         exports.log.info "Configure service",  @id, params
-        
+
         # Configure service
         async.series [
             # Save config
