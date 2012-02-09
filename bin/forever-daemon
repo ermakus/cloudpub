@@ -1,0 +1,72 @@
+#!/usr/bin/env node
+var forever = require('forever')
+    ,path = require('path');
+
+var command = process.argv[2]
+
+console.log("Command: ", command)
+
+/* This taken from the forever source */
+function tryStart(file, options, callback) {
+  var fullLog, fullScript;
+
+  fullLog = forever.logFilePath(options.logFile, options.uid);
+  fullScript = path.join(options.sourceDir, file);
+
+  forever.stat(fullLog, fullScript, options.appendLog, function (err) {
+    if (err) {
+      forever.log.error('Cannot start forever');
+      forever.log.error(err.message);
+      process.exit(-1);
+    }
+
+    callback();
+  });
+}
+
+function tryStop(file) {
+   var runner = forever.stop(file, true);
+
+  runner.on('stop', function (process) {
+    forever.log.info('Forever stopped process:');
+    forever.log.data(process);
+  });
+
+  runner.on('error', function (err) {
+    forever.log.error('Forever cannot find process with index: ' + file);
+  });
+}
+
+/* Start daemon command */
+if( command == 'start') {
+
+    var file = process.argv.slice(3), options = {
+        silent : false,
+        uid: process.env.ID
+    };
+
+    tryStart(file, options, function () {
+        var monitor = forever.startDaemon(file, options);
+        monitor.on('start', function () {
+          forever.startServer(monitor);
+        });
+    });
+}
+/* Stop daemon commnad */
+else if( command == 'stop') {
+
+   var file = process.argv.slice(3);
+
+   forever.list( false, function(err, list) {
+        if(err) {
+            console.error(err.message || err);
+            process.exit(1);
+        }
+        console.log(list);
+        for(index in list) {
+            var item = list[index];
+            if(item.uid == process.env.ID || item.uid == file) tryStop( index );
+            console.log(item);
+        }
+    });
+}

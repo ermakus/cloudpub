@@ -37,7 +37,7 @@ script.list-template(type="text/template")
                 td.domain
                     h3
                         <% if(item.port != '0') { %>
-                        a(href="http://<%= item.domain %>:<%= item.proxy_port || item.proxy  %>",target="_new") <%= item.domain %>
+                        a(href="http://<%= item.domain %>:<%= item.proxy_port || item.port  %>",target="_new") <%= item.domain %>
                         <% } %>
                 td.domain
                     h3

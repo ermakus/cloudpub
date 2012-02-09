@@ -27,6 +27,7 @@ exports.Shell = class Shell extends service.Service
 
         # If home is set chdir before run
         if @home
+            cmd = cmd.concat ["export", "NODE_PATH=#{@home}/lib/node_modules", '&&']
             cmd = cmd.concat ["export", "PATH=#{@home}/bin:$PATH", '&&', 'cd', @home, '&&']
         else
             exports.log.warn "Shell: Home not set"

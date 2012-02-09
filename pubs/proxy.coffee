@@ -13,7 +13,7 @@ exports.startup = -> [
             domain: @domain
             default: true
             services: null
-        command: ['domain','enable']
+        command: ["#{@home}/bin/domain", "enable" ]
         success:
             state:'maintain'
             message: 'Proxy configured'
@@ -22,7 +22,7 @@ exports.startup = -> [
         entity:  "shell"
         message: "Start Proxy"
         state:   "maintain"
-        command: ["daemon", "start", @id, "./sbin/nginx", "-c", "#{@home}/conf/nginx.conf" ]
+        command: ["#{@home}/bin/forever-daemon", "start", "#{@home}/sbin/nginx", "-c", "#{@home}/conf/nginx.conf" ]
         success:
             state:'up'
             message: 'Online'
@@ -34,9 +34,7 @@ exports.shutdown = -> {
     entity:  "shell"
     message: "Stop Proxy"
     state:   "maintain"
-    context:
-        id: @instance
-    command:["daemon", "stop", @id]
+    command:["#{@home}/bin/forever-daemon", "stop", @id]
     success:
         state:   'down'
         message: 'Offline'
@@ -48,8 +46,7 @@ exports.install = -> {
     entity:  'shell'
     message: "Compile proxy"
     state:   "maintain"
-    home: @home
-    command:["install-proxy", @home]
+    command:["#{@home}/bin/install-proxy", @home]
     success:
         state: "maintain"
         message: "Proxy installed"
@@ -61,7 +58,7 @@ exports.uninstall = -> {
     state: 'maintain'
     message: 'Uninstall proxy'
     entity:  'shell'
-    command:['echo','params']
+    command:['echo','Not implemented']
     success:
         state:'down'
         message: 'Proxy uninstalled'

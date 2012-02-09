@@ -14,12 +14,8 @@ exports.startup = ->
             home:@home
             host:@host
             domain:@domain
-        command: ["#{@home}/bin/daemon"
-                  "-p"
-                  "-b"
-                  "#{@home}/lib/node_modules/#{@name}/"
+        command: ["#{@home}/bin/forever-daemon"
                   "start"
-                  @id
                   "#{@home}/lib/node_modules/#{@name}/server"
                   "--home=" + @home
                   "--port=" + @port
@@ -76,7 +72,7 @@ exports.shutdown = ->
         entity:  "shell"
         message: "Stop Service"
         state:   "maintain"
-        command:["daemon", "stop", @id]
+        command:["#{@home}/bin/forever-daemon", "stop", @id]
         success:
             state:   'down'
             message: 'Stopped'

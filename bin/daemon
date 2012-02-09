@@ -34,7 +34,7 @@ while getopts "hpb:" OPTION
 do
     case $OPTION in
          p)
-             DOPTS='--make-pidfile'
+             DOPTS="--pidFile $PIDFILES/$ID.pid"
              ;;
          b)
              WORKDIR=$OPTARG
@@ -70,12 +70,12 @@ case $COMMAND in
 
     start)
         check "$DAEMON" "Daemon not set"
-    	start-stop-daemon --oknodo --start --chdir $WORKDIR $DOPTS --background --pidfile $PIDFILES/$ID.pid --exec $DAEMON -- $@
+    	$HOME/bin/forever -p $WORKDIR $DOPTS start $DAEMON $@
         ;;
 
     stop)
         if [ -f $PIDFILES/$ID.pid ] ; then
-    	    start-stop-daemon --stop --pidfile $PIDFILES/$ID.pid
+    	    $HOME/bin/forever -p $WORKDIR --pidFile $PIDFILES/$ID.pid stop $DAEMON
             rm -f $PIDFILES/$ID.pid
         else
             echo "No PID file"
