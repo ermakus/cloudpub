@@ -3,12 +3,13 @@
 #
 
 # Disqus
-disqus_shortname='cloudpub'
-s = document.createElement('script')
-s.async = true
-s.type = 'text/javascript'
-s.src = 'http://' + disqus_shortname + '.disqus.com/embed.js'
-(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s)
+loadDisqus = ->
+    disqus_shortname='cloudpub'
+    s = document.createElement('script')
+    s.async = true
+    s.type = 'text/javascript'
+    s.src = 'http://' + disqus_shortname + '.disqus.com/embed.js'
+    (document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s)
 
 $.validator.addMethod('regexp', ((value, element, regexp) -> @optional(element) or (new RegExp(regexp)).test(value)) , "Invalid symbol")
 

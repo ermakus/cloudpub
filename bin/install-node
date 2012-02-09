@@ -26,5 +26,12 @@ if [ ! -f "$TARGET/bin/node" ] ; then
     ./configure --prefix=$TARGET
     make
     make install
+    echo "Node runtime installed"
 fi
-echo "Node runtime installed"
+
+if [ ! -f "$TARGET/bin/forever" ] ; then
+    echo "Install forever"
+    cd $TARGET
+    ./bin/npm install -g forever
+    echo "Forever installed"
+fi

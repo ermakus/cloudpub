@@ -14,7 +14,7 @@ exports.startup = ->
             home:@home
             host:@host
             domain:@domain
-        command: ["daemon"
+        command: ["#{@home}/bin/daemon"
                   "-p"
                   "-b"
                   "#{@home}/lib/node_modules/#{@name}/"
