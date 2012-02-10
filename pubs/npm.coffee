@@ -16,6 +16,7 @@ exports.startup = ->
             domain:@domain
         command: ["#{@home}/bin/forever-daemon"
                   "start"
+                  @id
                   "#{@home}/lib/node_modules/#{@name}/server"
                   "--home=" + @home
                   "--port=" + @port

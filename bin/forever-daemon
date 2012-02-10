@@ -6,7 +6,7 @@ var command = process.argv[2]
 
 console.log("Command: ", command)
 
-/* This taken from the forever source */
+/* This function taken from the forever source */
 function tryStart(file, options, callback) {
   var fullLog, fullScript;
 
@@ -24,35 +24,64 @@ function tryStart(file, options, callback) {
   });
 }
 
-function tryStop(file) {
-   var runner = forever.stop(file, true);
+function doStop(index) {
+  var runner = forever.stop(index, true);
 
   runner.on('stop', function (process) {
-    forever.log.info('Forever stopped process:');
     forever.log.data(process);
   });
 
   runner.on('error', function (err) {
-    forever.log.error('Forever cannot find process with index: ' + file);
+    forever.log.error(err);
   });
 }
 
-/* Start daemon command */
+/*
+    Start daemon command 
+    argv = ['uid', 'daemon', 'command', 'line']
+*/
 if( command == 'start') {
 
-    var file = process.argv.slice(3), options = {
+    var i = process.argv.indexOf(command);
+    var uid = process.argv[i+1] || process.env.ID;
+    var file = process.argv.slice(i+2), options = {
         silent : false,
-        uid: process.env.ID
+        appendLog: true,
+        killTree: true,
+        minUptime: 1000,
+        spinSleepTime: 1000,
+        command: 'exec',
+        uid: uid
     };
 
+    // a little sanity check
     tryStart(file, options, function () {
+
+        console.log("Start service ", uid, "(", file.join(' '), ")" );
+
+        // Start daemon (fork process here)
         var monitor = forever.startDaemon(file, options);
+        // Flag that daemon started successfully
+        var started = false;
+
         monitor.on('start', function () {
-          forever.startServer(monitor);
+            console.log("Process started");
+            // register in forever registry if started
+            forever.startServer(monitor);
+            started = true;
+        });
+
+        // If children died until we executing
+        monitor.on('exit', function(err) {
+            // we will also die with the same error
+            console.error( "Process died", err );
+            process.exit(1);
         });
     });
 }
-/* Stop daemon commnad */
+/* Stop daemon commnad 
+    parameter = ID (or env.ID used)
+*/
 else if( command == 'stop') {
 
    var file = process.argv.slice(3);
@@ -62,11 +91,21 @@ else if( command == 'stop') {
             console.error(err.message || err);
             process.exit(1);
         }
-        console.log(list);
+        var killed = false;
         for(index in list) {
             var item = list[index];
-            if(item.uid == process.env.ID || item.uid == file) tryStop( index );
-            console.log(item);
+            if(item.uid == process.env.ID || item.uid == file) {
+                console.log("Stopping process", index, item.uid);
+                doStop( index );
+                killed = true;
+            }
+        }
+        if(!killed) {
+            console.error("No processes found");
         }
     });
+}
+else {
+    console.error("Invalid command", command);
+    process.exit(1);
 }

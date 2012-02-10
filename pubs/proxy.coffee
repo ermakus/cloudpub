@@ -22,7 +22,7 @@ exports.startup = -> [
         entity:  "shell"
         message: "Start Proxy"
         state:   "maintain"
-        command: ["#{@home}/bin/forever-daemon", "start", "#{@home}/sbin/nginx", "-c", "#{@home}/conf/nginx.conf" ]
+        command: ["#{@home}/bin/forever-daemon", "start", @id, "#{@home}/sbin/nginx", "-c", "#{@home}/conf/nginx.conf" ]
         success:
             state:'up'
             message: 'Online'
