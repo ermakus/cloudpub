@@ -1,1 +1,3 @@
 node_modules
+patched_modules/socket.io-client/lib/vendor/web-socket-js/.npmignore
+snapshot*.json
