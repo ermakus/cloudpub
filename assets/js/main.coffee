@@ -3,7 +3,7 @@
 #
 
 # Disqus
-loadDisqus = ->
+window.loadDisqus = ->
     disqus_shortname='cloudpub'
     s = document.createElement('script')
     s.async = true

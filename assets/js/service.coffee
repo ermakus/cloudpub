@@ -8,7 +8,7 @@ $ ->
         item =
             id: 'new'
             port: 8081
-            domain: 'demo.cloudpub.us'
+            domain: 'localhost'
 
         handler = new CommandHandler( 'service', 'launch', item, (err)-> listing.reload())
         handler.show()
