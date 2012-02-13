@@ -146,8 +146,15 @@ exports.Sync = class Sync extends Shell
     configure: ( params..., cb)->
         if not @source  then return cb(new Error("Copy source not set"))
         if not @target  then return cb(new Error("Copy target not set"))
-        @command = [ __dirname + "/bin/sync", "-u", @user, "-a", @address, "-k", @private_key, @source, @target ]
+        # Suppress chdir to home because it not exists yet
+        @home = undefined
+        # stub to pass validation
+        @command = ['dummy']
         super( params..., cb )
+
+    startup: (params..., cb)->
+        @command = [ __dirname + "/bin/sync", "-u", @user, "-a", @address, "-k", @private_key, @source, @target ]
+        super( params..., cb)
 
 # Generate SSH keypair
 exports.Keygen = class Keygen extends Shell

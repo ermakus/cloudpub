@@ -21,6 +21,7 @@ exports.Module = class Module extends service.Service
         exports.log.info "Execute job list", tasks
         state.loadOrCreate {entity:'queue', commitSuicide:true}, (err, queue)=>
             return cb(err) if err
+            queue.account = @account
             queue.user    = @user
             queue.address = @address
             queue.host    = @host

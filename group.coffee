@@ -51,6 +51,7 @@ exports.Group = class Group extends service.Service
             return cb and cb(err) if err
 
             # Inherit some defaults
+            worker.account = @account or worker.account
             worker.user    = @user    or worker.user
             worker.address = @address or worker.address
             worker.home    = @home    or worker.home

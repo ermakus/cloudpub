@@ -48,8 +48,8 @@ exports.Instance = class Instance extends group.Group
 
         # Declare services
         services = [
-            { id:@RUNTIME,  entity:'module', name:'runtime',  port:0 }
-            { id:@PROXY,    entity:'module', name:'proxy',    domain:@domain, default:true, port:@port }
+            { id:@RUNTIME,  account:@account, entity:'module', name:'runtime',  port:0 }
+            { id:@PROXY,    account:@account, entity:'module', name:'proxy',    domain:@domain, default:true, port:@port }
         ]
 
         async.waterfall [
