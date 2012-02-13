@@ -28,6 +28,13 @@ $ ->
         init_cloud_type $(this).val()
 
     $('.launch').live 'shown', ->
+        # Load public key
+        $.get '/key/public', (key)->
+            $('#pubkey').val( key )
+            # Copy to clipboard
+            init_clipboard()
+
+        # Get model object
         item = $(this).data('item')
         return if not item
         init_cloud_type item.entity
@@ -37,7 +44,6 @@ $ ->
         else
             $('.address').attr 'readonly', false
             $('.cloudtype').show()
-        init_clipboard()
 
         # Dialog tabs
         $('.tabs').tabs()

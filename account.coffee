@@ -5,6 +5,7 @@ hasher   = require 'password-hash'
 passport = require 'passport'
 crypto   = require 'crypto'
 nconf    = require 'nconf'
+fs       = require 'fs'
 settings = require './settings'
 io       = require './io'
 state    = require './state'
@@ -70,13 +71,13 @@ exports.Account = class Account extends group.Group
     # Called when key generated
     keysReady: (task, cb)->
         # Store keys
-        @public_key = task.public_key
+        @public_key  = task.public_key
         @private_key = task.private_key
         @setState 'up', "Keypair generated", cb
 
     # Load public key from file
-    loadPublicKey: (cb)->
-        fs.readFile @public_key, cb
+    loadKey: ( type, cb)->
+        fs.readFile @[ type + '_key'], cb
 
     # Called on failure
     keysFailure: (error, cb)->
@@ -253,5 +254,18 @@ exports.init = (app, cb)->
             resp.redirect req.session?.next or AFTER_LOGIN
         )
         auth req, resp, next
+
+    # Return public key of current user
+    app.get '/key/public', exports.ensure_login, (req, resp)->
+        async.waterfall [
+            (cb) -> state.load( req.session.uid, cb)
+            (account, cb)-> account.loadKey( 'public', cb )
+            (key, cb)->
+                resp.header("Content-Type", "text/plain")
+                resp.send(key)
+                cb(null)
+        ], (err)->
+            if err
+                resp.send err.message, 500
 
     cb and cb(null)

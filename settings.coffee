@@ -31,25 +31,13 @@ nconf.env()
 # Current user home
 @HOME = process.env.HOME or "/root"
 
-# Public key file path
-@PUBLIC_KEY_FILE = "#{@HOME}/.ssh/id_rsa.pub"
-
 # Dry run - do not execute shell commands
 @DRY_RUN = nconf.get('dry-run') or false
 
 # Debug mode
 @DEBUG = nconf.get('debug') or false
 
-# Public key file
-try
-    @PUBLIC_KEY = fs.readFileSync( @PUBLIC_KEY_FILE )
-catch e
-    @PUBLIC_KEY = "Not found - please run ssh-keygen"
-
-# Private key file
-@PRIVATE_KEY_FILE = "#{@HOME}/.ssh/id_rsa"
-
-# GC interval, ms
+# Session GC interval, ms
 @GC_INTERVAL = nconf.get('gc-interval') or 60000
 
 # Init logger

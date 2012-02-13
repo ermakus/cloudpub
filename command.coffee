@@ -113,7 +113,7 @@ exports.register = (app)->
 
         # HTML page view
         app.get '/' + entity, account.force_login, (req, resp)->
-            resp.render entity, {pubkey:settings.PUBLIC_KEY}
+            resp.render entity
 
         # API query handler
         app.get '/api/' + entity, account.ensure_login, (req, resp)->
