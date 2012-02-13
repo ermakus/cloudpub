@@ -1,4 +1,5 @@
 _        = require 'underscore'
+async    = require 'async'
 form     = require 'express-form'
 hasher   = require 'password-hash'
 passport = require 'passport'
@@ -8,7 +9,7 @@ settings = require './settings'
 io       = require './io'
 state    = require './state'
 group    = require './group'
-shugar   = require './shugar'
+sugar    = require './sugar'
 
 LocalStrategy  = require('passport-local').Strategy
 GoogleStrategy = require('passport-google').Strategy
@@ -46,33 +47,44 @@ exports.Account = class Account extends group.Group
     # Generate SSH keypair
     generate: (params, cb)->
         # Create shell.keygen task
-        state.create {}, 'keygen', 'shell', (shell, err)=>
+        # The commitSuicide=true flag will free object on task complete
+        state.create {commitSuicide:true}, 'keygen', 'shell', (err, shell)=>
             return cb(err) if err
-            # Init and run task
+            # Init and run the ssh-keygen task
+            shell.account = @id
             shell.email = @email
             shell.public_key  = "#{settings.HOME}/.ssh/#{@email}.pub"
             shell.private_key = "#{settings.HOME}/.ssh/#{@email}"
             async.series [
-                # Route some events to account
-                (cb) => shugar.route('success', shell.id, 'keysReady', @id, cb)
-                (cb) => shugar.route('failure', shell.id, 'keysFailure', @id, cb)
-                (cb) => shell.startup( {}, cb)
+                # Save account
+                (cb) => @save(cb)
+                # Save task
+                (cb) => shell.save(cb)
+                # Route some events from task to account
+                (cb) => sugar.route('success', shell.id, 'keysReady', @id, cb)
+                (cb) => sugar.route('failure', shell.id, 'keysFailure', @id, cb)
+                # Start command execution
+                (cb) => shell.start(cb)
             ], cb
 
     # Called when key generated
     keysReady: (task, cb)->
+        # Store keys
         @public_key = task.public_key
         @private_key = task.private_key
         @setState 'up', "Keypair generated", cb
+
+    # Load public key from file
+    loadPublicKey: (cb)->
+        fs.readFile @public_key, cb
 
     # Called on failure
     keysFailure: (error, cb)->
         # Set account state and notify user
         @setState 'error', error.message, cb
 
-
 # Generate keypair (if required) and then save account
-updateAccount = (acc, cb) ->
+saveAccount = (acc, cb) ->
     if not acc.public_key
         acc.generate( {}, cb)
     else
@@ -102,6 +114,7 @@ google_authorize = (userid, profile, done) ->
         user.email = email
         user.name  = profile.displayName
         saveAccount user, (err)->
+            if err then err = err.message or err
             done(err, user)
 
 # Local auth strategy

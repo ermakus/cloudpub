@@ -36,11 +36,11 @@ exports.Service = class Service extends state.State
         # Service goal (**start**, **stop** or undefined)
         @goal = undefined
         # Default state message
-        @message = 'Waiting...'
+        @message = 'Waiting.'
         # Service owner account ID
         @account = undefined
         # Address of SSH server to run
-        @address = settings.HOST
+        @address = undefined
         # Posix user to run
         @user = settings.USER
         # Service public domain

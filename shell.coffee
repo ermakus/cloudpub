@@ -13,52 +13,68 @@ settings = require './settings'
 #
 exports.Shell = class Shell extends service.Service
 
-    # Called before start, check configuration here
-    configure: ( params, cb ) ->
-        if not @user    then return cb(new Error("Remote user not set"))
-        if not @address then return cb(new Error("Remote address not set"))
+    # Called before startup, check configuration here
+    configure: ( params..., cb ) ->
         if not @command then return cb(new Error("Shell command not set"))
-        if not @account then return cb(new Error("Account not set"))
-        # Load account and take security credentials
-        state.load @account, ( err, account )=>
-            return cb( err ) if err
-            @public_key = account.public_key
-            @private_key = account.private_key
-            if not @public_key then return cb(new Error("Public key not set"))
-            if not @private_key then return cb(new Error("Private key not set"))
-            # Call super from anonymous function
-            service.Service.prototype.configure.call( @, params, cb )
+        # If remote call is required
+        if @address
+            exports.log.info "Shell: Remote exec on #{@address}"
+            # ensure we have associated posix user and account
+            if not @user then return cb(new Error("Shell: Remote user not set"))
+            if not @account then return cb(new Error("Account not set"))
+            # then load account and get security credentials
+            state.load @account, ( err, account )=>
+                return cb( err ) if err
+                @public_key = account.public_key
+                @private_key = account.private_key
+                if not @public_key then return cb(new Error("Shell: Public key not set"))
+                if not @private_key then return cb(new Error("Shell: Private key not set"))
+                # Call super from the anonymous function
+                service.Service.prototype.configure.call( @, params..., cb )
+        else
+            exports.log.info "Shell: Local exec of #{@command[0]}"
+            # Call super
+            super( params..., cb )
+
 
     # Start shell execution
     startup: ( params, cb) ->
-        # Construct SSH command. 
-        # Currently, we use SSH also for localhost access, it will be changed in future
-        SSH = "ssh -i #{@private_key} -o StrictHostKeyChecking=no -o BatchMode=yes"
-        cmd = SSH.split(' ').concat("-l", @user, @address)
+        # We can candle remote execution with ssh
+        if @address
+            # Construct SSH command for remote run
+            cmd = ["ssh", "-i", @private_key, "-o", "StrictHostKeyChecking=no", "-o", "BatchMode=yes", "-l", @user, @address]
+        else
+            # else we use default shell
+            cmd = []
 
-        # If home is set chdir before run
+        # Chdir to home if it defined
         if @home
-            cmd = cmd.concat ["export", "NODE_PATH=#{@home}/lib/node_modules", '&&']
-            cmd = cmd.concat ["export", "PATH=#{@home}/bin:$PATH", '&&', 'cd', @home, '&&']
+            cmd = cmd.concat ["cd", @home, '&&']
         else
             exports.log.warn "Shell: Home not set"
 
-        # If context not set, use this as context
+        # Prepare the run environment by env command
+        cmd.push '/usr/bin/env'
+
+        # If home is set, add some system vars
+        if @home
+            cmd = cmd.concat ["NODE_PATH=#{@home}/lib/node_modules", "PATH=#{@home}/bin:$PATH"]
+
+        # If context not set, use 'this' as context
         if @context
             context = @context
         else
             context = @
 
-        # Pass context as environment variables
+        # Pass context properties as environment variables
+        # key names passed in upper case with '-' changed to '_'
         if context
             for key of context
                 value = context[ key ]
                 if _.isString( value ) or _.isNumber( value ) or _.isBoolean( value )
-                    cmd.push "export"
                     cmd.push "#{key.toUpperCase().replace('-','_')}='#{value}'"
-                    cmd.push "&&"
 
-        # Finally spawn command
+        # Finally concat command and spawn
         cmd = cmd.concat(@command)
         @spawn cmd, cb
 
@@ -108,12 +124,14 @@ exports.Shell = class Shell extends service.Service
 
         @emit('started', @, cb)
 
+    # Process started
     started: (me, cb)->
         @state = 'up'
         @goal = undefined
         @save(cb)
 
-    # Kill process and delete worker
+    # Kill process
+    # TODO: support remote processes
     shutdown: (params, cb)->
         if (@state=='up') and @pid
             try
@@ -131,18 +149,13 @@ exports.Sync = class Sync extends Shell
         @command = [ __dirname + "/bin/sync", "-u", @user, "-a", @address, "-k", @private_key, @source, @target ]
         super( params..., cb )
 
-    startup: ( params, cb)->
-        @spawn(@command, cb)
-
 # Generate SSH keypair
 exports.Keygen = class Keygen extends Shell
 
-    configure: ( params, cb)->
-        if not @public_key  then return cb(new Error("Pubic key not set"))
+    configure: ( params..., cb)->
         if not @private_key  then return cb(new Error("Private key not set"))
+        # FIXME: Actually, this parameter is not used and should be set to @private_key + '.pub'
+        if not @public_key then return cb(new Error("Pubic key not set"))
         @command = ["ssh-keygen", "-t", "dsa", "-b", "1024", "-N", "\"\"", "-f", @private_key ]
-        super( params, cb )
-
-    startup: ( params, cb)->
-        @spawn(@command, cb)
+        super( params..., cb )
 
