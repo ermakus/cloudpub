@@ -154,8 +154,7 @@ exports.Keygen = class Keygen extends Shell
 
     configure: ( params..., cb)->
         if not @private_key  then return cb(new Error("Private key not set"))
-        # FIXME: Actually, this parameter is not used and should be set to @private_key + '.pub'
         if not @public_key then return cb(new Error("Pubic key not set"))
-        @command = ["ssh-keygen", "-t", "dsa", "-b", "1024", "-N", "\"\"", "-f", @private_key ]
+        @command = [ __dirname + "/bin/keygen", @private_key, @public_key ]
         super( params..., cb )
 

@@ -1,0 +1,30 @@
+#!/bin/sh
+#
+# Generate SSH keypair
+# We use openssl due to ssh-keygen limitations
+#
+# Usage: keygen private_key public_key
+#
+
+check() {
+if [ -z "$1" ]; then echo "ERROR: $2" 1>&2; exit 1; fi
+}
+
+OPENSSL=$(which openssl)
+SSH_KEYGEN=$(which ssh-keygen)
+
+check "$1",          "private key not set"
+check "$2",          "public key not set"
+check "$OPENSSL",    "openssl not found"
+check "$SSH_KEYGEN", "ssh-keygen not found"
+
+# Generate RSA 2048 private key
+$OPENSSL genrsa -out $1 2048
+$OPENSSL rsa -in $1 -out $2 -pubout
+
+# Restrict access to PK
+chmod 600 $1
+
+# Convert public key to SSH format
+$SSH_KEYGEN -f $2 -i -m PKCS8 > $2.tmp
+mv -f $2.tmp $2
