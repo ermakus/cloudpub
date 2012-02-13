@@ -8,6 +8,7 @@ settings = require './settings'
 io       = require './io'
 state    = require './state'
 group    = require './group'
+shugar   = require './shugar'
 
 LocalStrategy  = require('passport-local').Strategy
 GoogleStrategy = require('passport-google').Strategy
@@ -18,8 +19,8 @@ USER_PREFIX='user-'
 
 exports.log = console
 
-# User account class
-# Children is services
+# User account is group of instancies
+# It also manage auth keypair
 exports.Account = class Account extends group.Group
 
     init: ->
@@ -32,11 +33,50 @@ exports.Account = class Account extends group.Group
         @password = undefined
         # Authorization provider
         @provider = 'local'
+        # Public key
+        @public_key = undefined
+        # Private key
+        @private_key = undefined
 
     # Service state change handler
     serviceState: (event, cb)->
         io.emit @id, {state:event.state, message:event.message}
         cb and cb(null)
+
+    # Generate SSH keypair
+    generate: (params, cb)->
+        # Create shell.keygen task
+        state.create {}, 'keygen', 'shell', (shell, err)=>
+            return cb(err) if err
+            # Init and run task
+            shell.email = @email
+            shell.public_key  = "#{settings.HOME}/.ssh/#{@email}.pub"
+            shell.private_key = "#{settings.HOME}/.ssh/#{@email}"
+            async.series [
+                # Route some events to account
+                (cb) => shugar.route('success', shell.id, 'keysReady', @id, cb)
+                (cb) => shugar.route('failure', shell.id, 'keysFailure', @id, cb)
+                (cb) => shell.startup( {}, cb)
+            ], cb
+
+    # Called when key generated
+    keysReady: (task, cb)->
+        @public_key = task.public_key
+        @private_key = task.private_key
+        @setState 'up', "Keypair generated", cb
+
+    # Called on failure
+    keysFailure: (error, cb)->
+        # Set account state and notify user
+        @setState 'error', error.message, cb
+
+
+# Generate keypair (if required) and then save account
+updateAccount = (acc, cb) ->
+    if not acc.public_key
+        acc.generate( {}, cb)
+    else
+        acc.save( cb )
 
 # SHA1 helper function
 exports.sha1 = sha1 = (text)->
@@ -61,7 +101,7 @@ google_authorize = (userid, profile, done) ->
         user.provider = 'google'
         user.email = email
         user.name  = profile.displayName
-        user.save (err)->
+        saveAccount user, (err)->
             done(err, user)
 
 # Local auth strategy
@@ -95,6 +135,7 @@ exports.force_login = (req, resp, next) ->
         next()
     else
         resp.redirect '/login?next=' + req.path
+
 
 # Init module views
 exports.init = (app, cb)->
@@ -136,7 +177,7 @@ exports.init = (app, cb)->
                             req.session.uid  = account.id
                             account.email    = req.form.email
                             account.password = hasher.generate req.form.password
-                            account.save (err)->
+                            saveAccount account, (err)->
                                 resp.redirect next
 
     # Login page
@@ -184,7 +225,7 @@ exports.init = (app, cb)->
             if error then return resp.render 'account', {error}
             if not _.isEmpty( req.param('password') )
                 account.password = hasher.generate req.param('password')
-            account.save (error) ->
+            saveAccount account, (error) ->
                 resp.render 'account', {account,error}
 
     # Google authorization
