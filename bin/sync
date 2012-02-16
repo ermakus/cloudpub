@@ -20,6 +20,7 @@ check() {
 
 SSH=$(which ssh)
 RSYNC=$(which rsync)
+SCP=$(which scp)
 USER=$(whoami)
 ADDRESS=localhost 
 PKEY=/home/$USER/.ssh/id_rsa
@@ -55,7 +56,7 @@ SOURCE=$1
 TARGET=$2
 
 check "$SSH"    "ssh is not installed"
-check "$RSYNC"  "rsync is not installed"
+check "${RSYNC}${SCP}"  "no rsync or scp found"
 check "$SOURCE" "source path not set"
 check "$TARGET" "target path not set"
 
@@ -67,5 +68,12 @@ if [ "$ADDRESS" = "localhost" ] ; then
 else
     echo "Remote sync $SOURCE to $TARGET"
     $SSH $SSH_OPTS $USER@$ADDRESS mkdir -p $TARGET
-    $RSYNC -ae  "$SSH $SSH_OPTS" $SOURCE $USER@$ADDRESS:$TARGET
+
+    if [ ! -z "$RSYNC" ] ; then
+        # Use rsync if installed
+        $RSYNC -ae  "$SSH $SSH_OPTS" $SOURCE $USER@$ADDRESS:$TARGET
+    else
+        # Fallback to scp
+        $SCP -r $SSH_OPTS $SOURCE $USER@$ADDRESS:$TARGET
+    fi
 fi

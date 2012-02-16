@@ -54,15 +54,15 @@ exports.Account = class Account extends group.Group
             # Init and run the ssh-keygen task
             shell.account = @id
             shell.email = @email
-            shell.public_key  = "#{settings.HOME}/.ssh/#{@email}.pub"
-            shell.private_key = "#{settings.HOME}/.ssh/#{@email}"
+            shell.public_key  = @public_key
+            shell.private_key = @private_key
             async.series [
                 # Save account
                 (cb) => @save(cb)
                 # Save task
                 (cb) => shell.save(cb)
                 # Route some events from task to account
-                (cb) => sugar.route('success', shell.id, 'keysReady', @id, cb)
+                (cb) => sugar.route('success', shell.id, 'keysReady',   @id, cb)
                 (cb) => sugar.route('failure', shell.id, 'keysFailure', @id, cb)
                 # Start command execution
                 (cb) => shell.start(cb)
@@ -75,8 +75,9 @@ exports.Account = class Account extends group.Group
         @private_key = task.private_key
         @setState 'up', "Keypair generated", cb
 
-    # Load public key from file
+    # Load key from file. type is 'public' or 'private'
     loadKey: ( type, cb)->
+        exports.log.debug "Load key", type, @[ type + '_key']
         fs.readFile @[ type + '_key'], cb
 
     # Called on failure
@@ -85,10 +86,26 @@ exports.Account = class Account extends group.Group
         @setState 'error', error.message, cb
 
 # Generate keypair (if required) and then save account
+# Called for all auth providers
 saveAccount = (acc, cb) ->
+    if not acc.email
+        cb( new Error("Account without email") )
+    # Check if keypair not already generated
     if not acc.public_key
-        acc.generate( {}, cb)
+        # Init keys location
+        acc.public_key  = "#{settings.HOME}/.ssh/#{acc.email}.pub"
+        acc.private_key = "#{settings.HOME}/.ssh/#{acc.email}"
+        # Try to open public key
+        acc.loadKey 'public', (err, key)->
+            if err
+                # If file not found, generate keypair
+                acc.generate( {}, cb)
+            else
+                # If keypair already exists, just save
+                exports.log.warn("SSH keys already exists for this account")
+                acc.save( cb )
     else
+        # else just save account
         acc.save( cb )
 
 # SHA1 helper function
@@ -255,11 +272,13 @@ exports.init = (app, cb)->
         )
         auth req, resp, next
 
-    # Return public key of current user
-    app.get '/key/public', exports.ensure_login, (req, resp)->
+    # Return key of current user
+    app.get '/key/:type', exports.ensure_login, (req, resp)->
+        if not req.params.type in ['private','public']
+            resp.send "Invalid key type", 500
         async.waterfall [
             (cb) -> state.load( req.session.uid, cb)
-            (account, cb)-> account.loadKey( 'public', cb )
+            (account, cb)-> account.loadKey( req.params.type, cb )
             (key, cb)->
                 resp.header("Content-Type", "text/plain")
                 resp.send(key)

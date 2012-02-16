@@ -146,8 +146,10 @@ exports.Sync = class Sync extends Shell
     configure: ( params..., cb)->
         if not @source  then return cb(new Error("Copy source not set"))
         if not @target  then return cb(new Error("Copy target not set"))
-        # Suppress chdir to home because it not exists yet
+        # Dirty tricks here
+        # Suppress chdir to home and remote execution
         @home = undefined
+        @address = undefined
         # stub to pass validation
         @command = ['dummy']
         super( params..., cb )

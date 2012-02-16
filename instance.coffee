@@ -22,7 +22,7 @@ exports.Instance = class Instance extends group.Group
         # Port to listen
         @port = 8080
         # Home dir
-        @home = settings.HOME + '/cloudpub'
+        @home = settings.HOME
 
     # Launch instance and start some core services
     # This method called from WEB

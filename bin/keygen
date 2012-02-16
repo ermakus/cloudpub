@@ -12,10 +12,12 @@ if [ -z "$1" ]; then echo "ERROR: $2" 1>&2; exit 1; fi
 
 OPENSSL=$(which openssl)
 SSH_KEYGEN=$(which ssh-keygen)
+SSH_ADD=$(which ssh-add)
 
 check "$1",          "private key not set"
 check "$2",          "public key not set"
 check "$OPENSSL",    "openssl not found"
+check "$SSH_ADD",    "ssh-add not found"
 check "$SSH_KEYGEN", "ssh-keygen not found"
 
 # Generate RSA 2048 private key
@@ -28,3 +30,6 @@ chmod 600 $1
 # Convert public key to SSH format
 $SSH_KEYGEN -f $2 -i -m PKCS8 > $2.tmp
 mv -f $2.tmp $2
+
+# Add PK to current session
+$SSH_ADD $1

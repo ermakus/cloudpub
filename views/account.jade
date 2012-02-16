@@ -18,5 +18,13 @@ form#account-form(action="/account",method="post")
                 span.help-block Reepat password one more time
         .actions
             input.btn.primary(type="submit",value="Update")
+        .clearfix
+            label Download SSH Keys (use Save As)
+            .input
+              ul
+                li
+                  a(href="/key/public") Public Key
+                li
+                  a(href="/key/private") Private Key
 
 != js("/js/account.js")
