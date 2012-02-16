@@ -1,4 +1,4 @@
-# 
+#
 # REST object factory and WEB service
 #
 http = require 'http'

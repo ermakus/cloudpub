@@ -40,7 +40,7 @@ exports.Shell = class Shell extends service.Service
     # Start shell execution
     startup: ( params, cb) ->
         # We can candle remote execution with ssh
-        if @address
+        if @address and not @local
             # Construct SSH command for remote run
             cmd = ["ssh", "-i", @private_key, "-o", "StrictHostKeyChecking=no", "-o", "BatchMode=yes", "-l", @user, @address]
         else
@@ -140,7 +140,10 @@ exports.Shell = class Shell extends service.Service
                 exports.log.warn "Process with #{@pid} does not exists"
         @emit('stopped', @, cb)
 
-# Sync/copy files
+#### Sync service
+#
+# Sync to remote location
+#
 exports.Sync = class Sync extends Shell
 
     configure: ( params..., cb)->
@@ -149,16 +152,21 @@ exports.Sync = class Sync extends Shell
         # Dirty tricks here
         # Suppress chdir to home and remote execution
         @home = undefined
-        @address = undefined
         # stub to pass validation
         @command = ['dummy']
         super( params..., cb )
 
     startup: (params..., cb)->
+        # Force local execution
+        @local = true
+        # Exec sync script
         @command = [ __dirname + "/bin/sync", "-u", @user, "-a", @address, "-k", @private_key, @source, @target ]
         super( params..., cb)
 
+#### Keygen service
+#
 # Generate SSH keypair
+#
 exports.Keygen = class Keygen extends Shell
 
     configure: ( params..., cb)->

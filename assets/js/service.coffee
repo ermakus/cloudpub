@@ -7,7 +7,7 @@ $ ->
         # App defaults
         item =
             id: 'new'
-            port: 8081
+            port: 'auto'
             domain: 'localhost'
 
         handler = new CommandHandler( 'service', 'launch', item, (err)-> listing.reload())

@@ -81,18 +81,20 @@ script.launch-template(type="text/template")
                     a(href="#settings")  Settings
                 li
                     a(href="#servers") Servers
+                li
+                    a(href="#advanced") Advanced
             .tab-content
                 #settings.active
                     .clearfix
-                        label Source
+                        label App
                         .input
-                            input.required.urlpopover(type="text",name="source",value="<%= item.name || item.source%>")
+                            input.required.urlpopover(type="text",name="name",value="<%= item.name %>")
                             span.help-block
-                                span Provide name or URL of the &nbsp;
+                                span Provide name of the &nbsp;
                                 a(href="http://npmjs.org/", target="new",rel='twipsy',title='Node.js package manager') npm
-                                span &nbsp;compatible package that containing a&nbsp;
-                                a(href="http://npmjs.org/doc/json.html", target="new", rel='twipsy',title='File containing app configuration and dependencies') package.json
-                                span &nbsp;manifest.
+                                span &nbsp;compatible package that containing a executable&nbsp;
+                                a(href="http://npmjs.org/doc/json.html", target="new", rel='twipsy',title='WEB app that will be started on HTTP port') server
+                                span &nbsp;script.
                     .clearfix
                         label Domain Name
                         .input-append.input
@@ -104,24 +106,30 @@ script.launch-template(type="text/template")
                             div.help-block
                                 div You can set public domain name for this service.
                                 div Traffic from this domain will be proxied to service port.
-                    .clearfix.custom
-                            label Private Port Number
-                            .input
-                                input.custom-input.required.port(type="text",name="port",value="<%= item.port %>")
-                                span.help-block
-                                    div Service local port number. Use free unique port for each service.
                 #servers
                     .clearfix
-                        label Server to run
+                        label Servers to run
                         .input
                             #items
                             span.help-block
                                 span Select server(s) to run app
-                                div If multiple servers is selected, load balancing will be performed.
                                 div 
                                     span Use servers in
                                     span(style="color: green") &nbsp;green&nbsp;
                                     span state to avoid errors.
+                #advanced
+                    .clearfix.custom
+                            label Private Port Number
+                            .input
+                                input.span2.custom-input.required.port(type="text",name="port",value="<%= item.port %>")
+                                span.help-block
+                                    div Service local port number. Use free unique port for each service.
+                    .clearfix
+                        label GIT repository
+                        .input
+                            input.span6.source(type="text",name="source",value="<%= item.source %>")
+                            span.help-block
+                                div Override package source URL
         .modal-footer
             a.btn.primary.execute(href="#") Start Service
             a.btn.secondary.cancel(href="#") Cancel

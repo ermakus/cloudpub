@@ -21,8 +21,16 @@ exports.Instance = class Instance extends group.Group
         @account = undefined
         # Port to listen
         @port = 8080
+        # Last allocated port
+        @last_port = undefined
         # Home dir
         @home = settings.HOME
+
+    # Reserve port for service
+    # Currently just increment from base
+    reservePort: (cb)->
+        @last_port = @last_port + 1
+        @save (err)=> cb(err, @last_port)
 
     # Launch instance and start some core services
     # This method called from WEB
@@ -34,6 +42,7 @@ exports.Instance = class Instance extends group.Group
         @address = event.address or @address
         @user    = event.user    or @user
         @port    = parseInt(event.port or @port)
+        @last_port = @last_port or @port
         @domain  = event.domain or @domain or 'localhost'
 
         if not (@address and @user)

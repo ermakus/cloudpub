@@ -11,11 +11,12 @@ COMMAND_FORMS =
     service_launch: form(
         form.validate("command").required()
         form.validate("id").required().is(/^[a-zA-Z0-9\-\.]+$/)
-        form.filter("source").trim().toLower(),
-        form.validate("source").required().is(/^[a-z0-9\.\-\_]+$/)
+        form.filter("name").trim().toLower(),
+        form.validate("name").required().is(/^[a-z0-9\.\-\_]+$/)
+        form.filter("source").trim(),
         form.filter("domain").trim().toLower(),
         form.validate("domain").required().is(/^[a-z0-9\.]+$/)
-        form.validate("port").is(/^[0-9]+$/)
+        form.validate("port").is(/^(([0-9]+)|auto)$/)
         form.validate("instance").required()
     )
     service_stop: form(

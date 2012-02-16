@@ -89,7 +89,7 @@ exports.install = -> {
     entity: 'shell'
     message: "Install Service"
     state:   "maintain"
-    command:["npm","-g","install", @name]
+    command:["npm","-g","install", @source or @name]
     success:
         state:'maintain'
         message: 'Installed'

@@ -38,8 +38,8 @@ exports.Module = class Module extends service.Service
     launch: (params, cb)->
 
         account = params.account
+        name    = params.name
         source  = params.source
-        name    = params.source
         domain  = params.domain
         port    = params.port
 
@@ -53,21 +53,32 @@ exports.Module = class Module extends service.Service
         # Helper function to launch service
         launchService = (instance, cb) ->
             exports.log.info "Launch service on", instance.id
-            # Create and start service
-            instance.create {
-                id:(instance.id + '-' + name)
-                entity:"module"
-                autostart:true
-                instance:instance.id
-                proxy:instance.PROXY
-                proxy_port:instance.port
-                account
-                name
-                domain
-                source
-                port
-            }, cb
+            async.waterfall [
+                (cb)->
+                    # Allocate service port if needed
+                    if port == 'auto'
+                        instance.reservePort(cb)
+                    else
+                        cb( null, port )
+                (port, cb)->
+                    exports.log.debug "Service port", port
+                    # Create and start service
+                    instance.create {
+                        id:(instance.id + '-' + name)
+                        entity:"module"
+                        autostart:true
+                        instance:instance.id
+                        proxy:instance.PROXY
+                        proxy_port:instance.port
+                        account
+                        name
+                        domain
+                        source
+                        port
+                    }, cb
+            ], (err)->cb(err)
 
+        # Load each instance and launch service on it
         async.waterfall [
                 # Load all instancies
                 (cb)=> async.map(instancies, state.load, cb)
