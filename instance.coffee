@@ -111,10 +111,14 @@ exports.Instance = class Instance extends group.Group
 
 # List instancies for account
 listInstances = (entity, params, cb)->
-    # Load account and instancies
-    state.load params.account, (err, account)->
-        # Load each instance
-        async.map account.children, state.loadWithChildren, cb
+    async.waterfall [
+        # Load account
+        (cb)-> state.load(params.account, cb)
+        # Load instancies
+        (account, cb)-> async.map(account.children, state.load, cb)
+        # Load each instance and services
+        (instancies, cb)-> async.map( instancies, state.loadWithChildren, cb )
+    ], cb
 
 # Init HTTP request handlers
 exports.init = (app, cb)->

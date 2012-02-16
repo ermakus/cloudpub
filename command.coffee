@@ -73,7 +73,6 @@ execCommand = (entity, factory, req,resp) ->
                 exports.log.error "Command error: ", err.message
                 return resp.send err.message, 500
             # Send object state to client as JSON
-            obj._children = undefined
             exports.log.info "Command executed"
             resp.send obj
 
@@ -119,13 +118,14 @@ exports.register = (app)->
         # API query handler
         app.get '/api/' + entity, account.ensure_login, (req, resp)->
             params = {}
-            # Pass current account ID to query params
+            # Pass current account ID to params
             params.account = req.session.uid
-            list entity, params, (err, data)->
+            list entity, params, (err, items)->
                 if err
                     resp.send err.message, 500
                 else
-                    resp.send data
+                    # Send data
+                    resp.send items
 
         # API command handler
         app.post '/api/' + entity + '/:id', account.ensure_login,

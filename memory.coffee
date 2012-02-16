@@ -1,12 +1,16 @@
-# 
+#
 # Default object factory and cache
 #
-nconf = require 'nconf'
 uuid = require './uuid'
 async = require 'async'
 _ = require 'underscore'
+fs = require 'fs'
 
-exports.cache = CACHE = {}
+# The only global variable for the app
+# Has refs to all objects indexed by id
+exports.CACHE = CACHE = {}
+
+filename = (id) -> __dirname + "/data/" + encodeURI(id)
 
 # Create enity instance
 exports.create = create = (id, entity, package, cb) ->
@@ -28,9 +32,6 @@ exports.create = create = (id, entity, package, cb) ->
         id = uuid.v1()
     if not (package and entity)
         return cb and cb( new Error("Can't create null entity") )
-
-    if id of CACHE
-        return cb and cb( null, CACHE[id] )
 
     exports.log.debug "Create #{package}.#{entity} [#{id}]"
 
@@ -57,25 +58,27 @@ exports.create = create = (id, entity, package, cb) ->
 
 # Clear entity from cache
 exports.clear =(entity, cb)->
-        # Clear local cache
-        delete CACHE[entity.id]
-        # Remove from backend
-        nconf.clear('object:' + entity.id)
-        nconf.clear('index:' + entity.entity + ":" + entity.id )
-        if _.isEmpty( nconf.get('index:'+entity.state ) )
-            nconf.clear('index:' + entity.entity )
-        nconf.save (err) =>
-            cb(err)
+        # Delete object
+        delete exports.CACHE[entity.id]
+        fs.unlink( filename(entity.id), cb)
 
 # Save entity to storage
 exports.save = (entity, cb)->
         # Save to cache and backend
-        entity._children = undefined
-        CACHE[ entity.id ] = entity
-        nconf.set("object:" + entity.id, entity)
-        nconf.set("index:" + entity.entity + ":" + entity.id, entity.message)
-        nconf.save (err) =>
-            cb and cb(err)
+        exports.CACHE[ entity.id ] = entity
+        fs.writeFile( filename(entity.id), JSON.stringify( entity ), cb)
+
+# Resolve object from the filesystem
+exports.resolve = resolve = (id, cb)->
+    # Try to open file
+    fs.readFile filename(id), (err, json)->
+        if err
+            err = new Error("Reference not found: #{id}")
+            err.notFound = true
+            return cb( err )
+        else
+            exports.log.debug "Loaded", id
+            return cb( null, JSON.parse(json) )
 
 # Load state from module
 exports.load = load = (id, entity, package, cb) ->
@@ -86,39 +89,30 @@ exports.load = load = (id, entity, package, cb) ->
     if typeof(entity) == 'function'
         cb = entity
         package = entity = null
-    
-    stored = null
-    
+
+    blueprint = null
+
     if _.isObject(id)
-        stored = id
-        id = stored.id
+        blueprint = id
+        id = blueprint.id
 
-    if id
-        fromdb = nconf.get("object:" + id)
-        if stored
-            _.defaults stored, fromdb
-        else
-            stored = fromdb
+    # Check if in cache
+    if id of exports.CACHE
+        return cb( null, exports.CACHE[id] )
 
-    if stored
-        if stored.entity
-            package = entity = stored.entity
-        if stored.package
-            package = stored.package
+    # Resolve object from memory or storage
+    resolve id, (err, stored)->
+        return cb(err) if err
+        exports.log.debug "Loaded #{stored.package}.#{stored.entity} #{id}"
+        # Apply defaults to just loaded object
+        if blueprint
+            _.defaults stored, blueprint
+        # Take type from object if not set
+        entity = entity or stored.entity
+        package = package or stored.package
+        create( stored, entity, package, cb )
 
-    if id and not stored
-        #return cb( null, { id:id, state:'error', message:'Ghost reference' } )
-        return cb( new Error("Reference not found: [#{id}]") )
- 
-    create id, entity, package, (err, obj)->
-        return cb and cb(err) if err
-        if stored
-            _.extend obj, stored
-            exports.log.debug "Loaded #{package}.#{entity} [#{id}]"
-            if obj.loaded
-                return obj.loaded cb
-        cb and cb( null, obj )
-
+# Load or create object
 exports.loadOrCreate = loadOrCreate = (id, entity, package, cb )->
     if typeof(package) == 'function'
         cb = package
@@ -127,43 +121,40 @@ exports.loadOrCreate = loadOrCreate = (id, entity, package, cb )->
         cb = entity
         package = entity = null
     load id, entity, package, (err, obj)->
-        return cb(null, obj) if not err
+        return cb(err, obj) if not err
+        return cb(err, obj) if not err.notFound
         create id, entity, package, (err, obj)->
             return cb(err) if err
             obj.save (err)->
                 cb(err, obj)
 
+# This method replace children IDs by objects itself
+# Return clone of the object!
 exports.loadWithChildren = loadWithChildren = (id, cb)->
     load id, (err, item)->
         return cb and cb(err) if err
-        if item.resolve
-            return item.resolve (err)->
-                cb and cb(err, item)
+        clone = _.clone( item )
+        if clone.children
+            async.map clone.children, load, (err, children)->
+                return cb(err) if err
+                clone.children = children
+                cb and cb(err, clone)
         else
-            return cb and cb(null, item)
-
+            cb(null, clone)
 
 # Query states by params and cb( error, [entities] )
-exports.query = query = (entity, params, cb) ->
-
-    if typeof(params) == 'function'
-        cb = params
-        params = []
-
-
-    # Get all indexes
-    if(entity=='*')
-        indexes = nconf.get('index')
-        async.map _.keys(indexes), query, (err, entities)->
-            results = _.reduce entities, (memo, list)-> memo.concat list
-            return cb( err, results )
-
-    # Load items from index
-    json = nconf.get('index:' + entity)
-    if not json or (_.isArray(json) and json.length == 0)
-        json =  {}
-
-
-    # Load async each entity by key
-    async.map _.keys(json), loadWithChildren, cb
-
+exports.query = query = (index, params..., cb) ->
+    console.log "CACHE", exports.CACHE, @
+    # If global index requested
+    if(index=='*')
+        # return complete cache
+        cb( null, _.values(exports.CACHE) )
+    else
+        # else try to load named index
+        load index, (err, index)->
+            return cb(err) if err and not err.notFound
+            # If index not found return empty array
+            if err
+                return cb( null, [] )
+            # else load objects from index
+            async.map(index.children, load, cb)

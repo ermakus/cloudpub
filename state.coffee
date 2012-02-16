@@ -36,7 +36,6 @@ exports.State = class State
     init: ->
         # Event handlers
         @events = {}
-        # Each object has machine instance ID
         @instance = settings.ID
 
     #### Return type of object
@@ -55,22 +54,56 @@ exports.State = class State
         sugar.vargs(arguments)
         return cb(null) unless @id
         exports.log.debug "Save: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
-        # Remove resolved children before save
-        @_children = undefined
         # Add timestump for cache maintaining
-        @stump = Date.now()
-        exports.save @, cb
+        if not @stump
+            @stump = Date.now()
+            @index @entity, true, (err)=>
+                return cb(err) if err
+                exports.save(@, cb)
+        else
+            exports.save(@, cb)
 
     #### Clear and remove from storage
     clear: (cb) ->
         sugar.vargs(arguments)
         if @id
             exports.log.debug "Delete state", @id
-            exports.clear @, (err) =>
-                @id = undefined
-                cb( null )
+            @index @entity, false, (err)=>
+                return cb(err) if err
+                exports.clear @, (err) =>
+                    @id = undefined
+                    cb(err)
         else
             cb( null )
+
+    #### Add or remove state to/from indexes
+    # - indexes is array of the index names
+    # - add = true to add false to remove
+    index: (index, add, cb)->
+        # Skip indexes
+        if @entity == 'index'
+            return cb(null)
+
+        # If first param is array
+        if _.isArray(index)
+            # then call self again for each index
+            return async.forEach index, ((index, cb)=>@index(index, add, cb)), cb
+
+        exports.log.debug "Update index", index, (if add then '<-' else '->'), @id
+        state.loadOrCreate index, 'index', 'state', (err, group)=>
+            return cb(err) if err
+            # Add to index
+            if add
+                group.add @id, cb
+            else
+                # Remove from index
+                group.remove @id, (err)=>
+                    return cb(err) if err
+                    # Remove empty index
+                    if group.children.length == 0
+                        group.clear cb
+                    else
+                        cb(null)
 
     #### Handle event and dispatch to registered handlers
     # This method will call this[name] function if defined
@@ -111,6 +144,36 @@ exports.State = class State
     mute: (name, handler, id)->
         if name of @events
             @events[name] = _.filter( @events[name], (h)->( not ((h.id == id) and (h.handler == handler)) ) )
+
+exports.Index = class extends State
+    # Init instance
+    init: ->
+        super()
+        # Children object IDs
+        @children = []
+
+    # Add children to index 
+    add: (id, cb=state.defaultCallback) ->
+        sugar.vargs arguments
+        if id in @children then return cb and cb(null)
+        exports.log.info "Add #{id} to #{@id}"
+        @children.push id
+        async.series [
+                (cb)=> @save(cb)
+            ], (err)->cb(err)
+
+    # Remove children from index
+    remove: (id, cb=state.defaultCallback) ->
+        sugar.vargs arguments
+        if id in @children
+            exports.log.info "Remove #{id} from #{@id}"
+            @children = _.without @children, id
+            async.series [
+                (cb)=> @save(cb)
+            ], (err)->cb(err)
+        else
+            cb(null)
+
 
 # Helper to call method from backend stack
 backendHandler = (method)->

@@ -23,7 +23,7 @@ script.list-template(type="text/template")
                     .state-icon
                         a(href="#", title="<%=item.state%>: <%=item.message%>")
                             img(src="state-<%=item.state%>.png")
-                            .state-hole <%= item._children && item._children.length || 0 %>
+                            .state-hole <%= item.children && item.children.length || 0 %>
                     .state-info
                         h3 <%= item.address || "IP not available"%>
                         span(title="<%= item.message %>") <%= item.message %> 
@@ -31,7 +31,7 @@ script.list-template(type="text/template")
                     h3 <%= (item.user || "Not Available") %>
                 td.worker
                     ul.state-list
-                        <% _.each(item._children, function(service) { %>
+                        <% _.each(item.children, function(service) { %>
                         li
                             .state-icon-small
                                 img(src="state-<%= service.state %>.png")

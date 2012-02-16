@@ -246,19 +246,19 @@ exports.Service = class Service extends state.State
 
 # Get list of all services for account
 listServices = (entity, params, cb)->
-
     async.waterfall [
         # Load account
         (cb) ->
             state.load params.account, cb
-        # Load services
+        # Load instancies with services
         (account, cb)->
-            async.map account.children, state.loadWithChildren, cb
+            async.map( account.children, state.loadWithChildren, cb)
         # Merge services in one collection
-        (services, cb)->
-            cb(null, _.reduce( services, ((memo, item)->memo.concat(item._children)), [] ))
+        (instancies, cb)->
+            cb(null, _.reduce( instancies, ((memo, item)->memo.concat(item.children)), [] ))
     ], cb
 
+# Return service by id or create new one
 getService = (params, entity, cb)->
     state.loadOrCreate params.id, 'module', (err, module)->
         cb(err, module)

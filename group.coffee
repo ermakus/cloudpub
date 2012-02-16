@@ -18,7 +18,7 @@ exports.Group = class Group extends service.Service
     add: (id, cb=state.defaultCallback) ->
         sugar.vargs arguments
         if id in @children then return cb and cb(null)
-        exports.log.info "Add #{id} to #{@id}"
+        exports.log.debug "Add #{id} to #{@id}"
         @children.push id
         async.series [
                 (cb)=> @save(cb)
@@ -29,7 +29,7 @@ exports.Group = class Group extends service.Service
     remove: (id, cb=state.defaultCallback) ->
         sugar.vargs arguments
         if id in @children
-            exports.log.info "Remove #{id} from #{@id}"
+            exports.log.debug "Remove #{id} from #{@id}"
             @children = _.without @children, id
             async.series [
                 (cb)=> @save(cb)
@@ -44,8 +44,6 @@ exports.Group = class Group extends service.Service
         # If array passed then submit all
         if params and _.isArray(params)
             return async.forEachSeries params, ((item, cb)=>@create(item, cb)), cb
-
-        exports.log.info "Group: Create " + JSON.stringify(params)
 
         state.loadOrCreate params, (err, worker) =>
             return cb and cb(err) if err
@@ -161,14 +159,3 @@ exports.Group = class Group extends service.Service
     continue: (event, cb)->
         sugar.vargs arguments
         cb(null)
-
-    # Resolve children IDs to objects from storage
-    # TODO: fix ugly _children
-    resolve: (cb)->
-        sugar.vargs arguments
-        async.map @children, state.load, (err, items)=>
-            return cb and cb(err) if err
-            @_children = items
-            cb and cb(null)
-
-
