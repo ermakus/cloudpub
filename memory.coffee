@@ -70,6 +70,7 @@ exports.clear =(entity, cb)->
 # Save entity to storage
 exports.save = (entity, cb)->
         # Save to cache and backend
+        entity._children = undefined
         CACHE[ entity.id ] = entity
         nconf.set("object:" + entity.id, entity)
         nconf.set("index:" + entity.entity + ":" + entity.id, entity.message)

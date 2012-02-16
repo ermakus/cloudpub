@@ -17,7 +17,7 @@ GoogleStrategy = require('passport-google').Strategy
 
 FORCE_USER=false
 AFTER_LOGIN='/instance'
-USER_PREFIX='user-'
+USER_PREFIX=''
 
 exports.log = console
 
@@ -49,7 +49,7 @@ exports.Account = class Account extends group.Group
     generate: (params, cb)->
         # Create shell.keygen task
         # The commitSuicide=true flag will free object on task complete
-        state.create {commitSuicide:true}, 'keygen', 'shell', (err, shell)=>
+        state.create undefined, 'keygen', 'shell', (err, shell)=>
             return cb(err) if err
             # Init and run the ssh-keygen task
             shell.account = @id
@@ -70,10 +70,9 @@ exports.Account = class Account extends group.Group
 
     # Called when key generated
     keysReady: (task, cb)->
-        # Store keys
-        @public_key  = task.public_key
-        @private_key = task.private_key
-        @setState 'up', "Keypair generated", cb
+        @setState 'up', "Keypair generated", (err)->
+            return cb(err) if err
+            task.clear( cb )
 
     # Load key from file. type is 'public' or 'private'
     loadKey: ( type, cb)->
@@ -83,7 +82,9 @@ exports.Account = class Account extends group.Group
     # Called on failure
     keysFailure: (error, cb)->
         # Set account state and notify user
-        @setState 'error', error.message, cb
+        @setState 'error', error.message, (err)->
+            return cb(err) if err
+            task.clear( cb )
 
 # Generate keypair (if required) and then save account
 # Called for all auth providers
