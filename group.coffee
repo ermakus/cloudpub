@@ -139,10 +139,13 @@ exports.Group = class Group extends service.Service
                 # Handle empty group state
                 st ||= (if @goal == 'start' then 'up' else 'down')
                 # Emit state event
-                exports.log.debug "Group state", @id, st, service.message
+                @oldstate = @state
                 @setState(st, service.message, cb)
             # Fire success
             (cb)=>
+                exports.log.debug "Group state", @id, @state, @oldstate, service.message
+                # Do not fire same state twice
+                return cb(null) if @state == @oldstate
                 if (@state == 'up')
                     exports.log.debug "Group #{@id} started"
                     return Group.__super__.startup.call( @, @, cb )

@@ -11,6 +11,7 @@ exports.InstanceStartTest = class extends test.Test
     # Test instance startup
     test1InstanceStart: (cb)->
         async.waterfall [
+             # Set expected states
              (cb)=>
                 @expect([
                     ['maintain', 'Sync service files']
@@ -28,16 +29,19 @@ exports.InstanceStartTest = class extends test.Test
                     ['maintain', 'Start Cloudpub']
                     ['up',       'Online']
                 ], cb)
-
+            # Create instance
             (cb)=>
-                sugar.route('state', @inst, 'onState', @id, cb)
-
+               state.loadOrCreate("test/INSTANCE", 'instance', cb)
+            # Route state event to checker
+            (instance, cb)=>
+                @instance = instance.id
+                sugar.route('state', @instance, 'onState', @id, cb)
+            # Launch instance
             (cb)=>
-                sugar.emit('launch', @inst, {
-                    id: settings.ID
+                sugar.emit('launch', @instance, {
                     user: settings.USER
                     address: '127.0.0.1'
-                    port: '8080'
-                    account: @acc
+                    port: 8080
+                    account: @account
                 }, cb)
         ], cb

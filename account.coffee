@@ -52,8 +52,8 @@ exports.Account = class Account extends group.Group
         # Check if keypair is not already generated
         if not @public_key
             # Init keys location
-            @public_key  = "#{settings.STORAGE}/#{USER_PREFIX}#{@email}.key.pub"
-            @private_key = "#{settings.STORAGE}/#{USER_PREFIX}#{@email}.key"
+            @public_key  = "#{settings.STORAGE}/#{@email}.key.pub"
+            @private_key = "#{settings.STORAGE}/#{@email}.key"
             # Try to open public key
             @loadKey 'public', (err, key)=>
                 if err
@@ -85,17 +85,15 @@ exports.Account = class Account extends group.Group
                 # Save task
                 (cb) => shell.save(cb)
                 # Route some events from task to account
-                (cb) => sugar.route('success', shell.id, 'keysReady',   @id, cb)
-                (cb) => sugar.route('failure', shell.id, 'keysFailure', @id, cb)
+                (cb) => sugar.route('success', shell.id, 'onKeyReady',   @id, cb)
+                (cb) => sugar.route('failure', shell.id, 'onFailure', @id, cb)
                 # Start command execution
                 (cb) => shell.start(cb)
             ], cb
 
     # Called when key generated
-    keysReady: (task, cb)->
-        @setState 'up', "Keypair generated", (err)->
-            return cb(err) if err
-            task.clear( cb )
+    onKeyReady: (task, cb)->
+        @setState 'up', "Keypair generated", cb
 
     # Load key from file. type is 'public' or 'private'
     loadKey: ( type, cb)->
@@ -103,10 +101,11 @@ exports.Account = class Account extends group.Group
         fs.readFile @[ type + '_key'], cb
 
     # Called on failure
-    keysFailure: (error, cb)->
-        # Set account state and notify user
+    onFailure: (error, cb)->
+        # Set account state to error and notify user
         @setState 'error', error.message, (err)->
             return cb(err) if err
+            # we need to remove the died task manually
             task.clear( cb )
 
 # Hook that called for all auth providers

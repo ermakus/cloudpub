@@ -42,7 +42,7 @@ exports.create = create = (id, entity, package, cb) ->
     if not (package and entity)
         return cb and cb( new Error("Entity type or package not set") )
     if not id
-        id = uuid.v1()
+        id = package + SEPARATOR + uuid.v1()
     if not (package and entity)
         return cb and cb( new Error("Can't create null entity") )
 
@@ -168,11 +168,10 @@ reducer = (memo, item, cb)->
 # Load and return objects from the named index
 # If index name is '*' then all objects is returns
 exports.query = query = (index, params..., cb) ->
-        # Load named index
-        load index, (err, index)->
-            return cb(err) if err and not err.notFound
-            # If index not found return empty array
-            if err
-                return cb( null, [] )
-                # load objects from index
-                async.map(index.children, load, cb)
+    # Load named index
+    load index, (err, index)->
+        return cb(err) if err and not err.notFound
+        # If index not found return empty array
+        return cb( null, [] ) if err
+        # load and return objects from index
+        async.map(index.children, load, cb)

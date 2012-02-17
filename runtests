@@ -1,5 +1,5 @@
 #!/bin/sh
 killall nginx
 killall node
-rm test-data
+rm -rf ./test-data
 node ./kya --debug --storage='./test-data' test $@

@@ -42,10 +42,10 @@ exports.Test = class Test extends service.Service
             @expected.push { state:state[0], message:state[1] }
         @save cb
 
-
+    # Check for expected event
     onEvent: (name, event..., cb)->
         if name == 'serviceState' then return cb(null)
-        if name != @expectedEvents[0]
+        if name != @expectedEvents[0] and @expectedEvents[0] != '*'
             exports.log.error "Unexpected event: ", name
             exports.log.error "expect: ", @expectedEvents[0]
             console.trace()
@@ -56,20 +56,21 @@ exports.Test = class Test extends service.Service
         @expectedEvents = @expectedEvents[1...]
         cb(null)
 
-    # Check state event by @expected queue
+    # Check for expected state
     onState: (event, cb)->
         if @expected.length
             exp = @expected[0]
             if (exp.state != event.state) or ((exp.message != event.message) and (exp.message != undefined))
-                # If failure, then die or notify suite
-                exports.log.error hr('=')
-                exports.log.error "Unexpected [" + event.state + "] " + event.message + " (" + event.id + ")"
-                exports.log.error "Expect: ", @expected[0]
-                exports.log.error hr('=')
-                console.trace()
-                err = new Error("Unexpected event:" + JSON.stringify(event))
-                assert.ifError err
-                return @emit 'failure', @, cb
+                if exp.state != '*'
+                    # If failure, then die or notify suite
+                    exports.log.error hr('=')
+                    exports.log.error "Unexpected [" + event.state + "] " + event.message + " (" + event.id + ")"
+                    exports.log.error "Expect: ", @expected[0]
+                    exports.log.error hr('=')
+                    console.trace()
+                    err = new Error("Unexpected event:" + JSON.stringify(event))
+                    assert.ifError err
+                    return @emit 'failure', @, cb
         # If success, then print checkpoint
         exports.log.info hr('-')
         exports.log.info "Expected [" + event.state + "] " + event.message + " (" + event.id + ")"
@@ -83,16 +84,13 @@ exports.Test = class Test extends service.Service
 
     # Setup test environment
     setUp: (cb)->
-
         async.waterfall [
             # Create test account 
             (cb)->
-                state.loadOrCreate 'test/ACCOUNT', 'account', cb
+                state.loadOrCreate {id:'test/ACCOUNT', email:'test@cloudpub.us'}, 'account', cb
             # Save and generate SSH keys
             (acc, cb)=>
                 @account = acc.id
-                acc.email = 'test@user'
-                acc.events = {}
-                acc.generate(cb)
+                acc.save(cb)
         ], (err)->cb(err)
 

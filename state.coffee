@@ -38,10 +38,15 @@ exports.State = class State
         @events = {}
         @instance = settings.ID
 
+    #### Return string representation
+    str: -> "[#{@package}.#{@entity}] #{@id}: #{@state} '#{@message}'"
+
     #### Return type of object
     type: ->
         results = (/function (.{1,})\(/).exec((this).constructor.toString())
         if results?.length then results[1] else "Unknown"
+
+    # All other methods is async
 
     # Set object properties and save
     set: (props, cb)->
@@ -157,7 +162,7 @@ exports.Index = class extends State
     add: (id, cb=state.defaultCallback) ->
         sugar.vargs arguments
         if id in @children then return cb and cb(null)
-        exports.log.info "Add #{id} to #{@id}"
+        exports.log.debug "Add #{id} to #{@id}"
         @children.push id
         async.series [
                 (cb)=> @save(cb)
@@ -167,14 +172,13 @@ exports.Index = class extends State
     remove: (id, cb=state.defaultCallback) ->
         sugar.vargs arguments
         if id in @children
-            exports.log.info "Remove #{id} from #{@id}"
+            exports.log.debug "Remove #{id} from #{@id}"
             @children = _.without @children, id
             async.series [
                 (cb)=> @save(cb)
             ], (err)->cb(err)
         else
             cb(null)
-
 
 # Helper to call method from backend stack
 backendHandler = (method)->

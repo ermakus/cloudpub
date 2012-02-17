@@ -17,7 +17,7 @@ cloudpub.init( false, function(err, server) {
         log.stderr("Error: " + err.message);
         process.exit(1);
     };
-    cloudpub.cloudfu.kya( process.argv.slice(2), process.env, function(err, background) {
+    cloudpub.cloudfu.kya( process.argv.slice(2), function(err, background) {
         if(err) {
             log.stderr("Error: " + err.message);
             cloudpub.stop();
