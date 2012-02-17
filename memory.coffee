@@ -1,16 +1,29 @@
 #
 # Default object factory and cache
 #
-uuid = require './uuid'
-async = require 'async'
-_ = require 'underscore'
-fs = require 'fs'
+async    = require 'async'
+_        = require 'underscore'
+path     = require 'path'
+fs       = require 'fs'
+mkdirp   = require 'mkdirp'
+uuid     = require './uuid'
+settings = require './settings'
 
 # The only global variable for the app
 # Has refs to all objects indexed by id
 exports.CACHE = CACHE = {}
 
-filename = (id) -> __dirname + "/data/" + encodeURI(id)
+SEPARATOR='/'
+
+# Return storage filename by ID
+filename = (id, mkdirs, cb) ->
+    full = settings.STORAGE + SEPARATOR + id
+    if mkdirs
+        exports.log.debug "Create path", full
+        mkdirp path.dirname(full), (err)->
+            cb(err, full)
+    else
+        cb(null, full)
 
 # Create enity instance
 exports.create = create = (id, entity, package, cb) ->
@@ -60,25 +73,31 @@ exports.create = create = (id, entity, package, cb) ->
 exports.clear =(entity, cb)->
         # Delete object
         delete exports.CACHE[entity.id]
-        fs.unlink( filename(entity.id), cb)
+        filename entity.id, false, (err, file)->
+            return cb(err) if err
+            fs.unlink(file, cb)
 
 # Save entity to storage
 exports.save = (entity, cb)->
         # Save to cache and backend
         exports.CACHE[ entity.id ] = entity
-        fs.writeFile( filename(entity.id), JSON.stringify( entity ), cb)
+        filename entity.id, true, (err, file)->
+            return cb(err) if err
+            fs.writeFile( file, JSON.stringify( entity ), cb)
 
 # Resolve object from the filesystem
 exports.resolve = resolve = (id, cb)->
     # Try to open file
-    fs.readFile filename(id), (err, json)->
-        if err
-            err = new Error("Reference not found: #{id}")
-            err.notFound = true
-            return cb( err )
-        else
-            exports.log.debug "Loaded", id
-            return cb( null, JSON.parse(json) )
+    filename id, false, (err, file)->
+        return cb(err) if err
+        fs.readFile file, (err, json)->
+            if err
+                err = new Error("Reference not found: #{id}")
+                err.notFound = true
+                return cb( err )
+            else
+                exports.log.debug "Loaded", id
+                return cb( null, JSON.parse(json) )
 
 # Load state from module
 exports.load = load = (id, entity, package, cb) ->
@@ -129,7 +148,7 @@ exports.loadOrCreate = loadOrCreate = (id, entity, package, cb )->
                 cb(err, obj)
 
 # This method replace children IDs by objects itself
-# Return clone of the object!
+# Return the clone of the object, not the object from the CACHE!
 exports.loadWithChildren = loadWithChildren = (id, cb)->
     load id, (err, item)->
         return cb and cb(err) if err
@@ -142,19 +161,18 @@ exports.loadWithChildren = loadWithChildren = (id, cb)->
         else
             cb(null, clone)
 
-# Query states by params and cb( error, [entities] )
+# Helper function to reduce children
+reducer = (memo, item, cb)->
+    memo.concat item.children
+
+# Load and return objects from the named index
+# If index name is '*' then all objects is returns
 exports.query = query = (index, params..., cb) ->
-    console.log "CACHE", exports.CACHE, @
-    # If global index requested
-    if(index=='*')
-        # return complete cache
-        cb( null, _.values(exports.CACHE) )
-    else
-        # else try to load named index
+        # Load named index
         load index, (err, index)->
             return cb(err) if err and not err.notFound
             # If index not found return empty array
             if err
                 return cb( null, [] )
-            # else load objects from index
-            async.map(index.children, load, cb)
+                # load objects from index
+                async.map(index.children, load, cb)

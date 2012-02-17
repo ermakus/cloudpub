@@ -10,7 +10,6 @@ nconf   = require 'nconf'
 
 # Test suite
 # Will run all testXXX methods from @testModule.@testEntity
-# 
 exports.Suite = class Suite extends queue.Queue
 
     init: ->
@@ -25,7 +24,7 @@ exports.Suite = class Suite extends queue.Queue
             if method.indexOf('test') == 0
                 # Create new instance for each test method and submit to queue
                 test = {
-                    id:( "TEST_" + name + "_" + method)
+                    id:( "test/" + name + "/" + method)
                     entity
                     package
                     testMethod:method
@@ -34,7 +33,7 @@ exports.Suite = class Suite extends queue.Queue
                 @create test, cb
             else
                 cb( null )
-        
+
         # Create entity for introspection
         state.create null, entity, package, (err, test)=>
             return cb and cb(err) if err

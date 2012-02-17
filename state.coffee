@@ -57,7 +57,7 @@ exports.State = class State
         # Add timestump for cache maintaining
         if not @stump
             @stump = Date.now()
-            @index @entity, true, (err)=>
+            @index "index/" + @entity, true, (err)=>
                 return cb(err) if err
                 exports.save(@, cb)
         else
@@ -68,7 +68,7 @@ exports.State = class State
         sugar.vargs(arguments)
         if @id
             exports.log.debug "Delete state", @id
-            @index @entity, false, (err)=>
+            @index "index/" + @entity, false, (err)=>
                 return cb(err) if err
                 exports.clear @, (err) =>
                     @id = undefined
@@ -76,12 +76,12 @@ exports.State = class State
         else
             cb( null )
 
-    #### Add or remove state to/from indexes
-    # - indexes is array of the index names
+    #### Add or remove this state to/from indexes
+    # - index is array or string of the index name
     # - add = true to add false to remove
     index: (index, add, cb)->
-        # Skip indexes
-        if @entity == 'index'
+        # Skip index of indexes
+        if @id == 'index/index'
             return cb(null)
 
         # If first param is array
@@ -145,6 +145,7 @@ exports.State = class State
         if name of @events
             @events[name] = _.filter( @events[name], (h)->( not ((h.id == id) and (h.handler == handler)) ) )
 
+# Object index
 exports.Index = class extends State
     # Init instance
     init: ->

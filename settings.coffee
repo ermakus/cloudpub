@@ -40,16 +40,19 @@ nconf.env()
 # Session GC interval, ms
 @GC_INTERVAL = nconf.get('gc-interval') or 60000
 
+# State storage
+@STORAGE= nconf.get('storage') or __dirname + '/data'
+
 # Init logger
-@log = log = logger.create()
+log = logger.create()
 log.level = nconf.get('log-level') or 2
 
-@SNAPSHOT_FILE= nconf.get('snapshot') or __dirname + '/snapshot.json'
-
-nconf.file { file:@SNAPSHOT_FILE }
 
 # Print config if debug mode
 if nconf.get('debug')
     log.level = 0
     for key of exports
         log.debug "[bold]#{key}[/bold]:\t\t#{@[key]}"
+
+@log = log
+
