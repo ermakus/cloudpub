@@ -38,23 +38,10 @@ exports.Queue = class Queue extends group.Group
         exports.log.debug "Queue: Start service", id
         state.load id, (err, service)=>
             return cb(err)  if (err)
-            return cb(null) if service.state == 'up'
             async.series [
                     (cb) => @setState(service.state, service.message, cb)
                     (cb) => service.start( params..., cb )
                 ], (err)->cb(err)
-
-    ###
-    # Stop execution
-    shutdown: ( me, cb )->
-        sugar.vargs arguments
-        exports.log.info "Queue: Stop", @id
-        # Stop all services
-        async.forEach @children,((id,cb)=>@stopService(id,params...,cb)), (err)=>
-            return cb(err) if err
-            Queue.__super__.shutdown.call @, params..., cb
-
-    ###
 
     # Stop and delete service
     stopService: (id, params..., cb)->
@@ -65,7 +52,7 @@ exports.Queue = class Queue extends group.Group
                 (cb) => sugar.emit('clear', id,  cb)
             ], (err)->cb(err)
 
-    # Queue has different from group state management
+    # Queue has been override group state management
     serviceState: (name, params..., cb) ->
         sugar.vargs arguments
         if name == 'success'

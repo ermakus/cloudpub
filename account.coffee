@@ -17,7 +17,7 @@ GoogleStrategy = require('passport-google').Strategy
 
 FORCE_USER=false
 AFTER_LOGIN='/instance'
-USER_PREFIX=''
+USER_PREFIX='user/'
 
 exports.log = console
 
@@ -44,6 +44,29 @@ exports.Account = class Account extends group.Group
     serviceState: (event, cb)->
         io.emit @id, {state:event.state, message:event.message}
         cb and cb(null)
+
+    # We can make some work on save
+    save: (cb)->
+        if not @email
+            cb( new Error("Can't save account without email") )
+        # Check if keypair is not already generated
+        if not @public_key
+            # Init keys location
+            @public_key  = "#{settings.STORAGE}/#{USER_PREFIX}#{@email}.key.pub"
+            @private_key = "#{settings.STORAGE}/#{USER_PREFIX}#{@email}.key"
+            # Try to open public key
+            @loadKey 'public', (err, key)=>
+                if err
+                    # If file not found, generate keypair
+                    @generate(cb)
+                else
+                    # If keypair already exists, just save
+                    exports.log.warn("SSH keys already exists for this account")
+                    Account.__super__.save.call( @, cb )
+        else
+            # else just save account
+            super( cb )
+
 
     # Generate SSH keypair
     generate: (cb)->
@@ -86,28 +109,8 @@ exports.Account = class Account extends group.Group
             return cb(err) if err
             task.clear( cb )
 
-# Generate keypair (if required) and then save account
-# Called for all auth providers
-saveAccount = (acc, cb) ->
-    if not acc.email
-        cb( new Error("Account without email") )
-    # Check if keypair not already generated
-    if not acc.public_key
-        # Init keys location
-        acc.public_key  = "#{settings.HOME}/.ssh/#{acc.email}.pub"
-        acc.private_key = "#{settings.HOME}/.ssh/#{acc.email}"
-        # Try to open public key
-        acc.loadKey 'public', (err, key)->
-            if err
-                # If file not found, generate keypair
-                acc.generate(cb)
-            else
-                # If keypair already exists, just save
-                exports.log.warn("SSH keys already exists for this account")
-                acc.save( cb )
-    else
-        # else just save account
-        acc.save( cb )
+# Hook that called for all auth providers
+saveAccount = (acc, cb) -> acc.save(cb)
 
 # SHA1 helper function
 exports.sha1 = sha1 = (text)->

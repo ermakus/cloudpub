@@ -11,6 +11,7 @@ exports.CoreTest = class extends test.Test
 
     #### Test object factory 
     test1_StateCreate: (cb)->
+        exports.log.debug("State created")
         testObj = {id:'test/UNSAVED',entity:'state'}
         state.create testObj, (err, item)=>
             return cb(err) if err

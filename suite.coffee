@@ -5,7 +5,6 @@ assert  = require 'assert'
 main    = require './main'
 state   = require './state'
 queue   = require './queue'
-checker = require './test/checker'
 nconf   = require 'nconf'
 
 # Test suite

@@ -67,11 +67,13 @@ exports.Cloudfu = class extends Command
     # Run test suite
     test: (params, cb)->
         async.waterfall [
-            (cb) -> state.create('test-suite', 'suite', cb)
+            (cb) -> state.create('test/SUITE', 'suite', cb)
             (suite, cb)->
                 suite.createTests [
                         'core'
                         'instanceStart'
+                        'appStart'
+                        'appStop'
                         'instanceStop'
                 ], (err)-> cb( err, suite )
             (suite, cb) -> suite.start(cb)

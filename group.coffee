@@ -54,7 +54,7 @@ exports.Group = class Group extends service.Service
             worker.address = @address or worker.address
             worker.home    = @home    or worker.home
 
-            exports.log.info "Group: Created " + JSON.stringify(worker)
+            exports.log.debug "Group: Created " + JSON.stringify(worker)
 
             async.series [
                     # Save worker
@@ -144,10 +144,10 @@ exports.Group = class Group extends service.Service
             # Fire success
             (cb)=>
                 if (@state == 'up')
-                    exports.log.info "Group #{@id} started"
+                    exports.log.debug "Group #{@id} started"
                     return Group.__super__.startup.call( @, @, cb )
                 if (@state == 'down')
-                    exports.log.info "Group #{@id} stopped"
+                    exports.log.debug "Group #{@id} stopped"
                     return Group.__super__.shutdown.call( @, @, cb )
                 if (@state == 'error')
                     exports.log.error "Group #{@id} failure"
