@@ -46,7 +46,7 @@ exports.Account = class Account extends group.Group
         cb and cb(null)
 
     # Generate SSH keypair
-    generate: (params, cb)->
+    generate: (cb)->
         # Create shell.keygen task
         # The commitSuicide=true flag will free object on task complete
         state.create undefined, 'keygen', 'shell', (err, shell)=>
@@ -100,7 +100,7 @@ saveAccount = (acc, cb) ->
         acc.loadKey 'public', (err, key)->
             if err
                 # If file not found, generate keypair
-                acc.generate( {}, cb)
+                acc.generate(cb)
             else
                 # If keypair already exists, just save
                 exports.log.warn("SSH keys already exists for this account")

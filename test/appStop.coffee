@@ -1,9 +1,9 @@
+async = require 'async'
 main  = require '../main'
 state = require '../state'
-async = require 'async'
-checker = require './checker'
+test  = require './test'
 
-exports.AppStopTest = class extends checker.Checker
+exports.AppStopTest = class extends test.Test
 
     testAppStop: (cb)->
         async.waterfall [

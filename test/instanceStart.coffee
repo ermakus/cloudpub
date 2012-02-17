@@ -4,9 +4,9 @@ fs       = require 'fs'
 settings = require '../settings'
 sugar    = require '../sugar'
 state    = require '../state'
-checker  = require './checker'
+test     = require './test'
 
-exports.InstanceStartTest = class extends checker.Checker
+exports.InstanceStartTest = class extends test.Test
 
     # Test instance startup
     test1InstanceStart: (cb)->

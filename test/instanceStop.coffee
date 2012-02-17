@@ -1,10 +1,9 @@
 sugar  = require '../sugar'
 state  = require '../state'
 async  = require 'async'
+test   = require './test'
 
-checker = require './checker'
-
-exports.InstanceStopTest = class extends checker.Checker
+exports.InstanceStopTest = class extends test.Test
 
     # Test instance shutdown
     testInstanceStop: (cb)->

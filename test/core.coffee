@@ -1,17 +1,17 @@
 async    = require 'async'
 assert   = require 'assert'
-checker  = require './checker'
+test     = require './test'
 state    = require '../state'
 settings = require '../settings'
 sugar    = require '../sugar'
 
 #### Core engine tests
 
-exports.CoreTest = class extends checker.Checker
+exports.CoreTest = class extends test.Test
 
     #### Test object factory 
     test1_StateCreate: (cb)->
-        testObj = {id:'TEST-UNSAVED',entity:'state'}
+        testObj = {id:'test/UNSAVED',entity:'state'}
         state.create testObj, (err, item)=>
             return cb(err) if err
             assert.ok item
@@ -36,7 +36,7 @@ exports.CoreTest = class extends checker.Checker
     #### Test service lifecycle
     test3_Service: (cb)->
         @expectedEvents = ['starting','install','installed','startup','started']
-        state.loadOrCreate {id:"TEST-SERVICE",entity:"service",commitSuicide:true,doUninstall:true}, (err, service)=>
+        state.loadOrCreate {id:"test/SERVICE",entity:"service",commitSuicide:true,doUninstall:true}, (err, service)=>
             service.on '*',       'onEvent',  @id
             service.on 'started', 'serviceStarted', @id
             service.start(cb)
@@ -56,14 +56,14 @@ exports.CoreTest = class extends checker.Checker
     #### Test services group
     test4_Group: (cb)->
         @expectedEvents = ['starting','startup','state', 'state', 'stopped','success']
-        group = { id:"TEST-GROUP", entity:"group", isInstalled:true, commitSuicide:true, user:settings.USER, address:'127.0.0.1' }
+        group = { id:"test/GROUP", entity:"group", isInstalled:true, commitSuicide:true, account:@account }
         state.loadOrCreate group, (err, group)=>
             return cb(err) if err
             group.on '*',       'onEvent',      @id
             group.on 'success', 'groupSuccess', @id
             tasks = [
-                {id:"TEST-GROUP-WORKER-1",entity:"shell",command:['echo','One']}
-                {id:"TEST-GROUP-WORKER-2",entity:"shell",command:['echo','Two']}
+                {id:"test/group/WORKER-1",entity:"shell",command:['echo','One']}
+                {id:"test/group/WORKER-2",entity:"shell",command:['echo','Two']}
             ]
             group.create tasks, (err)=>
                 return cb(err) if err
@@ -77,14 +77,14 @@ exports.CoreTest = class extends checker.Checker
     ##### Test services queue
     test5_Queue: (cb)->
         @expectedEvents = ['starting','startup','started','state','stopped','success']
-        queue = { id:"TEST-QUEUE", entity:"queue", isInstalled: true, doUnistall: true, commitSuicide:true }
+        queue = { id:"test/QUEUE", entity:"queue", isInstalled: true, doUnistall: true, commitSuicide:true, account:@account }
         state.loadOrCreate queue, (err, queue)=>
             return cb(err) if err
             queue.on '*',       'onEvent',      @id
             queue.on 'success', 'queueSuccess', @id
             tasks = [
-                {id:"TEST-QUEUE-WORKER-1",entity:"shell",command:['echo','Three']}
-                {id:"TEST-QUEUE-WORKER-2",entity:"shell",command:['echo','Fourth']}
+                {id:"test/queue/WORKER-1",entity:"shell",command:['echo','Three']}
+                {id:"test/queue/WORKER-2",entity:"shell",command:['echo','Fourth']}
             ]
             queue.create tasks, (err)=>
                 return cb(err) if err

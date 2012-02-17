@@ -2,10 +2,9 @@ path  = require 'path'
 main  = require '../main'
 state = require '../state'
 async = require 'async'
-checker = require './checker'
-redis = require 'redis'
+test  = require './test'
 
-exports.AppStartTest = class extends checker.Checker
+exports.AppStartTest = class extends test.Test
 
     test1AppStart: (cb)->
         async.waterfall [

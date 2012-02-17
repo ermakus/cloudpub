@@ -11,7 +11,7 @@ hr = (symbol)->
         symbol = symbol+symbol
     symbol
 
-exports.Checker = class Checker extends service.Service
+exports.Test = class Test extends service.Service
 
     init: ->
         super()
@@ -82,28 +82,17 @@ exports.Checker = class Checker extends service.Service
                 cb and cb(err)
 
     # Setup test environment
-    setUp: (callback)->
+    setUp: (cb)->
 
         async.waterfall [
-            # Create test instance
-            (cb)->
-                state.loadOrCreate settings.ID, 'instance', cb
-            # Save it
-            (inst, cb)=>
-                @inst = inst.id
-                inst.address = '127.0.0.1'
-                inst.user = settings.USER
-                inst.events = {}
-                inst.save cb
             # Create test account 
             (cb)->
-                state.loadOrCreate 'test-user', 'account', cb
-            # Save it
+                state.loadOrCreate 'test/ACCOUNT', 'account', cb
+            # Save and generate SSH keys
             (acc, cb)=>
-                @acc = acc.id
-                acc.login = 'test'
+                @account = acc.id
+                acc.email = 'test@user'
                 acc.events = {}
-                acc.save cb
-
-        ], callback
+                acc.generate(cb)
+        ], (err)->cb(err)
 
