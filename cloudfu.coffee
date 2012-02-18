@@ -89,6 +89,12 @@ exports.Cloudfu = class extends service.Service
             @stdout hr('-')
             cb(null)
 
+    # Delete object by ID
+    rm: (id, cb)->
+        state.load id, 'state', (err, obj)=>
+            return cb(err) if err
+            obj.clear(cb)
+
     # Run test suite
     test: (cb)->
         async.waterfall [

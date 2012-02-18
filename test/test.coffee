@@ -1,41 +1,24 @@
 settings = require '../settings'
 state    = require '../state'
-service  = require '../service'
+cloudfu  = require '../cloudfu'
 async    = require 'async'
 assert   = require 'assert'
 
-exports.log = state.log
+# Test account
+exports.ACCOUNT = 'test/ACCOUNT'
 
 hr = (symbol)->
     for i in [0..6]
         symbol = symbol+symbol
     symbol
 
-exports.Test = class Test extends service.Service
+# Base class for all tests
+exports.Test = class Test extends cloudfu.Cloudfu
 
     init: ->
         super()
         @expectedEvents = []
         @expected = []
-
-    start: (params..., cb) ->
-        async.series [
-                (cb)=>
-                    @setState 'up', "Run #{@testMethod}", cb
-                # Setup test object
-                (cb)=>
-                    if @setUp
-                        @setUp(cb)
-                    else
-                        cb(null)
-                # Call test method
-                (cb)=>
-                    if @testMethod
-                        @[@testMethod].call(@, cb)
-                    else
-                        cb( new Error('Test method not defined') )
-            ], (err)->cb(err)
-
 
     expect: (states, cb)->
         for state in states
@@ -50,9 +33,9 @@ exports.Test = class Test extends service.Service
             exports.log.error "expect: ", @expectedEvents[0]
             console.trace()
             process.exit(1)
-        exports.log.info hr('-')
-        exports.log.error "Expected event: ", name, event
-        exports.log.info hr('-')
+        exports.log.stdout hr('-')
+        exports.log.stdout "Expected event: ", name
+        exports.log.stdout hr('-')
         @expectedEvents = @expectedEvents[1...]
         cb(null)
 
@@ -72,9 +55,9 @@ exports.Test = class Test extends service.Service
                     assert.ifError err
                     return @emit 'failure', @, cb
         # If success, then print checkpoint
-        exports.log.info hr('-')
-        exports.log.info "Expected [" + event.state + "] " + event.message + " (" + event.id + ")"
-        exports.log.info hr('-')
+        exports.log.stdout hr('-')
+        exports.log.stdout "Expected state [" + event.state + "] " + event.message + " (" + event.id + ")"
+        exports.log.stdout hr('-')
         @expected = @expected[1...]
         @save (err)=>
             if not @expected.length
@@ -82,15 +65,4 @@ exports.Test = class Test extends service.Service
             else
                 cb and cb(err)
 
-    # Setup test environment
-    setUp: (cb)->
-        async.waterfall [
-            # Create test account 
-            (cb)->
-                state.loadOrCreate {id:'test/ACCOUNT', email:'test@cloudpub.us'}, 'account', cb
-            # Save and generate SSH keys
-            (acc, cb)=>
-                @account = acc.id
-                acc.save(cb)
-        ], (err)->cb(err)
 

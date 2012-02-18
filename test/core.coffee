@@ -10,7 +10,7 @@ sugar    = require '../sugar'
 exports.CoreTest = class extends test.Test
 
     #### Test object factory 
-    test1_StateCreate: (cb)->
+    test0_StateCreate: (cb)->
         exports.log.debug("State created")
         testObj = {id:'test/UNSAVED',entity:'state'}
         state.create testObj, (err, item)=>
@@ -19,6 +19,19 @@ exports.CoreTest = class extends test.Test
             assert.equal item.id, testObj.id
             assert.equal item.package, testObj.entity
             @emit 'success', @, cb
+
+    # Setup test environment
+    test1_Account: (cb)->
+        async.waterfall [
+            # Create test account 
+            (cb)->
+                state.loadOrCreate {id:test.ACCOUNT, email:'test@cloudpub.us'}, 'account', cb
+            # Save and generate SSH keys
+            (acc, cb)=>
+                @account = acc.id
+                acc.save(cb)
+        ], (err)->cb(err)
+
 
     #### Test event emitter
     test2_EventEmitter: (cb)->
@@ -57,7 +70,7 @@ exports.CoreTest = class extends test.Test
     #### Test services group
     test4_Group: (cb)->
         @expectedEvents = ['starting','startup','state','started','state','success']
-        group = { id:"test/GROUP", entity:"group", isInstalled:true, commitSuicide:true, account:@account }
+        group = { id:"test/GROUP", entity:"group", isInstalled:true, commitSuicide:true, account:test.ACCOUNT }
         state.loadOrCreate group, (err, group)=>
             return cb(err) if err
             group.on '*',       'onEvent',      @id
@@ -79,7 +92,7 @@ exports.CoreTest = class extends test.Test
     test5_Queue: (cb)->
         # TODO: Fix events
         @expectedEvents = ['starting','startup','*','*','*','*','*','*','*','*','*','success']
-        queue = { id:"test/QUEUE", entity:"queue", isInstalled: true, doUnistall: true, commitSuicide:true, account:@account }
+        queue = { id:"test/QUEUE", entity:"queue", isInstalled: true, doUnistall: true, commitSuicide:true, account:test.ACCOUNT }
         state.loadOrCreate queue, (err, queue)=>
             return cb(err) if err
             queue.on '*',       'onEvent',      @id

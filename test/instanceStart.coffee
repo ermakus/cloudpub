@@ -42,6 +42,6 @@ exports.InstanceStartTest = class extends test.Test
                     user: settings.USER
                     address: '127.0.0.1'
                     port: 8080
-                    account: @account
+                    account: test.ACCOUNT
                 }, cb)
         ], cb
