@@ -35,7 +35,7 @@ exports.Instance = class Instance extends group.Group
     # Launch instance and start some core services
     # This method called from WEB
     launch: (event, cb) ->
-        exports.log.info "Start instance", @id
+        settings.log.info "Start instance", @id
 
         # Init some params
         @account = event.account or @account

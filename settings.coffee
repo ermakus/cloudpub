@@ -44,15 +44,12 @@ nconf.env()
 @STORAGE= nconf.get('storage') or __dirname + '/data'
 
 # Init logger
-log = logger.create()
-log.level = nconf.get('log-level') or 2
-
+@log = logger.create()
+@log.level = nconf.get('log-level') or 2
 
 # Print config if debug mode
 if nconf.get('debug')
-    log.level = 0
+    @log.level = 0
     for key of exports
-        log.debug "[bold]#{key}[/bold]:\t\t#{@[key]}"
-
-@log = log
+        @log.debug "[bold]#{key}[/bold]:\t\t#{@[key]}"
 

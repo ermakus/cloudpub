@@ -19,8 +19,6 @@ FORCE_USER=false
 AFTER_LOGIN='/instance'
 USER_PREFIX='user/'
 
-exports.log = console
-
 # User account is group of instancies
 # It also manage auth keypair
 exports.Account = class Account extends group.Group
@@ -61,7 +59,7 @@ exports.Account = class Account extends group.Group
                     @generate(cb)
                 else
                     # If keypair already exists, just save
-                    exports.log.warn("SSH keys already exists for this account")
+                    settings.log.warn("SSH keys already exists for this account")
                     Account.__super__.save.call( @, cb )
         else
             # else just save account
@@ -97,7 +95,7 @@ exports.Account = class Account extends group.Group
 
     # Load key from file. type is 'public' or 'private'
     loadKey: ( type, cb)->
-        exports.log.debug "Load key", type, @[ type + '_key']
+        settings.log.debug "Load key", type, @[ type + '_key']
         fs.readFile @[ type + '_key'], cb
 
     # Called on failure
@@ -121,10 +119,10 @@ exports.sha1 = sha1 = (text)->
 authorize = (username, password, done) ->
     state.load USER_PREFIX + username, (err, user)->
         if err or not hasher.verify(password, user.password)
-            exports.log.error "Auth of #{username} failed"
+            settings.log.error "Auth of #{username} failed"
             return done(null, false)
         else
-            exports.log.info "Auth of #{username} succeed"
+            settings.log.info "Auth of #{username} succeed"
             return done(null, user)
 
 # Authorize user with Google

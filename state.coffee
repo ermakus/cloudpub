@@ -58,7 +58,7 @@ exports.State = class State
     save: (cb) ->
         sugar.vargs(arguments)
         return cb(null) unless @id
-        exports.log.debug "Save: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
+        settings.log.debug "Save: #{@package}.#{@entity} [#{@id}] (#{@state}) #{@message}"
         # Add timestump for cache maintaining
         if not @stump
             @stump = Date.now()
@@ -72,7 +72,7 @@ exports.State = class State
     clear: (cb) ->
         sugar.vargs(arguments)
         if @id
-            exports.log.debug "Delete state", @id
+            settings.log.debug "Delete state", @id
             @index "index/" + @entity, false, (err)=>
                 return cb(err) if err
                 exports.clear @, (err) =>
@@ -94,7 +94,7 @@ exports.State = class State
             # then call self again for each index
             return async.forEach index, ((index, cb)=>@index(index, add, cb)), cb
 
-        exports.log.debug "Update index", index, (if add then '<-' else '->'), @id
+        settings.log.debug "Update index", index, (if add then '<-' else '->'), @id
         state.loadOrCreate index, 'index', 'state', (err, group)=>
             return cb(err) if err
             # Add to index
@@ -124,7 +124,7 @@ exports.State = class State
             # Call local hook
             (cb)=>
                 if typeof(@[name]) == 'function'
-                    exports.log.debug "Handle event #{name} by \##{@id}"
+                    settings.log.debug "Handle event #{name} by \##{@id}"
                     @[name](params..., cb)
                 else
                     cb(null)
@@ -150,6 +150,13 @@ exports.State = class State
         if name of @events
             @events[name] = _.filter( @events[name], (h)->( not ((h.id == id) and (h.handler == handler)) ) )
 
+
+# Default callback
+exports.defaultCallback = defaultCallback = (err)->
+    if err
+        settings.log.error "Default callback error", err.message or err, (new Error().stack).split("\n")[2]
+
+
 # Object index
 exports.Index = class extends State
     # Init instance
@@ -162,7 +169,7 @@ exports.Index = class extends State
     add: (id, cb=state.defaultCallback) ->
         sugar.vargs arguments
         if id in @children then return cb and cb(null)
-        exports.log.debug "Add #{id} to #{@id}"
+        settings.log.debug "Add #{id} to #{@id}"
         @children.push id
         async.series [
                 (cb)=> @save(cb)
@@ -172,7 +179,7 @@ exports.Index = class extends State
     remove: (id, cb=state.defaultCallback) ->
         sugar.vargs arguments
         if id in @children
-            exports.log.debug "Remove #{id} from #{@id}"
+            settings.log.debug "Remove #{id} from #{@id}"
             @children = _.without @children, id
             async.series [
                 (cb)=> @save(cb)

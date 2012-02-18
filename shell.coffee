@@ -18,7 +18,7 @@ exports.Shell = class Shell extends service.Service
         if not @command then return cb(new Error("Shell command not set"))
         # If remote call is required
         if @address
-            exports.log.info "Shell: Remote exec on #{@address}"
+            settings.log.info "Shell: Remote exec on #{@address}"
             # ensure we have associated posix user and account
             if not @user then return cb(new Error("Shell: Remote user not set"))
             if not @account then return cb(new Error("Account not set"))
@@ -32,7 +32,7 @@ exports.Shell = class Shell extends service.Service
                 # Call super from the anonymous function
                 service.Service.prototype.configure.call( @, params..., cb )
         else
-            exports.log.info "Shell: Local exec of #{@command[0]}"
+            settings.log.info "Shell: Local exec of #{@command[0]}"
             # Call super
             super( params..., cb )
 
@@ -51,7 +51,7 @@ exports.Shell = class Shell extends service.Service
         if @home
             cmd = cmd.concat ["cd", @home, '&&']
         else
-            exports.log.warn "Shell: Home not set"
+            settings.log.warn "Shell: Home not set"
 
         # Prepare the run environment by env command
         cmd.push '/usr/bin/env'
@@ -84,7 +84,7 @@ exports.Shell = class Shell extends service.Service
         stdout = ''
         stderr = ''
 
-        exports.log.info "Executing " + (run.join " ")
+        settings.log.info "Executing " + (run.join " ")
 
         options = {
             env: _.clone( process.env )
@@ -103,12 +103,12 @@ exports.Shell = class Shell extends service.Service
         @pid = ch.pid
 
         ch.stdout.on 'data', (data) ->
-            exports.log.stdout data.toString()
+            settings.log.stdout data.toString()
             if stdout.length < 32768
                 stdout += data.toString()
 
         ch.stderr.on 'data', (data) ->
-            exports.log.stderr data.toString()
+            settings.log.stderr data.toString()
             if stderr.length < 32678
                 stderr += data.toString()
 
@@ -137,7 +137,7 @@ exports.Shell = class Shell extends service.Service
             try
                 process.kill @pid
             catch err
-                exports.log.warn "Process with #{@pid} does not exists"
+                settings.log.warn "Process with #{@pid} does not exists"
         @emit('stopped', @, cb)
 
 #### Sync service

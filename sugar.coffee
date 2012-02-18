@@ -3,8 +3,9 @@
 # Dependencies
 _     = require 'underscore'
 async = require 'async'
-state = require './state'
 assert = require 'assert'
+state = require './state'
+settings = require './settings'
 
 #### Validate correctness of the function call
 #
@@ -12,13 +13,13 @@ assert = require 'assert'
 #
 exports.vargs = vargs = (args)->
     try
-        #exports.log.trace "Arguments", ("#{typeof(a)}:#{JSON.stringify(a)}" for a in args)
+        #settings.log.trace "Arguments", ("#{typeof(a)}:#{JSON.stringify(a)}" for a in args)
         assert.ok(args.length > 0)
         assert.ok(args[args.length-1])
         assert.ok(_.isFunction(args[args.length-1]))
     catch ex
-        exports.log.fatal "Bad arguments", ("#{typeof(a)}:#{JSON.stringify(a)}" for a in args)
-        exports.log.fatal item for item in (new Error().stack).split("\n")[2...]
+        settings.log.fatal "Bad arguments", ("#{typeof(a)}:#{JSON.stringify(a)}" for a in args)
+        settings.log.fatal item for item in (new Error().stack).split("\n")[2...]
         process.exit(1)
 
 #### Send event to target object by id
@@ -35,11 +36,11 @@ exports.emit = emit = (name, target, params..., cb=state.defaultCallback)->
     if _.isArray(target)
         return async.forEach target, ((id,cb)->emit(name, id, params..., cb)), cb
     # Load object and handle event
-    exports.log.debug "Emit #{name} to \##{target}", params
+    settings.log.debug "Emit #{name} to \##{target}", params
     state.load target, (err, obj)->
         if err
             if err.message.indexOf("Reference not found") == 0
-                exports.log.warn "Emit event to missing object", err.message
+                settings.log.warn "Emit event to missing object", err.message
                 return cb(null)
             return cb(err)
         obj.emit(name, params..., cb)
@@ -52,7 +53,7 @@ exports.emit = emit = (name, target, params..., cb=state.defaultCallback)->
 #
 exports.relate = (name, from, to, cb)->
     assert.ok _.isFunction(cb)
-    exports.log.debug "Link #{name} from #{from} to #{to}"
+    settings.log.debug "Link #{name} from #{from} to #{to}"
     async.waterfall [
         # Load source object
         (cb)=>
@@ -86,7 +87,7 @@ exports.relate = (name, from, to, cb)->
 #
 exports.unrelate = (name, from, to, cb)->
     assert.ok _.isFunction(cb)
-    exports.log.debug "Unlink #{name} from #{from} to #{to}"
+    settings.log.debug "Unlink #{name} from #{from} to #{to}"
     async.waterfall [
         # Load source object
         (cb)=>
@@ -123,7 +124,7 @@ exports.unrelate = (name, from, to, cb)->
 #
 exports.route = (fromEvent, from, toEvent, to, cb)->
     assert.ok _.isFunction(cb)
-    exports.log.debug "Route event #{fromEvent} from (#{from}) to handler #{toEvent} (#{to})"
+    settings.log.debug "Route event #{fromEvent} from (#{from}) to handler #{toEvent} (#{to})"
     async.waterfall [
             # Load source object
             (cb)->
@@ -140,7 +141,7 @@ exports.route = (fromEvent, from, toEvent, to, cb)->
 #
 exports.unroute = (fromEvent, from, toEvent, to, cb)->
     assert.ok _.isFunction(cb)
-    exports.log.debug "Unroute event #{fromEvent} from (#{from}) to handler #{toEvent} (#{to})"
+    settings.log.debug "Unroute event #{fromEvent} from (#{from}) to handler #{toEvent} (#{to})"
     async.waterfall [
             # Load source object
             (cb)->

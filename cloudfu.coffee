@@ -8,7 +8,7 @@ account  = require './account'
 
 # print helper
 hr = (symbol)->
-    for i in [0..6]
+    for i in [0..5]
         symbol = symbol+symbol
     symbol + "\n"
 
@@ -17,10 +17,11 @@ exports.Cloudfu = class extends service.Service
     # Init stdout
     init: ->
         super()
-        @stdout = exports.log.stdout
+        @stdout = settings.log.stdout
         @state   = 'up'
         @message = 'Executing'
         @method  = 'help'
+        @isInstalled = true
         @commitSuicide = true
 
     # Start service
@@ -47,6 +48,7 @@ exports.Cloudfu = class extends service.Service
                     @emit 'failure', @, state.defaultCallback
                 else
                     @emit 'success', @, state.defaultCallback
+                @isInstalled = false
                 @stop( state.defaultCallback )
 
         super(args...,cb)
@@ -123,8 +125,7 @@ exports.Cloudfu = class extends service.Service
 exports.kya = (command, cb)->
     # Remove all options that handled by nconf
     args = _.filter( command, ((arg)->arg[0] != '-') )
-    exports.log.debug "Command line: #{args.join(' ')}"
-
+    settings.log.debug "Command line: #{args.join(' ')}"
     # Load or create object
     state.loadOrCreate null, 'cloudfu', (err, state)->
         return cb( err ) if err

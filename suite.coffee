@@ -44,7 +44,7 @@ exports.Suite = class Suite extends queue.Queue
 
     success: (entity, cb)->
         setTimeout =>
-            exports.log.info "Test suite done. #{@count} test(s) executed."
+            settings.log.info "Test suite done. #{@count} test(s) executed."
         , 500 # Give a time to execute callbacks
         @clear cb
 

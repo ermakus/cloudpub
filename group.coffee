@@ -18,7 +18,7 @@ exports.Group = class Group extends service.Service
     add: (id, cb=state.defaultCallback) ->
         sugar.vargs arguments
         if id in @children then return cb and cb(null)
-        exports.log.debug "Add #{id} to #{@id}"
+        settings.log.debug "Add #{id} to #{@id}"
         @children.push id
         async.series [
                 (cb)=> @save(cb)
@@ -29,7 +29,7 @@ exports.Group = class Group extends service.Service
     remove: (id, cb=state.defaultCallback) ->
         sugar.vargs arguments
         if id in @children
-            exports.log.debug "Remove #{id} from #{@id}"
+            settings.log.debug "Remove #{id} from #{@id}"
             @children = _.without @children, id
             async.series [
                 (cb)=> @save(cb)
@@ -54,7 +54,7 @@ exports.Group = class Group extends service.Service
             worker.address = @address or worker.address
             worker.home    = @home    or worker.home
 
-            exports.log.debug "Group: Created " + JSON.stringify(worker)
+            settings.log.debug "Group: Created " + JSON.stringify(worker)
 
             async.series [
                     # Save worker
@@ -72,7 +72,7 @@ exports.Group = class Group extends service.Service
     # Start all children
     startup: (group, cb)->
         sugar.vargs arguments
-        exports.log.debug "Group starting", @id
+        settings.log.debug "Group starting", @id
         async.series [
             (cb)=>@save(cb)
             (cb)=>@each('start', cb)
@@ -81,7 +81,7 @@ exports.Group = class Group extends service.Service
     # Stop all children
     shutdown: (group, cb)->
         sugar.vargs arguments
-        exports.log.debug "Group stopping", @id
+        settings.log.debug "Group stopping", @id
         async.series [
             (cb)=>@each('stop', cb)
             (cb)=>
@@ -106,7 +106,7 @@ exports.Group = class Group extends service.Service
             reordered = []
             for index in tsort.topologicalSort( services )
                 reordered.unshift @children[index]
-            exports.log.debug "Group new order", reordered
+            settings.log.debug "Group new order", reordered
             @children = reordered
             @save(cb)
 
@@ -119,7 +119,7 @@ exports.Group = class Group extends service.Service
             state.load id, (err, instance) =>
                 return cb(err) if err
                 # If object is just created
-                exports.log.debug "Call method", method, "of", instance.id
+                settings.log.debug "Call method", method, "of", instance.id
                 instance[method](params..., cb)
 
         async.forEach @children, process, (err)->
@@ -143,17 +143,17 @@ exports.Group = class Group extends service.Service
                 @setState(st, service.message, cb)
             # Fire success
             (cb)=>
-                exports.log.debug "Group state", @id, @state, @oldstate, service.message
+                settings.log.debug "Group state", @id, @state, @oldstate, service.message
                 # Do not fire same state twice
                 return cb(null) if @state == @oldstate
                 if (@state == 'up')
-                    exports.log.debug "Group #{@id} started"
+                    settings.log.debug "Group #{@id} started"
                     return Group.__super__.startup.call( @, @, cb )
                 if (@state == 'down')
-                    exports.log.debug "Group #{@id} stopped"
+                    settings.log.debug "Group #{@id} stopped"
                     return Group.__super__.shutdown.call( @, @, cb )
                 if (@state == 'error')
-                    exports.log.error "Group #{@id} failure"
+                    settings.log.error "Group #{@id} failure"
                     return @emit('failure', @, cb)
                 cb(null)
 

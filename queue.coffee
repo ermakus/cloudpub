@@ -15,7 +15,7 @@ exports.Queue = class Queue extends group.Group
     # Start executing of services in queue
     startup: ( me, cb ) ->
         sugar.vargs arguments
-        exports.log.info "Queue: Start", @id
+        settings.log.info "Queue: Start", @id
         @emit 'started', @, (err)=>
             return cb(err) if err
             @continue(cb)
@@ -25,17 +25,17 @@ exports.Queue = class Queue extends group.Group
         sugar.vargs arguments
         process.nextTick =>
             if @children.length
-                exports.log.debug "Queue: Continue", @children[0]
+                settings.log.debug "Queue: Continue", @children[0]
                 @startService @children[0], params..., state.defaultCallback
             else
-                exports.log.info "Queue: Empty"
+                settings.log.info "Queue: Empty"
                 @shutdown( @, state.defaultCallback )
         cb(null)
 
     # Start service with specific ID
     startService: (id, params..., cb)->
         sugar.vargs arguments
-        exports.log.debug "Queue: Start service", id
+        settings.log.debug "Queue: Start service", id
         state.load id, (err, service)=>
             return cb(err)  if (err)
             async.series [
@@ -46,7 +46,7 @@ exports.Queue = class Queue extends group.Group
     # Stop and delete service
     stopService: (id, params..., cb)->
         sugar.vargs arguments
-        exports.log.debug "Queue: Stop service", id, params
+        settings.log.debug "Queue: Stop service", id, params
         async.series [
                 (cb) => @remove(id, cb)
                 (cb) => sugar.emit('clear', id,  cb)
@@ -64,7 +64,7 @@ exports.Queue = class Queue extends group.Group
     # Service error handler
     serviceFailure: (service, cb) ->
         sugar.vargs arguments
-        exports.log.error "Queue: Service failed", service.id
+        settings.log.error "Queue: Service failed", service.id
         async.series [
             (cb) => service.setState( 'error', cb )
             (cb) => @setState( 'error', service.message, cb )
@@ -74,7 +74,7 @@ exports.Queue = class Queue extends group.Group
     # Service success handler
     serviceSuccess: (service, cb) ->
         sugar.vargs arguments
-        exports.log.debug "Queue: Service succeeded", service.id
+        settings.log.debug "Queue: Service succeeded", service.id
         async.series [
             # Activate success trigger (TODO: pass to submit)
             (cb)=>

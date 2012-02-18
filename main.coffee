@@ -38,14 +38,6 @@ process.chdir( __dirname )
 
 SessionStore = session.SessionStore
 
-# Init default logger
-exports.log = settings.log
-
-# Default callback
-exports.defaultCallback = defaultCallback = (err)->
-    if err
-        exports.log.error "Default callback error", err.message or err, (new Error().stack).split("\n")[2]
-
 # Create express server
 createApp = ->
     app = express.createServer()
@@ -78,10 +70,10 @@ createApp = ->
 # Load and initialize module
 # app passed as first param and can be null
 initModule = (app, module, cb = defaultCallback)->
-    exports.log.debug "Init module: #{module}"
+    settings.log.debug "Init module: #{module}"
     mod = require "./#{module}"
     mod.id  = module
-    mod.log = exports.log
+    mod.log = settings.log
     mod.defaultCallback = defaultCallback
     LOADED_MODULES.unshift mod
     if mod.init
@@ -91,7 +83,7 @@ initModule = (app, module, cb = defaultCallback)->
 
 # Stop module by calling 'stop' method
 stopModule = (module, cb = defaultCallback)->
-    exports.log.debug "Stop module", module.id
+    settings.log.debug "Stop module", module.id
     LOADED_MODULES = _.without LOADED_MODULES, module
     if typeof(module.stop) == 'function'
         module.stop cb
@@ -108,10 +100,12 @@ exports.init = (initServer,cb=defaultCallback) ->
         initServer = true
     if initServer
         app = createApp()
+        # Init all modules
+        async.forEach MODULES, async.apply(initModule,app), (err)-> cb(err, app)
     else
         app = null
-    # Init all modules
-    async.forEach MODULES, async.apply(initModule,app), (err)-> cb(err, app)
+        # else do nothing
+        cb(null, app)
 
 # Stop engine
 exports.stop = (cb=defaultCallback)->

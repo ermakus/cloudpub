@@ -65,7 +65,7 @@ exports.Service = class Service extends state.State
     #### Configure service and attach to groups
     configure: (params..., cb)->
         sugar.vargs( arguments )
-        exports.log.debug "Configure service",  @id, params
+        settings.log.debug "Configure service",  @id, params
 
         # Configure service
         async.series [
@@ -79,7 +79,7 @@ exports.Service = class Service extends state.State
     # - *params* passed to `configure`
     start: (params...,cb)->
         sugar.vargs( arguments )
-        exports.log.debug "Service start", @id
+        settings.log.debug "Service start", @id
         # Check depndenies
         sugar.groupState @depends or [], (err, st)=>
             return cb(err) if err
@@ -99,7 +99,7 @@ exports.Service = class Service extends state.State
     #### Delete service and detach it from dependcies
     clear: (cb)->
         sugar.vargs( arguments )
-        exports.log.debug "Service delete", @id
+        settings.log.debug "Service delete", @id
         async.series [
                 # Detach from dependencies
                 (cb)=>
@@ -132,7 +132,7 @@ exports.Service = class Service extends state.State
         @state = state
         @message = message
         
-        exports.log.debug "State: \##{@id} [#{@state}] #{@message}"
+        settings.log.debug "State: \##{@id} [#{@state}] #{@message}"
 
         if not fire
             return cb(null)
@@ -145,7 +145,7 @@ exports.Service = class Service extends state.State
     #### Starting event handler
     starting: (service, cb)->
         sugar.vargs( arguments )
-        exports.log.debug "Service starting", @id
+        settings.log.debug "Service starting", @id
         if not @isInstalled
             @emit('install', @, cb)
         else
@@ -154,13 +154,13 @@ exports.Service = class Service extends state.State
     #### Install event handler
     install: (service, cb) ->
         sugar.vargs( arguments )
-        exports.log.debug "Service install", @id
+        settings.log.debug "Service install", @id
         @emit 'installed', @, cb
 
     #### Installed event handler
     installed: (service, cb)->
         sugar.vargs( arguments )
-        exports.log.debug "Service installed", @id
+        settings.log.debug "Service installed", @id
         @isInstalled = true
         @save (err)=>
             return cb(err) if err
@@ -169,13 +169,13 @@ exports.Service = class Service extends state.State
     #### Startup handler
     startup: (service, cb) ->
         sugar.vargs( arguments )
-        exports.log.debug "Service startup", @id
+        settings.log.debug "Service startup", @id
         @emit 'started', @, cb
 
     #### Started event handler
     started: (service, cb)->
         sugar.vargs( arguments )
-        exports.log.debug "Service started", @id
+        settings.log.debug "Service started", @id
         @state = 'up'
         @goal  = undefined
         @save cb
@@ -184,7 +184,7 @@ exports.Service = class Service extends state.State
     # - *params* is passed to `configure`
     stop: (params...,cb)->
         sugar.vargs( arguments )
-        exports.log.debug "Service stop", @id
+        settings.log.debug "Service stop", @id
         # Check depndenies
         sugar.groupState @_depends or [], (err, st)=>
             return cb(err) if err
@@ -202,13 +202,13 @@ exports.Service = class Service extends state.State
     #### Shutdown event handler
     shutdown: (service, cb) ->
         sugar.vargs( arguments )
-        exports.log.debug "Service shutdown", @id
+        settings.log.debug "Service shutdown", @id
         @emit 'stopped', @, cb
 
     #### Stopping event handler
     stopped: (service, cb)->
         sugar.vargs( arguments )
-        exports.log.debug "Service stopped", @id, @state
+        settings.log.debug "Service stopped", @id, @state
         @state = 'down'
         @goal  = undefined
         @save (err)=>
@@ -226,7 +226,7 @@ exports.Service = class Service extends state.State
     #### Uninstall event handler
     uninstall: (service, cb) ->
         sugar.vargs( arguments )
-        exports.log.debug "Service uninstall", @id
+        settings.log.debug "Service uninstall", @id
         @installed = false
         @save (err)=>
             return cb(err) if err
@@ -235,7 +235,7 @@ exports.Service = class Service extends state.State
     #### Uninstalled event handler
     uninstalled: (service, cb)->
         sugar.vargs( arguments )
-        exports.log.debug "Service uninstalled", @id
+        settings.log.debug "Service uninstalled", @id
         @emit 'success', @, (err)=>
             return cb(err) if err
             if @commitSuicide

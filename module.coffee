@@ -18,7 +18,7 @@ exports.Module = class Module extends service.Service
     # Execute jobs in queue
     execute: (tasks, next, cb)->
         sugar.vargs arguments
-        exports.log.info "Execute job list", tasks
+        settings.log.info "Execute job list", tasks
         state.loadOrCreate {entity:'queue', commitSuicide:true}, (err, queue)=>
             return cb(err) if err
             queue.account = @account
@@ -52,7 +52,7 @@ exports.Module = class Module extends service.Service
 
         # Helper function to launch service
         launchService = (instance, cb) ->
-            exports.log.info "Launch service on", instance.id
+            settings.log.info "Launch service on", instance.id
             async.waterfall [
                 (cb)->
                     # Allocate service port if needed
@@ -61,7 +61,7 @@ exports.Module = class Module extends service.Service
                     else
                         cb( null, port )
                 (port, cb)->
-                    exports.log.debug "Service port", port
+                    settings.log.debug "Service port", port
                     # Create and start service
                     instance.create {
                         id:(instance.id + '-' + name)
@@ -105,7 +105,7 @@ makeDelegate = (method, next)->
         # Define method (event handler)
         Module.prototype[method] = (service, cb)->
             sugar.vargs arguments
-            exports.log.info "Module delegate", method
+            settings.log.info "Module delegate", method
             # Try load module script by name
             try
                 module = require "./pubs/" + @name

@@ -19,7 +19,7 @@ SEPARATOR='/'
 filename = (id, mkdirs, cb) ->
     full = settings.STORAGE + SEPARATOR + id
     if mkdirs
-        exports.log.debug "Create path", full
+        settings.log.debug "Create path", full
         mkdirp path.dirname(full), (err)->
             cb(err, full)
     else
@@ -46,17 +46,17 @@ exports.create = create = (id, entity, package, cb) ->
     if not (package and entity)
         return cb and cb( new Error("Can't create null entity") )
 
-    exports.log.debug "Create #{package}.#{entity} [#{id}]"
+    settings.log.debug "Create #{package}.#{entity} [#{id}]"
 
     try
         module = require('./' + package)
     catch e
-        exports.log.warn "Try global package", package
+        settings.log.warn "Try global package", package
         module = require(package)
 
     # Attach logger to loaded module
     if typeof( module.log ) == 'undefined'
-        module.log = exports.log
+        module.log = settings.log
 
     entityClass = entity.charAt(0).toUpperCase() + entity.substring(1)
     Entity = module[ entityClass ]
@@ -96,7 +96,7 @@ exports.resolve = resolve = (id, cb)->
                 err.notFound = true
                 return cb( err )
             else
-                exports.log.debug "Loaded", id
+                settings.log.debug "Loaded", id
                 return cb( null, JSON.parse(json) )
 
 # Load state from module
@@ -122,7 +122,7 @@ exports.load = load = (id, entity, package, cb) ->
     # Resolve object from memory or storage
     resolve id, (err, stored)->
         return cb(err) if err
-        exports.log.debug "Loaded #{stored.package}.#{stored.entity} #{id}"
+        settings.log.debug "Loaded #{stored.package}.#{stored.entity} #{id}"
         # Apply defaults to just loaded object
         if blueprint
             _.defaults stored, blueprint

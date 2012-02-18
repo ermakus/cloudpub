@@ -64,16 +64,16 @@ execCommand = (entity, factory, req,resp) ->
             return resp.send 'Invalid entity', 500
 
         command = obj[ req.param("command") ]
-        exports.log.info "Exec #{req.param("command")} on #{entity} " + if req.form then JSON.stringify req.form
+        settings.log.info "Exec #{req.param("command")} on #{entity} " + if req.form then JSON.stringify req.form
         if not command
             return resp.send 'Command not supported', 500
 
         command.call obj, req.form, (err) ->
             if err
-                exports.log.error "Command error: ", err.message
+                settings.log.error "Command error: ", err.message
                 return resp.send err.message, 500
             # Send object state to client as JSON
-            exports.log.info "Command executed"
+            settings.log.info "Command executed"
             resp.send obj
 
 #

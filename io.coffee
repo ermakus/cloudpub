@@ -19,13 +19,13 @@ exports.emit = (accountId, msg, cb=defaultCallback) ->
             if session.http?.uid != accountId then continue
             for client in exports.sio.sockets.clients()
                 if client.id in session.sockets
-                    exports.log.info "Send message to socket ", client.id
+                    settings.log.info "Send message to socket ", client.id
                     client.emit('message', msg)
 
 
 # Emit event to master
 exports.emitMaster = emitMaster = (event)->
-    exports.log.info "Send event to master", event
+    settings.log.info "Send event to master", event
     exports.cio.send JSON.stringify(event)
 
 
@@ -48,21 +48,21 @@ initListener = (app)->
             hs.session.sockets ||= []
             hs.session.sockets.push socket.id
             hs.session.save (err)->
-                if err then exports.log.error "Attach socket error", err
+                if err then settings.log.error "Attach socket error", err
 
         socket.on 'disconnect', ->
             # Remove socket ID from list
             if hs.session
                 hs.session.sockets = _.without hs.session.sockets, socket.id
                 if hs.session.clearOnDisconnect
-                    exports.log.info "Clear socket session", hs.session.id
+                    settings.log.info "Clear socket session", hs.session.id
                     hs.session.clear (err)->
-                        if err then exports.log.error "Clear socket session error", err
+                        if err then settings.log.error "Clear socket session error", err
                         hs.session = undefined
                 else
-                    exports.log.info "Detach socket from session", hs.session.id
+                    settings.log.info "Detach socket from session", hs.session.id
                     hs.session.save (err)->
-                        if err then exports.log.error "Detach socket error", err
+                        if err then settings.log.error "Detach socket error", err
                         hs.session = undefined
 
         # Handle incoming message
@@ -73,11 +73,11 @@ initListener = (app)->
                 msg = undefined
 
             if hs.session
-                exports.log.info "Message", msg
+                settings.log.info "Message", msg
                 hs.session.emit 'message', msg, (err)->
-                    if err then exports.log.error "Message handler error". err
+                    if err then settings.log.error "Message handler error". err
             else
-                exports.log.error "Message to unknown session", msg
+                settings.log.error "Message to unknown session", msg
                 
 
     sio.set 'authorization', (data, accept) ->
@@ -98,34 +98,34 @@ initListener = (app)->
         getSession sessionID, (err, session)->
             if err
                 # Wrong session
-                exports.log.warn "Session for socket is not found", sessionID
+                settings.log.warn "Session for socket is not found", sessionID
                 accept null, false
             if session and not session?.expired
                 session.setLifetime 1000 * 60 * 60
             if err or not session
-                exports.log.error "Session not found", err
+                settings.log.error "Session not found", err
                 accept err and err.message, false
             else
                 data.session = session
-                exports.log.info "Socket connected to session", session.id
+                settings.log.info "Socket connected to session", session.id
                 accept null, true
 
     return sio
 
 # Init socket.io client (if MASTER specified)
 initSender = (cb)->
-    exports.log.info "Connecting to master", settings.MASTER
+    settings.log.info "Connecting to master", settings.MASTER
     socket = ioClient.connect("http://#{settings.MASTER}:#{settings.MASTER_PORT}", {
             'transports'             : ['websocket']
             'try multiple transports': false
             'connect timeout'        : 1000
     })
     socket.once 'connect', ->
-        exports.log.info "Connected to master", settings.MASTER
+        settings.log.info "Connected to master", settings.MASTER
         cb( null, socket )
 
     socket.on 'disconnect', ->
-        exports.log.warn "Disconnected from master", settings.MASTER
+        settings.log.warn "Disconnected from master", settings.MASTER
     
     socket.once 'connect_failed', (err) ->
         cb( new Error("Master connection error"), socket )
@@ -159,11 +159,11 @@ exports.init = (app, cb)->
 exports.stop = (cb)->
 
     if exports.cio
-        exports.log.debug "Socket.io client disconnected"
+        settings.log.debug "Socket.io client disconnected"
         exports.cio.disconnect()
 
     if exports.sio
-        exports.log.debug "Socket.io server disconnected"
+        settings.log.debug "Socket.io server disconnected"
         # How? exports.sio.disconnect()
 
     cb(null)

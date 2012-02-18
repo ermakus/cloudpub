@@ -12,7 +12,7 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
     # Accepted params:
     # data = (keep|delete) Keep or delete data and group itself after shutdown
     stop: (params, cb) ->
-        exports.log.debug "Stop service group #{@id}"
+        settings.log.debug "Stop service group #{@id}"
 
         if params.data
             params.doUninstall = (params.data == 'delete')
@@ -33,7 +33,7 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
     # Service state handler called when uninstall. 
     # Commits suicide after work complete
     suicide: (event, cb)->
-        exports.log.info "Suicide service group: #{@id}", cb
+        settings.log.info "Suicide service group: #{@id}", cb
         # Delete object on next tick
         process.nextTick =>
             async.series [
@@ -41,6 +41,6 @@ exports.ServiceGroup = class ServiceGroup extends group.Group
                     (cb) => @setState('delete', 'Deleted', cb)
                     (cb) => @clear(cb)
                 ], (err)->
-                    if err then exports.log.error "Suicide failed", err.message
+                    if err then settings.log.error "Suicide failed", err.message
 
         cb(null)

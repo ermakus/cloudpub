@@ -20,14 +20,14 @@ exports.Session = class Session extends state.State
             expires = @expires
 
         if (expires and (Date.now() > expires))
-            exports.log.warn "Session #{@id} is expired: ", expires
+            settings.log.warn "Session #{@id} is expired: ", expires
             @clear cb
         else
             cb(null)
 
 # Default callback
 defaultCallback = (err)->
-    if err then exports.log.error "SessionStore error", err
+    if err then settings.log.error "SessionStore error", err
 
 # Express session store implementation on top of our state store
 exports.SessionStore = class SessionStore extends express.session.Store
@@ -45,7 +45,7 @@ exports.SessionStore = class SessionStore extends express.session.Store
             if data && data.cookie && data.cookie.originalMaxAge
                 session.setLifetime data.cookie.originalMaxAge
             else
-                exports.log.error "Session cookie not set"
+                settings.log.error "Session cookie not set"
                 session.setLifetime( 60000 )
             session.state = 'up'
             session.message = "User: " + data.uid
@@ -75,7 +75,7 @@ exports.SessionStore = class SessionStore extends express.session.Store
 # GC internals
 gcInterval=undefined
 gcCallback=(err)->
-    if err then exports.log.error "Garbage collector error", err
+    if err then settings.log.error "Garbage collector error", err
 
 # Collect garbage
 exports.gc = (cb=gcCallback)->
@@ -87,7 +87,7 @@ exports.gc = (cb=gcCallback)->
 exports.init = (app, cb)->
     return cb(null) if not app
     interval = settings.GC_INTERVAL
-    exports.log.debug "Garbage collector interval", interval
+    settings.log.debug "Garbage collector interval", interval
     gcInterval = setInterval( exports.gc, interval )
     cb(null)
 
