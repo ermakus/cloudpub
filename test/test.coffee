@@ -8,7 +8,7 @@ assert   = require 'assert'
 exports.ACCOUNT = 'test/ACCOUNT'
 
 hr = (symbol)->
-    for i in [0..6]
+    for i in [0..4]
         symbol = symbol+symbol
     symbol
 
@@ -19,6 +19,7 @@ exports.Test = class Test extends cloudfu.Cloudfu
         super()
         @expectedEvents = []
         @expected = []
+        @notify = false
 
     expect: (states, cb)->
         for state in states
@@ -29,13 +30,13 @@ exports.Test = class Test extends cloudfu.Cloudfu
     onEvent: (name, event..., cb)->
         if name == 'serviceState' then return cb(null)
         if name != @expectedEvents[0] and @expectedEvents[0] != '*'
-            exports.log.error "Unexpected event: ", name
-            exports.log.error "expect: ", @expectedEvents[0]
+            settings.log.error "Unexpected event: ", name
+            settings.log.error "expect: ", @expectedEvents[0]
             console.trace()
             process.exit(1)
-        exports.log.stdout hr('-')
-        exports.log.stdout "Expected event: ", name
-        exports.log.stdout hr('-')
+        settings.log.stdout hr('-')
+        settings.log.stdout "Expected event: ", name, "(", @expectedEvents[0], ")"
+        settings.log.stdout hr('-')
         @expectedEvents = @expectedEvents[1...]
         cb(null)
 
@@ -46,18 +47,18 @@ exports.Test = class Test extends cloudfu.Cloudfu
             if (exp.state != event.state) or ((exp.message != event.message) and (exp.message != undefined))
                 if exp.state != '*'
                     # If failure, then die or notify suite
-                    exports.log.error hr('=')
-                    exports.log.error "Unexpected [" + event.state + "] " + event.message + " (" + event.id + ")"
-                    exports.log.error "Expect: ", @expected[0]
-                    exports.log.error hr('=')
+                    settings.log.error hr('=')
+                    settings.log.error "Unexpected [" + event.state + "] " + event.message + " (" + event.id + ")"
+                    settings.log.error "Expect: ", @expected[0]
+                    settings.log.error hr('=')
                     console.trace()
                     err = new Error("Unexpected event:" + JSON.stringify(event))
                     assert.ifError err
                     return @emit 'failure', @, cb
         # If success, then print checkpoint
-        exports.log.stdout hr('-')
-        exports.log.stdout "Expected state [" + event.state + "] " + event.message + " (" + event.id + ")"
-        exports.log.stdout hr('-')
+        settings.log.stdout hr('-')
+        settings.log.stdout "Expected state [" + event.state + "] " + event.message + " (" + event.id + ")"
+        settings.log.stdout hr('-')
         @expected = @expected[1...]
         @save (err)=>
             if not @expected.length

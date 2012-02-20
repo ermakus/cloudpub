@@ -99,7 +99,7 @@ exports.Service = class Service extends state.State
     #### Delete service and detach it from dependcies
     clear: (cb)->
         sugar.vargs( arguments )
-        settings.log.debug "Service delete", @id
+        settings.log.debug "Service delete", @id, @
         async.series [
                 # Detach from dependencies
                 (cb)=>
@@ -181,23 +181,14 @@ exports.Service = class Service extends state.State
         @save cb
 
     #### Stop service
-    # - *params* is passed to `configure`
     stop: (params...,cb)->
         sugar.vargs( arguments )
         settings.log.debug "Service stop", @id
-        # Check depndenies
-        sugar.groupState @_depends or [], (err, st)=>
+        @goal = "stop"
+        @state = "maintain"
+        @save (err) =>
             return cb(err) if err
-            # If all is down then stopping
-            if true #st == null or st == 'down'
-                @goal = "stop"
-                @state = "maintain"
-                @configure params..., (err) =>
-                    return cb(err) if err
-                    @emit 'shutdown', @, cb
-            else
-                # else do nothing
-                cb(null)
+            @emit 'shutdown', @, cb
 
     #### Shutdown event handler
     shutdown: (service, cb) ->

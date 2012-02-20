@@ -12,15 +12,20 @@ exports.CoreTest = class extends test.Test
     #### Test object factory 
     test0_StateCreate: (cb)->
         exports.log.debug("State created")
-        testObj = {id:'test/UNSAVED',entity:'state'}
-        state.create testObj, (err, item)=>
+        testObj = {id:'test/STATE',entity:'state'}
+        state.loadOrCreate testObj, (err, item)=>
             return cb(err) if err
             assert.ok item
             assert.equal item.id, testObj.id
             assert.equal item.package, testObj.entity
-            @emit 'success', @, cb
+            state.load testObj.id, (err, item2)=>
+                return cb(err) if err
+                assert.equal item, item2
+                item2.clear (err)=>
+                    return cb(err) if err
+                    @emit 'success', @, cb
 
-    # Setup test environment
+    #### Test account
     test1_Account: (cb)->
         async.waterfall [
             # Create test account 
@@ -30,8 +35,13 @@ exports.CoreTest = class extends test.Test
             (acc, cb)=>
                 @account = acc.id
                 acc.save(cb)
+            # Route Account::key event to Test::success
+            (cb)=>
+                sugar.route('keyReady',@account, 'keyReady', @id, cb)
         ], (err)->cb(err)
 
+    keyReady: (cb)->
+        @emit('success', @, cb)
 
     #### Test event emitter
     test2_EventEmitter: (cb)->
@@ -69,7 +79,7 @@ exports.CoreTest = class extends test.Test
 
     #### Test services group
     test4_Group: (cb)->
-        @expectedEvents = ['starting','startup','state','started','state','success']
+        @expectedEvents = ['starting','startup','*','*','*','*','success']
         group = { id:"test/GROUP", entity:"group", isInstalled:true, commitSuicide:true, account:test.ACCOUNT }
         state.loadOrCreate group, (err, group)=>
             return cb(err) if err

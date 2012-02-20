@@ -91,7 +91,7 @@ exports.Account = class Account extends group.Group
 
     # Called when key generated
     onKeyReady: (task, cb)->
-        @setState 'up', "Keypair generated", cb
+        @emit 'keyReady', cb
 
     # Load key from file. type is 'public' or 'private'
     loadKey: ( type, cb)->
@@ -101,10 +101,7 @@ exports.Account = class Account extends group.Group
     # Called on failure
     onFailure: (error, cb)->
         # Set account state to error and notify user
-        @setState 'error', error.message, (err)->
-            return cb(err) if err
-            # we need to remove the died task manually
-            task.clear( cb )
+        @emit 'failure', error, cb
 
 # Hook that called for all auth providers
 saveAccount = (acc, cb) -> acc.save(cb)

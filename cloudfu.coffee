@@ -23,6 +23,7 @@ exports.Cloudfu = class extends service.Service
         @method  = 'help'
         @isInstalled = true
         @commitSuicide = true
+        @notify = true
 
     # Start service
     # Command line tokens passed as arguments
@@ -44,12 +45,13 @@ exports.Cloudfu = class extends service.Service
         # Run @method on next tick
         process.nextTick =>
             @[@method] @args..., (err)=>
-                if err
-                    @emit 'failure', @, state.defaultCallback
-                else
-                    @emit 'success', @, state.defaultCallback
-                @isInstalled = false
-                @stop( state.defaultCallback )
+                if @notify
+                    if err
+                        @emit 'failure', @, state.defaultCallback
+                    else
+                        @emit 'success', @, state.defaultCallback
+                    @isInstalled = false
+                    @stop( state.defaultCallback )
 
         super(args...,cb)
 
@@ -98,7 +100,7 @@ exports.Cloudfu = class extends service.Service
             obj.clear(cb)
 
     # Run test suite
-    test: (cb)->
+    suite: (cb)->
         async.waterfall [
             (cb) -> state.create('test/SUITE', 'suite', cb)
             (suite, cb)->

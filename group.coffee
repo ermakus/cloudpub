@@ -1,9 +1,10 @@
-_       = require 'underscore'
-async   = require 'async'
-state   = require './state'
-tsort   = require './topologicalSort.js'
-service = require './service'
-sugar   = require './sugar'
+_        = require 'underscore'
+async    = require 'async'
+state    = require './state'
+tsort    = require './topologicalSort.js'
+service  = require './service'
+sugar    = require './sugar'
+settings = require './settings'
 
 # Object group
 exports.Group = class Group extends service.Service
@@ -139,13 +140,11 @@ exports.Group = class Group extends service.Service
                 # Handle empty group state
                 st ||= (if @goal == 'start' then 'up' else 'down')
                 # Emit state event
-                @oldstate = @state
                 @setState(st, service.message, cb)
             # Fire success
             (cb)=>
-                settings.log.debug "Group state", @id, @state, @oldstate, service.message
+                settings.log.debug "Group state", @id, @state
                 # Do not fire same state twice
-                return cb(null) if @state == @oldstate
                 if (@state == 'up')
                     settings.log.debug "Group #{@id} started"
                     return Group.__super__.startup.call( @, @, cb )

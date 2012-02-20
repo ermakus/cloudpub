@@ -1,9 +1,10 @@
-_       = require 'underscore'
-async   = require 'async'
-sugar   = require './sugar'
-state   = require './state'
-io      = require './io'
-group   = require './group'
+_        = require 'underscore'
+async    = require 'async'
+sugar    = require './sugar'
+state    = require './state'
+io       = require './io'
+group    = require './group'
+settings = require './settings'
 
 #
 # Queue of services
