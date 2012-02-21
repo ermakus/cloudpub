@@ -70,7 +70,6 @@ exports.create = create = (id, entity, package, cb) ->
         if blueprint
             blueprint.id = id
             _.extend obj, blueprint
-        console.log "CREATED: ", obj, id, blueprint
         cb and cb( null, obj )
 
 # Clear entity from cache
@@ -100,8 +99,12 @@ exports.resolve = resolve = (id, cb)->
                 err.notFound = true
                 return cb( err )
             else
-                settings.log.debug "Loaded", id
-                return cb( null, JSON.parse(json) )
+                try
+                    obj = JSON.parse(json)
+                    settings.log.debug "Loaded", id
+                    return cb( null, obj )
+                catch e
+                    return cb( new Error("Can't load JSON: #{e.message} (#{id})") )
 
 # Load state from module
 exports.load = load = (id, entity, package, cb) ->

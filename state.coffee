@@ -39,7 +39,7 @@ exports.State = class State
         @instance = settings.ID
 
     #### Return string representation
-    str: -> "[#{@package}.#{@entity}] #{@id}: #{@state} '#{@message}'"
+    str: -> "[#{@package}.#{@entity}] #{@id}: #{@state or ""} #{@message or ""}"
 
     #### Return type of object
     type: ->

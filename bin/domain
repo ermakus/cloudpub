@@ -16,7 +16,6 @@
 # Based on bash nginx vhost generation script by Seb Dangerfield 
 # http://www.sebdangerfield.me.uk/2011/03/automatically-creating-new-virtual-hosts-with-nginx-bash-script/
 #
-set -e
 SED=`which sed`
 NGINX_CONFIG="$HOME/conf/sites-available"
 NGINX_SITES_ENABLED="$HOME/conf/sites-enabled"

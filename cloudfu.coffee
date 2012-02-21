@@ -47,7 +47,7 @@ exports.Cloudfu = class extends service.Service
             @[@method] @args..., (err)=>
                 if @notify
                     if err
-                        @emit 'failure', @, state.defaultCallback
+                        @emit 'failure', err, state.defaultCallback
                     else
                         @emit 'success', @, state.defaultCallback
                     @isInstalled = false
@@ -118,6 +118,10 @@ exports.Cloudfu = class extends service.Service
     params: (params..., cb)->
         for key of params
             @stdout "#{key}=#{params[key]}"
+        cb(null)
+
+    failure: (err, cb)->
+        settings.log.error "Command error: #{err.message}"
         cb(null)
 
 #
