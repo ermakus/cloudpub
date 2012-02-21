@@ -1,9 +1,10 @@
 #### System daemom service base class
-async   = require 'async'
-_       = require 'underscore'
-sugar   = require './sugar'
-state   = require './state'
-service = require './service'
+async    = require 'async'
+_        = require 'underscore'
+sugar    = require './sugar'
+state    = require './state'
+service  = require './service'
+settings = require './settings'
 
 #### Module class
 # Represent module as service with task queue

@@ -14,6 +14,7 @@ exports.Group = class Group extends service.Service
         super()
         # Children object IDs
         @children = []
+        @ready = 0
 
     # Add children to group
     add: (id, cb=state.defaultCallback) ->
@@ -74,6 +75,7 @@ exports.Group = class Group extends service.Service
     startup: (group, cb)->
         sugar.vargs arguments
         settings.log.debug "Group starting", @id
+        @ready = 0
         async.series [
             (cb)=>@save(cb)
             (cb)=>@each('start', cb)
@@ -130,6 +132,7 @@ exports.Group = class Group extends service.Service
     serviceState: ( name, params..., cb)->
         sugar.vargs arguments
         return cb(null) if name not in ['success', 'failure', 'state']
+        # If children success or failure, increase ready count
         service = params[0]
         async.waterfall [
             # Get children state
@@ -143,7 +146,11 @@ exports.Group = class Group extends service.Service
                 @setState(st, service.message, cb)
             # Fire success
             (cb)=>
-                settings.log.debug "Group state", @id, @state
+                @ready += 1
+                settings.log.debug "Group state", @id, @state, @ready
+                # Fire group event only when all children is done
+                if name == 'state' or @ready != @children.length
+                    return cb(null)
                 # Do not fire same state twice
                 if (@state == 'up')
                     settings.log.debug "Group #{@id} started"
