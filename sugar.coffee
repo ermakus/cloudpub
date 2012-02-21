@@ -36,7 +36,7 @@ exports.emit = emit = (name, target, params..., cb=state.defaultCallback)->
     if _.isArray(target)
         return async.forEach target, ((id,cb)->emit(name, id, params..., cb)), cb
     # Load object and handle event
-    settings.log.debug "Emit #{name} to \##{target}", params
+    settings.log.debug "Emit #{name} to \##{target}"
     state.load target, (err, obj)->
         if err
             if err.message.indexOf("Reference not found") == 0

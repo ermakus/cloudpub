@@ -11,7 +11,6 @@ exports.CoreTest = class extends test.Test
 
     #### Test object factory 
     test0_StateCreate: (cb)->
-        exports.log.debug("State created")
         testObj = {id:'test/STATE',entity:'state'}
         state.loadOrCreate testObj, (err, item)=>
             return cb(err) if err
@@ -40,8 +39,22 @@ exports.CoreTest = class extends test.Test
                 sugar.route('keyReady',@account, 'keyReady', @id, cb)
         ], (err)->cb(err)
 
+    # Account key generated
     keyReady: (cb)->
-        @emit('success', @, cb)
+        async.waterfall [
+            # Load account 
+            (cb)->
+                state.load test.ACCOUNT, cb
+            # Set test SSH keys and save
+            (acc, cb)=>
+                acc.public_key = settings.HOME + '/.ssh/id_rsa.pub'
+                acc.private_key = settings.HOME + '/.ssh/id_rsa'
+                acc.save(cb)
+            # Emit test success
+            (cb)=>
+                @emit('success', @, cb)
+        ], (err)->cb(err)
+
 
     #### Test event emitter
     test2_EventEmitter: (cb)->
@@ -79,7 +92,7 @@ exports.CoreTest = class extends test.Test
 
     #### Test services group
     test4_Group: (cb)->
-        @expectedEvents = ['starting','startup','*','*','success']
+        @expectedEvents = ['starting','startup','*','*','*','*']
         group = { id:"test/GROUP", entity:"group", isInstalled:true, commitSuicide:true, account:test.ACCOUNT }
         state.loadOrCreate group, (err, group)=>
             return cb(err) if err
@@ -94,7 +107,7 @@ exports.CoreTest = class extends test.Test
                 group.start(cb)
 
     groupSuccess: (group, cb)->
-        assert.equal @expectedEvents.length, 0
+        assert.ok @expectedEvents.length < 2
         assert.equal group.state, 'down'
         @emit 'success', @, cb
 

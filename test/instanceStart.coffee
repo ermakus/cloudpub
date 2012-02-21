@@ -23,10 +23,6 @@ exports.InstanceStartTest = class extends test.Test
                     ['maintain', 'Configure proxy']
                     ['maintain', 'Proxy configured']
                     ['maintain', 'Start Proxy']
-                    ['maintain', 'Online']
-                    ['maintain', 'Install Cloudpub']
-                    ['maintain', 'Cloudpub Installed']
-                    ['maintain', 'Start Cloudpub']
                     ['up',       'Online']
                 ], cb)
             # Create instance
@@ -39,8 +35,8 @@ exports.InstanceStartTest = class extends test.Test
             # Launch instance
             (cb)=>
                 sugar.emit('launch', @instance, {
-                    user: settings.USER
-                    address: '127.0.0.1'
+                    user: test.USER
+                    address: test.ADDRESS
                     port: 8080
                     account: test.ACCOUNT
                 }, cb)

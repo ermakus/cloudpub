@@ -9,14 +9,9 @@ exports.startup = ->
         entity:  "shell"
         message: "Start Service"
         state:   "maintain"
-        context:
-            id:@id
-            home:@home
-            host:@host
-            domain:@domain
         command: ["#{@home}/bin/forever-daemon"
                   "start"
-                  @id
+                  encodeURIComponent(@id)
                   "#{@home}/lib/node_modules/#{@name}/server"
                   "--home=" + @home
                   "--port=" + @port
@@ -32,7 +27,7 @@ exports.startup = ->
         message: "Attach to proxy"
         state:   "maintain"
         context:
-            id: @proxy
+            id: encodeURIComponent(@proxy)
             home: @home
             port: @proxy_port
             domain: @domain
@@ -57,7 +52,7 @@ exports.shutdown = ->
         message: "Detach from proxy"
         state:   "maintain"
         context:
-            id: @proxy
+            id: encodeURIComponent(@proxy)
             home: @home
             port: @port
             domain: @domain
@@ -73,7 +68,7 @@ exports.shutdown = ->
         entity:  "shell"
         message: "Stop Service"
         state:   "maintain"
-        command:["#{@home}/bin/forever-daemon", "stop", @id]
+        command:["#{@home}/bin/forever-daemon", "stop", encodeURIComponent(@id)]
         success:
             state:   'down'
             message: 'Stopped'

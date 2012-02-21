@@ -70,7 +70,10 @@ exports.Shell = class Shell extends service.Service
         # key names passed in upper case with '-' changed to '_'
         if context
             for key of context
-                value = context[ key ]
+                if key == 'id'
+                    value = encodeURIComponent(context[ key ])
+                else
+                    value = context[ key ]
                 if _.isString( value ) or _.isNumber( value ) or _.isBoolean( value )
                     cmd.push "#{key.toUpperCase().replace('-','_')}='#{value}'"
 

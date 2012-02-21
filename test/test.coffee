@@ -6,6 +6,8 @@ assert   = require 'assert'
 
 # Test account
 exports.ACCOUNT = 'test/ACCOUNT'
+exports.USER    = 'cloudpub'
+exports.ADDRESS = '127.0.0.1'
 
 hr = (symbol)->
     for i in [0..4]
