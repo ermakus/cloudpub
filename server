@@ -5,16 +5,16 @@ var main = require('./main');
 
 main.init( function(err, server) {
     if(err) {
-        main.log.fatal( "Fatal error: " + err.message );
+        settings.log.fatal( "Fatal error: " + err.message );
         main.stop();
         process.exit(1);
     } else {
         server.on('error', function(err) {
-            main.log.fatal( "Fatal error: " + err.message );
+            settings.log.fatal( "Fatal error: " + err.message );
             main.stop();
             process.exit(1);
         });
-        main.log.info("Server started on " + settings.HOST + ":" + settings.PORT );
+        settings.log.info("Server started on " + settings.HOST + ":" + settings.PORT );
         server.listen( settings.PORT );
     }
 });

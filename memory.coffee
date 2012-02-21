@@ -52,11 +52,11 @@ exports.create = create = (id, entity, package, cb) ->
         module = require('./' + package)
     catch e
         settings.log.warn "Try global package", package
-        module = require(package)
-
-    # Attach logger to loaded module
-    if typeof( module.log ) == 'undefined'
-        module.log = settings.log
+        try
+            module = require(package)
+        catch e
+            settings.log.error "Package not found", package
+            return cb(new Error("Invalid package: #{package}"))
 
     entityClass = entity.charAt(0).toUpperCase() + entity.substring(1)
     Entity = module[ entityClass ]
@@ -64,9 +64,13 @@ exports.create = create = (id, entity, package, cb) ->
         cb and cb( new Error("Entity #{entity} not found in #{package}") )
     else
         obj = new Entity(id)
+        obj.id = id
         obj.entity = entity
         obj.package = package
-        _.extend obj, blueprint
+        if blueprint
+            blueprint.id = id
+            _.extend obj, blueprint
+        console.log "CREATED: ", obj, id, blueprint
         cb and cb( null, obj )
 
 # Clear entity from cache

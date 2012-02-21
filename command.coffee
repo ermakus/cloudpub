@@ -38,7 +38,7 @@ COMMAND_FORMS =
         form.validate("id").required().is(/^[a-zA-Z0-9\.\-]+$/)
         form.validate("data").required().is(/^(keep|delete)$/)
     )
-    # Disable on production
+    # Disabled on production
     __cloudfu_start: form(
         form.validate("command").required()
         form.validate("instance").required()
@@ -58,6 +58,7 @@ execCommand = (entity, factory, req,resp) ->
     # Call factory function that create object
     factory req.form, entity, (err, obj) ->
         if err
+            settings.log.error "Can't create command target: #{req.form.id} (#{entity})", err.message
             return resp.send err.message, 500
 
         if not obj
@@ -70,7 +71,7 @@ execCommand = (entity, factory, req,resp) ->
 
         command.call obj, req.form, (err) ->
             if err
-                settings.log.error "Command error: ", err.message
+                settings.log.error "REST command error", err.message
                 return resp.send err.message, 500
             # Send object state to client as JSON
             settings.log.info "Command executed"
@@ -96,8 +97,10 @@ exports.handler = handler = (entity, factory)->
                     # Execute command
                     execCommand entity, factory, req, resp
                 else
+                    settings.log.warn "Validation error", req.form.errors
                     resp.send (req.form.errors.join '\n'), 500
         else
+            settings.log.error "Invalid command", command
             resp.send "Command  #{command} is not allowed", 500
 
 
@@ -109,7 +112,7 @@ exports.register = (app)->
     return (entity, list, item)->
 
         list ?= state.query
-        item ?= (params, entity, cb) -> state.load( params.id, entity, cb )
+        item ?= state.loadOrCreate
 
         # HTML page view
         app.get '/' + entity, account.force_login, (req, resp)->
@@ -122,6 +125,7 @@ exports.register = (app)->
             params.account = req.session.uid
             list entity, params, (err, items)->
                 if err
+                    settings.log.error "REST query error", err.message
                     resp.send err.message, 500
                 else
                     # Send data

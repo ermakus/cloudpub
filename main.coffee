@@ -7,8 +7,9 @@ _        = require 'underscore'
 command  = require './command'
 session  = require './session'
 settings = require './settings'
+state    = require './state'
 
-# Modules to load
+# Modules to preload when server mode
 MODULES = [
     'sugar'
     'memory'
@@ -69,12 +70,12 @@ createApp = ->
 
 # Load and initialize module
 # app passed as first param and can be null
-initModule = (app, module, cb = defaultCallback)->
+initModule = (app, module, cb = state.defaultCallback)->
     settings.log.debug "Init module: #{module}"
     mod = require "./#{module}"
     mod.id  = module
     mod.log = settings.log
-    mod.defaultCallback = defaultCallback
+    mod.defaultCallback = state.defaultCallback
     LOADED_MODULES.unshift mod
     if mod.init
         mod.init app, cb
@@ -82,7 +83,7 @@ initModule = (app, module, cb = defaultCallback)->
         cb(null)
 
 # Stop module by calling 'stop' method
-stopModule = (module, cb = defaultCallback)->
+stopModule = (module, cb = state.defaultCallback)->
     settings.log.debug "Stop module", module.id
     LOADED_MODULES = _.without LOADED_MODULES, module
     if typeof(module.stop) == 'function'
@@ -92,8 +93,8 @@ stopModule = (module, cb = defaultCallback)->
 
 # Init cloudpub engine
 # initServer=true for socket.io/express handlers setup
-# return callback( error, server ) where server is express application
-exports.init = (initServer,cb=defaultCallback) ->
+# Call cb( error, server ) where server is express application
+exports.init = (initServer,cb=state.defaultCallback) ->
     # First param optional
     if typeof(initServer) == 'function'
         cb = initServer
@@ -108,5 +109,5 @@ exports.init = (initServer,cb=defaultCallback) ->
         cb(null, app)
 
 # Stop engine
-exports.stop = (cb=defaultCallback)->
+exports.stop = (cb=state.defaultCallback)->
     async.forEach LOADED_MODULES, stopModule, cb
