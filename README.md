@@ -1,3 +1,4 @@
+[![build status](https://secure.travis-ci.org/ermakus/cloudpub.png)](http://travis-ci.org/ermakus/cloudpub)
 CloudPub.us source code
 =======================
 
