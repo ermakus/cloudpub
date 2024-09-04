@@ -1,0 +1,43 @@
+log_level = "info"
+db_connect = "postgres://cloudpub:cloudpub@localhost/test_cloudpub"
+
+[gateway]
+bind_addr = "localhost:8443"
+key_file = "tests/certs/localhost.key"
+cert_file = "tests/certs/localhost.crt"
+
+[gateway.services.site]
+hostname = "cloudpub.local"
+upstream = "localhost:2000"
+
+[gateway.services.dashboard]
+hostname = "my.cloudpub.local"
+upstream = "localhost:2000"
+
+[gateway.services.api]
+hostname = "api.cloudpub.local"
+upstream = "localhost:2001"
+
+[gateway.services.endpoint]
+hostname = "endpoint.cloudpub.local"
+upstream = "/tmp/cloudpub-test-endpoint.sock"
+
+[endpoint]
+bind_addr = '/tmp/cloudpub-test-endpoint.sock'
+public_addr = "localhost"
+heartbeat_interval = 30
+
+[endpoint.transport]
+type = 'websocket'
+
+[endpoint.transport.tcp]
+nodelay = true
+keepalive_secs = 20
+keepalive_interval = 8
+
+[endpoint.transport.websocket]
+tls = false
+
+[server]
+ca_file = "tests/certs/localhost.crt"
+grace_period_seconds = 0

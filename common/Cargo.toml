@@ -1,0 +1,76 @@
+[package]
+name = "common"
+version = "1.0.0"
+edition = "2021"
+authors = ["Anton Ermak <anton@ermak.dev>"]
+description = "Common code for the client, server, and GUI"
+build = "build.rs"
+include = ["src/**/*", "build.rs"]
+
+[features]
+default = []
+
+# TLS support
+rustls = [
+    "tokio-rustls",
+    "rustls-pemfile",
+    "rustls-native-certs",
+    "p12",
+]
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+tokio-unix-tcp = "0.2.0"
+bytes = { version = "1", features = ["serde"] }
+clap = { version = "4.5.7", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+anyhow = { version = "1.0" }
+sha2 = "0.10"
+bincode = "1"
+lazy_static = "1.4"
+hex = "0.4"
+backoff = { version = "0.4", features = ["tokio"] }
+rand = "0.8"
+
+# Server tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter", "time", "local-time"] }
+tracing-appender = "0.2.3"
+tracing-log = "0.2.0"
+log-panics = { version = "2", features = ["with-backtrace"]}
+time = "0.3.36"
+rolling-file = "0.2.0"
+socket2 = { version = "0.4", features = ["all"] }
+fdlimit = "0.2"
+async-trait = "0.1"
+base64 = { version = "0.13", optional = true }
+notify = { version = "5.0.0-pre.13", optional = true }
+atty = "0.2"
+async-http-proxy = { version = "1.2", features = [
+    "runtime-tokio",
+    "basic-auth",
+] }
+async-socks5 = "0.5"
+url = { version = "2.2", features = ["serde"] }
+tokio-tungstenite = { version = "0.20.1" }
+tokio-util = { version = "0.7.9", features = ["io", "net"] }
+futures-core = { version = "0.3.28" }
+futures-sink = { version = "0.3.28" }
+dirs = "3.0.2"
+tipsy = "0.2.0"
+futures = "0.3"
+serde_json = "1.0.117"
+regex = "1.10.5"
+
+tokio-rustls = { version = "0.25", optional = true }
+rustls-native-certs = { version = "0.7", optional = true }
+rustls-pemfile = { version = "2.0", optional = true }
+p12 = { version = "0.6.3", optional = true }
+
+[build-dependencies]
+vergen = { version = "7.4.2", default-features = false, features = [
+    "build",
+    "git",
+    "cargo",
+] }
+anyhow = "1.0"

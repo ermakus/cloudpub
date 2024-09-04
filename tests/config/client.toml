@@ -1,0 +1,35 @@
+remote_addr = 'endpoint.cloudpub.local:8443'
+token = 'test-token'
+agent_id = 'test-agent-id'
+heartbeat_timeout = 40
+retry_interval = 1
+
+[transport]
+type = 'websocket'
+
+[transport.tcp]
+nodelay = true
+keepalive_secs = 20
+keepalive_interval = 8
+
+[transport.tls]
+trusted_root = 'tests/certs/localhost.crt'
+danger_ignore_certificate_verification = true
+
+[transport.websocket]
+tls = true
+[services.tcp_pingpong]
+type = 'tcp'
+local_addr = '127.0.0.1:5001'
+
+[services.tcp_echo]
+type = 'tcp'
+local_addr = '127.0.0.1:5000'
+
+[services.udp_pingpong]
+type = 'udp'
+local_addr = '127.0.0.1:5001'
+
+[services.udp_echo]
+type = 'udp'
+local_addr = '127.0.0.1:5000'
