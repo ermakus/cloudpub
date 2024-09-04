@@ -1,5 +1,5 @@
 <span>
-<img style="width: 64px; margin-right: 10px; float: left;" src="static/img/favicon.ico">
+<img style="width: 64px; margin-right: 10px; float: left;" src="docs/static/img/favicon.ico">
 <h1 style="line-height: 64px;">CloudPub</h1>
 </span>
 
