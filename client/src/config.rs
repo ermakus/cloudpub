@@ -3,28 +3,41 @@ use common::constants::{
     DEFAULT_CLIENT_RETRY_INTERVAL_SECS, DEFAULT_HEARTBEAT_TIMEOUT_SECS, DEFAULT_SERVER,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 
-use common::config::{MaskedString, ServiceType, TransportConfig};
-use common::protocol::ClientEndpoint;
+use common::config::{MaskedString, Protocol, TransportConfig};
+use common::protocol::{ClientEndpoint, ServerEndpoint};
 use std::fs::{self, create_dir_all};
 use std::path::PathBuf;
 use toml;
 use tracing::debug;
+use url::Url;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub struct EnvConfig {
     pub home_1c: PathBuf,
-    pub home_apache: PathBuf,
     pub redist: String,
     pub apache: String,
 }
 
 impl EnvConfig {
+    pub fn home_apache(&self) -> PathBuf {
+        let mut apache2: PathBuf = std::env::var("LocalAppData")
+            .unwrap_or_else(|_| {
+                if cfg!(target_family = "unix") {
+                    "/usr/local".to_string()
+                } else {
+                    "C:\\Program Files".to_string()
+                }
+            })
+            .into();
+        apache2.push("apache2");
+        apache2
+    }
+
     pub fn httpd(&self) -> PathBuf {
-        let mut httpd = self.home_apache.clone();
+        let mut httpd = self.home_apache().clone();
         httpd.push("bin");
         httpd.push("httpd.exe");
         httpd
@@ -35,26 +48,30 @@ impl EnvConfig {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
 #[serde(deny_unknown_fields)]
 pub struct ClientServiceConfig {
-    #[serde(rename = "type")]
-    pub service_type: ServiceType,
+    pub local_proto: Protocol,
+    pub local_port: u16,
     pub local_addr: String,
     pub nodelay: Option<bool>,
 }
 
 impl Display for ClientServiceConfig {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "{}://{}", self.service_type, self.local_addr)
+        write!(
+            f,
+            "{}://{}:{}",
+            self.local_proto, self.local_addr, self.local_port
+        )
     }
 }
 
 impl Into<ClientEndpoint> for ClientServiceConfig {
     fn into(self) -> ClientEndpoint {
         ClientEndpoint {
-            service_type: self.service_type,
+            local_proto: self.local_proto,
             local_addr: self.local_addr,
+            local_port: self.local_port,
             nodelay: self.nodelay,
-            name: None,
-            retry_interval: None,
+            description: None,
         }
     }
 }
@@ -65,19 +82,19 @@ pub struct ClientConfig {
     #[serde(skip)]
     config_path: PathBuf,
     pub agent_id: String,
-    pub remote_addr: String,
+    pub server: Url,
     pub token: Option<MaskedString>,
     pub heartbeat_timeout: u64,
     pub retry_interval: u64,
     pub transport: TransportConfig,
-    pub services: HashMap<String, ClientServiceConfig>,
     pub env1c: Option<EnvConfig>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default = "Vec::new")]
+    pub services: Vec<ServerEndpoint>,
 }
 
 impl ClientConfig {
     pub fn from_str(s: &str) -> Result<Self> {
-        let mut config: Self = toml::from_str(s).context("Failed to parse the config")?;
-        Self::validate(&mut config)?;
+        let config: Self = toml::from_str(s).context("Failed to parse the config")?;
         Ok(config)
     }
 
@@ -132,14 +149,9 @@ impl ClientConfig {
         Self::from_file(&config_path)
     }
 
-    pub fn validate(config: &mut ClientConfig) -> Result<()> {
-        TransportConfig::validate(&config.transport, false)?;
-        Ok(())
-    }
-
     pub fn set(&mut self, key: &str, value: &str) -> Result<()> {
         match key {
-            "remote_addr" => self.remote_addr = value.to_string(),
+            "server" => self.server = value.parse().context("Invalid server URL")?,
             "token" => self.token = Some(MaskedString::from(value)),
             "heartbeat_timeout" => {
                 self.heartbeat_timeout = value.parse().context("Invalid heartbeat_timeout")?
@@ -152,6 +164,27 @@ impl ClientConfig {
         self.save()?;
         Ok(())
     }
+
+    pub fn get(&self, key: &str) -> Result<String> {
+        match key {
+            "server" => Ok(self.server.to_string()),
+            "token" => Ok(self
+                .token
+                .as_ref()
+                .map_or("".to_string(), |t| t.to_string())),
+            "heartbeat_timeout" => Ok(self.heartbeat_timeout.to_string()),
+            "retry_interval" => Ok(self.retry_interval.to_string()),
+            _ => bail!("Unknown key: {}", key),
+        }
+    }
+
+    pub fn validate(&self) -> Result<()> {
+        if self.token.is_none() {
+            bail!("Token is not set");
+        }
+        TransportConfig::validate(&self.transport, false)?;
+        Ok(())
+    }
 }
 
 impl Default for ClientConfig {
@@ -159,12 +192,12 @@ impl Default for ClientConfig {
         Self {
             agent_id: Uuid::new_v4().to_string(),
             config_path: PathBuf::new(),
-            remote_addr: DEFAULT_SERVER.to_string(),
+            server: DEFAULT_SERVER.parse().unwrap(),
             token: None,
             heartbeat_timeout: DEFAULT_HEARTBEAT_TIMEOUT_SECS,
             retry_interval: DEFAULT_CLIENT_RETRY_INTERVAL_SECS,
             transport: TransportConfig::default(),
-            services: HashMap::new(),
+            services: Vec::new(),
             env1c: None,
         }
     }

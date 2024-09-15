@@ -7,7 +7,7 @@ pub const DEFAULT_HEARTBEAT_TIMEOUT_SECS: u64 = 40;
 
 /// Client
 pub const DEFAULT_CLIENT_RETRY_INTERVAL_SECS: u64 = 1;
-pub const DEFAULT_SERVER: &str = "endpoint.cloudpub.ru:443";
+pub const DEFAULT_SERVER: &str = "https://cloudpub.ru";
 
 /// Server
 pub const TCP_POOL_SIZE: usize = 8; // The number of cached connections for TCP servies

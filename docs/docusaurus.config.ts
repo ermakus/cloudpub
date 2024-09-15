@@ -8,7 +8,7 @@ const config: Config = {
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
-  url: 'https://docs.cloudpub.ru',
+  url: 'https://cloudpub.ru',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/docs/',
@@ -63,20 +63,22 @@ const config: Config = {
       logo: {
         alt: 'CloudPub Logo',
         src: 'img/logo.svg',
+        href: 'https://cloudpub.ru',
+        target: '_self',
       },
       items: [
-        {
+        /*{
           type: 'docSidebar',
           sidebarId: 'tutorialSidebar',
           position: 'left',
           label: 'Документация',
         },
-        //{to: '/blog', label: 'Блог', position: 'left'},
+        {to: '/blog', label: 'Блог', position: 'left'},
         {
-          href: 'https://cloudpub.ru',
-          label: 'Сайт проекта',
+          href: 'https://github.com/ermakus/cloudpub',
+          label: 'GitHub',
           position: 'right',
-        },
+        },*/
       ],
     },
     footer: {

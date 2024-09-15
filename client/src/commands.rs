@@ -1,8 +1,7 @@
 use anyhow::{bail, Result};
 use clap::{Args, Subcommand, ValueEnum};
-use common::protocol::{ErrorKind, ServerEndpoint, ServiceType};
+use common::protocol::{ClientEndpoint, ErrorKind, Protocol, ServerEndpoint};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
 use std::net::ToSocketAddrs;
 use std::path::{Path, PathBuf};
@@ -10,14 +9,12 @@ use std::path::{Path, PathBuf};
 #[derive(Subcommand, Debug, Serialize, Deserialize, Clone)]
 pub enum Commands {
     Set(SetArgs),
+    Get(GetArgs),
     Run,
+    Stop,
     Publish(PublishArgs),
-    Unpublish(UnpublishArgs),
+    Unpublish(PublishArgs),
     Ls,
-    #[clap(name = "setup-1c")]
-    Setup1C(EnvArgs),
-    #[clap(name = "cleanup-1c")]
-    Cleanup1C,
 }
 
 #[derive(ValueEnum, Clone, Default, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -34,6 +31,11 @@ pub struct SetArgs {
 }
 
 #[derive(Args, Debug, Serialize, Deserialize, Clone)]
+pub struct GetArgs {
+    pub key: String,
+}
+
+#[derive(Args, Debug, Serialize, Deserialize, Clone, Default)]
 pub struct EnvArgs {
     #[clap(long, help = "Optional path to the service home directory")]
     pub home: Option<PathBuf>,
@@ -41,19 +43,100 @@ pub struct EnvArgs {
     pub platform: Option<EnvPlatform>,
 }
 
-#[derive(Args, Debug, Serialize, Deserialize, Clone)]
+#[derive(Args, Debug, Serialize, Deserialize, Clone, Eq)]
 pub struct PublishArgs {
+    #[clap(help = "Protocol to use (http, https, udp, tcp, 1c)")]
+    pub protocol: Protocol,
+    #[clap(help = "Socket address, port or file path")]
+    pub address: String,
     #[clap(short, long, help = "Optional name of the service to publish")]
     pub name: Option<String>,
-    pub protocol: ServiceType,
-    #[clap(help = "Socket address, port or file path", value_parser=validate_socket_address)]
-    pub address: String,
+    #[clap(name = "home", long, help = "Optional path to the 1C home directory")]
+    pub home: Option<PathBuf>,
+    #[clap(long, help = "Optional platform type (x64 or x86)")]
+    pub platform: Option<EnvPlatform>,
 }
 
-#[derive(Args, Debug, Serialize, Deserialize, Clone)]
-pub struct UnpublishArgs {
-    #[clap(help = "ID of service to unpublish")]
-    pub id: String,
+impl PublishArgs {
+    pub fn address(&self) -> String {
+        self.address
+            .split(':')
+            .next()
+            .unwrap_or("localhost")
+            .to_string()
+    }
+    pub fn port(&self) -> u16 {
+        self.address
+            .split(':')
+            .last()
+            .unwrap_or("0")
+            .parse()
+            .unwrap_or(0)
+    }
+
+    pub fn populate(&mut self) -> Result<()> {
+        if self.protocol == Protocol::OneC {
+            if Path::new(&self.address).exists() {
+                self.address = format!("File=\"{}\"", self.address);
+            }
+            return Ok(());
+        }
+
+        if !self.address.contains(':') {
+            self.address = format!("localhost:{}", self.address);
+        }
+
+        match self.address.to_socket_addrs() {
+            Ok(mut addrs) => {
+                if let Some(_addr) = addrs.next() {
+                    Ok(())
+                } else {
+                    bail!("Invalid socket address: {}", self.address);
+                }
+            }
+            Err(err) => bail!("Invalid socket address: {}", err),
+        }
+    }
+}
+
+impl PartialEq for PublishArgs {
+    fn eq(&self, other: &Self) -> bool {
+        self.protocol == other.protocol && self.address == other.address
+    }
+}
+
+impl Into<ClientEndpoint> for PublishArgs {
+    fn into(self) -> ClientEndpoint {
+        if self.protocol == Protocol::OneC {
+            ClientEndpoint {
+                description: self.name.clone(),
+                local_proto: Protocol::Http,
+                local_addr: "127.0.0.1".to_string(),
+                local_port: 5050,
+                nodelay: Some(true),
+            }
+        } else {
+            ClientEndpoint {
+                description: self.name.clone(),
+                local_proto: self.protocol,
+                local_addr: self.address(),
+                local_port: self.port(),
+                nodelay: Some(true),
+            }
+        }
+    }
+}
+
+impl Into<PublishArgs> for ClientEndpoint {
+    fn into(self) -> PublishArgs {
+        PublishArgs {
+            protocol: self.local_proto,
+            address: format!("{}:{}", self.local_addr, self.local_port),
+            name: self.description,
+            home: None,
+            platform: None,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -62,7 +145,6 @@ pub enum CommandResult {
     Connected,
     Disconnected,
     Published(ServerEndpoint),
-    ServiceList(HashMap<String, ServerEndpoint>),
     Error(ErrorKind, String),
     Exit,
 }
@@ -76,13 +158,6 @@ impl Display for CommandResult {
             CommandResult::Connected => write!(f, "Connected"),
             CommandResult::Disconnected => write!(f, "Disconnected"),
             CommandResult::Exit => write!(f, "Exiting"),
-            CommandResult::ServiceList(list) => {
-                writeln!(f, "Service list:")?;
-                for (name, endpoint) in list {
-                    writeln!(f, "{}: {}", name, endpoint)?;
-                }
-                Ok(())
-            }
         }
     }
 }
@@ -90,44 +165,5 @@ impl Display for CommandResult {
 impl From<anyhow::Error> for CommandResult {
     fn from(err: anyhow::Error) -> Self {
         CommandResult::Error(ErrorKind::Fatal, format!("{:?}", err))
-    }
-}
-
-pub fn validate_socket_address(input: &str) -> Result<String> {
-    if Path::new(input).exists() {
-        return Ok(input.to_string());
-    }
-    let addr_with_port: String;
-    if input.contains(':') {
-        addr_with_port = input.to_string();
-    } else {
-        addr_with_port = format!("localhost:{}", input);
-    }
-
-    match addr_with_port.to_socket_addrs() {
-        Ok(mut addrs) => {
-            if let Some(_addr) = addrs.next() {
-                Ok(addr_with_port)
-            } else {
-                bail!("Invalid socket address: {}", addr_with_port);
-            }
-        }
-        Err(err) => bail!("Invalid socket address: {}", err),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn test_validate_socket_address() {
-        // Valid input
-        assert!(validate_socket_address("127.0.0.1:8000").unwrap() == "127.0.0.1:8000".to_string());
-        assert!(validate_socket_address("8000").unwrap() == "localhost:8000".to_string());
-        // Invalid inputs
-        assert!(validate_socket_address("127.0.0.1").is_err());
-        assert!(validate_socket_address("127.0.0.1:").is_err());
-        assert!(validate_socket_address("127.0.0.1:port").is_err());
-        assert!(validate_socket_address("127.0.0.1:90000").is_err());
     }
 }

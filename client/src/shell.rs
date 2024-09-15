@@ -10,6 +10,7 @@ use futures::stream::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use parking_lot::RwLock;
 use reqwest::{Certificate, ClientBuilder};
+use runas::Command as ElevatedCommand;
 use std::io;
 use std::path::Path;
 use std::process::Stdio;
@@ -19,6 +20,31 @@ use tokio::process::Command;
 use tracing::{debug, info, warn};
 use walkdir::WalkDir;
 use zip::read::ZipArchive;
+
+#[allow(dead_code)]
+pub fn elevated_execute(command: &Path, args: &[&str]) -> Result<()> {
+    info!("Executing evelated command: {:?} {:?}", command, args);
+
+    ElevatedCommand::new(command)
+        .args(args)
+        .status()
+        .context(format!(
+            "Failed to execute command: {:?} {:?}",
+            command, args
+        ))?;
+    Ok(())
+}
+
+#[allow(dead_code)]
+pub fn pause() {
+    dbg!("Pausing! Press enter to continue...");
+
+    let mut buffer = String::new();
+
+    std::io::stdin()
+        .read_line(&mut buffer)
+        .expect("Failed to read line");
+}
 
 pub async fn execute(command: &Path, args: &[&str]) -> Result<()> {
     info!("Executing command: {:?} {:?}", command, args);

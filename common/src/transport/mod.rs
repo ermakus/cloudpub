@@ -7,6 +7,11 @@ use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{debug, error};
 
+#[cfg(target_os = "linux")]
+use anyhow::bail;
+#[cfg(target_os = "linux")]
+use tokio::net::TcpStream;
+
 mod tcp;
 pub use tcp::{Listener, NamedSocketAddr, SocketAddr, Stream, TcpTransport};
 
@@ -113,6 +118,27 @@ impl SocketOpts {
     }
 }
 
+#[cfg(target_os = "linux")]
+pub fn set_reuse(s: &TcpStream) -> Result<()> {
+    use libc;
+    use std::os::fd::AsRawFd;
+    use std::{io, mem};
+    unsafe {
+        let optval: libc::c_int = 1;
+        let ret = libc::setsockopt(
+            s.as_raw_fd(),
+            libc::SOL_SOCKET,
+            libc::SO_REUSEPORT | libc::SO_REUSEADDR,
+            &optval as *const _ as *const libc::c_void,
+            mem::size_of_val(&optval) as libc::socklen_t,
+        );
+        if ret != 0 {
+            bail!("Set sock option failed: {:?}", io::Error::last_os_error());
+        }
+    }
+    Ok(())
+}
+
 impl SocketOpts {
     pub fn from_cfg(cfg: &TcpConfig) -> SocketOpts {
         SocketOpts {
@@ -123,21 +149,7 @@ impl SocketOpts {
             }),
         }
     }
-    /*
-        pub fn from_client_cfg(cfg: &ClientServiceConfig) -> SocketOpts {
-            SocketOpts {
-                nodelay: cfg.nodelay,
-                ..SocketOpts::none()
-            }
-        }
 
-        pub fn from_server_cfg(cfg: &ServerServiceConfig) -> SocketOpts {
-            SocketOpts {
-                nodelay: cfg.client.nodelay,
-                ..SocketOpts::none()
-            }
-        }
-    */
     pub fn apply(&self, conn: &Stream) {
         #[allow(irrefutable_let_patterns)]
         if let Stream::Tcp(conn) = conn {
@@ -161,6 +173,11 @@ impl SocketOpts {
                 {
                     error!("{:#}", e);
                 }
+            }
+
+            #[cfg(target_os = "linux")]
+            if let Err(e) = set_reuse(&conn) {
+                error!("{:#}", e);
             }
         }
     }

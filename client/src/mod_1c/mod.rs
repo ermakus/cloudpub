@@ -17,22 +17,16 @@ lazy_static! {
             EnvPlatform::X64,
             EnvConfig {
                 home_1c: PathBuf::from("C:\\Program Files\\1cv8\\"),
-                home_apache: PathBuf::from(
-                    "C:\\Program Files\\Apache Software Foundation\\Apache2.4",
-                ),
-                redist: "VC_redist.x64.exe".to_string(),
-                apache: "httpd-2.4.59-240605-win64-VS17.zip".to_string(),
+                redist: "vc_redist.x64.exe".to_string(),
+                apache: "httpd-2.4.61-240703-win64-VS17.zip".to_string(),
             },
         );
         m.insert(
             EnvPlatform::X86,
             EnvConfig {
                 home_1c: PathBuf::from("C:\\Program Files (x86)\\1cv8"),
-                home_apache: PathBuf::from(
-                    "C:\\Program Files\\Apache Software Foundation\\Apache2.4",
-                ),
-                redist: "VC_redist.x86.exe".to_string(),
-                apache: "httpd-2.4.59-240605-win32-vs17.zip".to_string(),
+                redist: "vc_redist.x86.exe".to_string(),
+                apache: "httpd-2.4.61-240703-win32-vs17.zip".to_string(),
             },
         );
         m
@@ -99,14 +93,14 @@ pub async fn setup(args: EnvArgs, config: Arc<RwLock<ClientConfig>>) -> Result<(
     let mut redist = cache_dir.clone();
     redist.push(env.redist.clone());
 
+    let httpd = env.httpd();
+
+    execute(&httpd, &["-k", "stop"]).await.ok();
+    execute(&httpd, &["-k", "uninstall"]).await.ok();
+
     download(
         config.clone(),
-        format!(
-            "https://{}/download/{}",
-            config.read().remote_addr.replace("api.", ""),
-            env.redist
-        )
-        .as_str(),
+        format!("{}/download/{}", config.read().server, env.redist).as_str(),
         &redist,
     )
     .await
@@ -117,29 +111,27 @@ pub async fn setup(args: EnvArgs, config: Arc<RwLock<ClientConfig>>) -> Result<(
 
     download(
         config.clone(),
-        format!(
-            "https://{}/download/{}",
-            config.read().remote_addr.replace("api.", ""),
-            env.apache
-        )
-        .as_str(),
+        format!("{}/download/{}", config.read().server, env.apache).as_str(),
         &apache,
     )
     .await
     .context("Failed to download Apache")?;
 
-    unzip(&apache, &env.home_apache, 1).context("Failed to extract Apache")?;
+    unzip(&apache, &env.home_apache(), 1).context("Failed to extract Apache")?;
 
-    let mut httpd_conf = env.home_apache.clone();
+    let mut httpd_conf = env.home_apache().clone();
     httpd_conf.push("conf");
     httpd_conf.push("httpd.conf");
-    std::fs::write(&httpd_conf, APACHE_CONFIG).context("Failed to write httpd.conf")?;
+
+    let apache_config = APACHE_CONFIG.replace(
+        "[[PUBLISH_DIR]]",
+        get_publish_dir()?.to_str().context("Invalid publish dir")?,
+    );
+    std::fs::write(&httpd_conf, apache_config).context("Failed to write httpd.conf")?;
 
     execute(&redist, &["/install", "/quiet", "/norestart"])
         .await
         .context("Failed to install VC_redist")?;
-
-    let httpd = env.httpd();
 
     execute(&httpd, &["-k", "install"])
         .await
@@ -200,17 +192,11 @@ pub async fn publish(args: &PublishArgs, config: Arc<RwLock<ClientConfig>>) -> R
         bail!("webinst not found");
     };
 
-    let name = if let Some(name) = args.name.as_ref() {
-        format!("{}", name)
-    } else {
-        "1c".to_string()
-    };
-
     let args = [
         "-publish",
         "-apache24",
         "-wsdir",
-        &name,
+        "1c",
         "-connstr",
         &args.address,
         "-dir",

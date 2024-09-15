@@ -3,6 +3,12 @@ name = "client"
 version = "1.0.0"
 edition = "2021"
 authors = ["Anton Ermak <anton@ermak.dev>"]
+build = "build.rs"
+
+[package.metadata.winres]
+OriginalFilename = "clo.exe"
+FileDescription = "CloudPub client"
+ProductName = "CloudPub"
 
 [[bin]]
 name = "client"
@@ -30,3 +36,13 @@ toml = "0.5"
 walkdir = { version="2.3" }
 uuid = { version = "1.8.0", features = ["v4"] }
 parking_lot = "0.12.3"
+hostname = "0.4.0"
+url = "2.5.2"
+runas = "1.2.0"
+
+# Dependencies for windows config
+[target.'cfg(windows)'.dependencies]
+is_elevated = "0.1.2"
+
+[build-dependencies]
+winresource = "0.1.17"

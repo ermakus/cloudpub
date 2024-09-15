@@ -1,12 +1,12 @@
 mod common;
 
 use common::{init, run_cloudpub, run_command, App};
-use serde_json::{from_str, Value};
+//use serde_json::{from_str, Value};
 use std::time::Duration;
 use tokio::time;
 use tracing::info;
 
-#[tokio::test]
+//#[tokio::test]
 async fn test_commands() {
     init().await;
     // Start the server

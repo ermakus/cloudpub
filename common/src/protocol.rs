@@ -1,20 +1,22 @@
-use anyhow::{Context, Result};
+use crate::config::MaskedString;
+use anyhow::{bail, Context, Result};
 use bytes::{Bytes, BytesMut};
 use clap::ValueEnum;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display, Formatter};
 use std::net::SocketAddr;
+use std::str::FromStr;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tracing::trace;
 
-use crate::config::MaskedString;
-
 #[derive(ValueEnum, Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
-pub enum ServiceType {
+pub enum Protocol {
     #[default]
     #[serde(rename = "http")]
     Http,
+    #[serde(rename = "https")]
+    Https,
     #[serde(rename = "tcp")]
     Tcp,
     #[serde(rename = "udp")]
@@ -24,46 +26,87 @@ pub enum ServiceType {
     OneC,
 }
 
-impl Display for ServiceType {
+impl Display for Protocol {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            ServiceType::Http => write!(f, "http"),
-            ServiceType::Tcp => write!(f, "tcp"),
-            ServiceType::Udp => write!(f, "udp"),
-            ServiceType::OneC => write!(f, "1C"),
+            Protocol::Http => write!(f, "http"),
+            Protocol::Https => write!(f, "https"),
+            Protocol::Tcp => write!(f, "tcp"),
+            Protocol::Udp => write!(f, "udp"),
+            Protocol::OneC => write!(f, "1c"),
         }
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+impl FromStr for Protocol {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        match s {
+            "http" => Ok(Protocol::Http),
+            "https" => Ok(Protocol::Https),
+            "tcp" => Ok(Protocol::Tcp),
+            "udp" => Ok(Protocol::Udp),
+            "1c" => Ok(Protocol::OneC),
+            _ => bail!("Invalid protocol: {}", s),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, Default)]
 pub struct ClientEndpoint {
-    #[serde(rename = "type")]
-    pub service_type: ServiceType,
+    pub local_proto: Protocol,
     pub local_addr: String,
+    pub local_port: u16,
     pub nodelay: Option<bool>,
-    pub name: Option<String>,
-    pub retry_interval: Option<u64>,
+    pub description: Option<String>,
+}
+
+impl PartialEq for ClientEndpoint {
+    fn eq(&self, other: &Self) -> bool {
+        self.local_proto == other.local_proto
+            && self.local_addr == other.local_addr
+            && self.local_port == other.local_port
+    }
 }
 
 impl Display for ClientEndpoint {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        if let Some(name) = self.name.as_ref() {
+        if let Some(name) = self.description.as_ref() {
             write!(f, "[{}] ", name)?;
         }
-        write!(f, "{}://{}", self.service_type, self.local_addr)
+        write!(
+            f,
+            "{}://{}:{}",
+            self.local_proto, self.local_addr, self.local_port
+        )
     }
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, Eq)]
 pub struct ServerEndpoint {
+    #[serde(skip)]
+    pub bind_addr: String,
+    pub remote_proto: Protocol,
+    pub remote_addr: String,
+    pub remote_port: u16,
+    pub guid: String,
     pub client: ClientEndpoint,
-    pub address: String,
-    pub channel_id: String,
 }
 
 impl Display for ServerEndpoint {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "{} -> {}", self.client, self.address)
+        write!(
+            f,
+            "{} -> {}://{}:{}",
+            self.client, self.remote_proto, self.remote_addr, self.remote_port
+        )
+    }
+}
+
+impl PartialEq for ServerEndpoint {
+    fn eq(&self, other: &Self) -> bool {
+        self.client == other.client
     }
 }
 
@@ -74,19 +117,20 @@ pub enum ErrorKind {
     HandshakeFailed,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct AgentInfo {
     pub agent_id: String,
     pub token: MaskedString,
+    pub hostname: String,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct DataChannelInfo {
     pub agent_id: String,
-    pub channel_id: String,
+    pub guid: String,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum Message {
     AgentHello(AgentInfo),
     AgentAck,

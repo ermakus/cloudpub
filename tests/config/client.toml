@@ -1,6 +1,6 @@
-remote_addr = 'endpoint.cloudpub.local:8443'
-token = 'test-token'
 agent_id = 'test-agent-id'
+server = 'http://localhost:8443/'
+token = 'test-token'
 heartbeat_timeout = 40
 retry_interval = 1
 
@@ -18,18 +18,39 @@ danger_ignore_certificate_verification = true
 
 [transport.websocket]
 tls = true
-[services.tcp_pingpong]
-type = 'tcp'
-local_addr = '127.0.0.1:5001'
 
-[services.tcp_echo]
-type = 'tcp'
-local_addr = '127.0.0.1:5000'
+[[services]]
+remote_proto = 'udp'
+remote_addr = 'localhost'
+remote_port = 34671
+guid = '3d6a551b-7940-4f55-bb73-00e1f5568ffa'
 
-[services.udp_pingpong]
-type = 'udp'
-local_addr = '127.0.0.1:5001'
+[services.client]
+local_proto = 'udp'
+local_addr = '127.0.0.1'
+local_port = 5000
+nodelay = true
 
-[services.udp_echo]
-type = 'udp'
-local_addr = '127.0.0.1:5000'
+[[services]]
+remote_proto = 'tcp'
+remote_addr = 'localhost'
+remote_port = 44737
+guid = '5cf1b110-4d23-49b9-a4e2-14a827bc3616'
+
+[services.client]
+local_proto = 'tcp'
+local_addr = '127.0.0.1'
+local_port = 5000
+nodelay = true
+
+[[services]]
+remote_proto = 'udp'
+remote_addr = 'localhost'
+remote_port = 39501
+guid = 'a4626432-4321-4a10-9cb0-1c2d6a6de076'
+
+[services.client]
+local_proto = 'udp'
+local_addr = '127.0.0.1'
+local_port = 5001
+nodelay = true

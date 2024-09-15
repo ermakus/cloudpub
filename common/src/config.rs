@@ -6,7 +6,7 @@ use url::Url;
 
 use crate::constants::{DEFAULT_KEEPALIVE_INTERVAL, DEFAULT_KEEPALIVE_SECS, DEFAULT_NODELAY};
 
-pub use crate::protocol::ServiceType;
+pub use crate::protocol::Protocol;
 
 /// String with Debug implementation that emits "MASKED"
 /// Used to mask sensitive strings when logging

@@ -9,24 +9,22 @@ slug: /
 
 ## Cкачайте клиент для вашей операционной системы
 
-- [Windows](https://cloudpub.ru/download/windows/x86_64/cloudpub-client.exe)
-- [Linux](https://cloudpub.ru/download/linux/x86_64/cloudpub-client)
-- [MacOS (Intel)](https://cloudpub.ru/download/mac/x86_64/cloudpub-client)
-- [MacOS (ARM)](https://cloudpub.ru/download/mac/arm/cloudpub-client)
+- [Windows](https://cloudpub.ru/download/windows/x86_64/clo.zip)
+- [Linux](https://cloudpub.ru/download/linux/x86_64/clo.tar.gz)
+- [MacOS (Intel)](https://cloudpub.ru/download/mac/x86_64/clo.tar.gz)
+- [MacOS (ARM)](https://cloudpub.ru/download/mac/arm/clo.tar.gz)
 
-### Для Linux и MacOS дайте файлу права на выполнение
+### Распакуйте архив
 
-```bash
-chmod +x cloudpub-client
-```
-
+ - Windows: распакуйте zip архив в любую папку
+ - Linux/MacOS: выполните команду `tar -xvf clo.tar.gz`
 
 ## Привяжите ваш аккаунт
 
 Если в еще этого не сделали, создайте аккаунт на [cloudpub.ru](https://cloudpub.ru/dashboard). После этого привяжите ваш аккаунт к клиенту, выполнив следующую команду:
 
 ```bash
-./cloudpub-client set token <ваш токен>
+./clo set token <ваш токен>
 ```
 
 Свой токен вы можете найти на главной странице в личном кабинете после регистрации.
@@ -36,7 +34,7 @@ chmod +x cloudpub-client
 Для публикации локального HTTP сервера работающего на порте 8080 выполните команду:
 
 ```bash
-./cloudpub-client publish http 8080
+./clo publish http 8080
 ```
 
 После этого вам будет предоставлен URL, по которому ваш ресурс будет доступен в интернете, например:

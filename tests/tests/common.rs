@@ -8,7 +8,7 @@ use tokio::io::{self, AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream, ToSocketAddrs};
 use tokio::process::{Child, Command};
 use tokio::sync::mpsc;
-use tracing::{debug, info};
+use tracing::{debug, info, trace};
 use tracing_subscriber::EnvFilter;
 
 const ECHO_SERVER_ADDR: &str = "127.0.0.1:5000";
@@ -240,7 +240,7 @@ pub mod udp {
         let mut buf = [0u8; UDP_BUFFER_SIZE];
         loop {
             let (n, addr) = l.recv_from(&mut buf).await?;
-            debug!("Get {:?} from {}", &buf[..n], addr);
+            trace!("Get {:?} from {}", &buf[..n], addr);
             l.send_to(&buf[..n], addr).await?;
         }
     }
@@ -266,10 +266,10 @@ pub mod udp {
             rand::thread_rng().fill(&mut wr);
 
             conn.send(&wr).await?;
-            debug!("send");
+            trace!("send");
 
             conn.recv(&mut rd).await?;
-            debug!("recv");
+            trace!("recv");
 
             assert_eq!(wr, rd);
         }
@@ -285,10 +285,10 @@ pub mod udp {
 
         for _ in 0..3 {
             conn.send(wr).await?;
-            debug!("ping");
+            trace!("ping");
 
             conn.recv(&mut rd).await?;
-            debug!("pong");
+            trace!("pong");
 
             assert_eq!(rd, PONG.as_bytes());
         }
