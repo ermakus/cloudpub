@@ -1,7 +1,4 @@
-<span>
-<img style="width: 64px; margin-right: 10px; float: left;" src="docs/static/img/favicon.ico">
-<h1 style="line-height: 64px;">CloudPub</h1>
-</span>
+# CloudPub
 
 This is the repository for the client-side of the CloudPub service, which is open-source and distributed under the Apache 2.0 license.
 
