@@ -17,7 +17,7 @@ const PINGPONG_SERVER_ADDR: &str = "127.0.0.1:5001";
 const PING: &str = "ping";
 const PONG: &str = "pong";
 
-const RE_ENDPOINT: &str = r"^Service published: \[(.*)\] (.*) -> (.*)$";
+const RE_ENDPOINT: &str = r"^Service published: \[(.*)\] .*//(.*) -> .*//(.*)$";
 
 #[derive(Debug, Clone)]
 pub enum App {
