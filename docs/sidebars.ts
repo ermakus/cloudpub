@@ -1,4 +1,5 @@
 import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
+import { TEST } from '@cloudpub/frontend';
 
 /**
  * Creating a sidebar enables you to:

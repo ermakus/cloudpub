@@ -15,10 +15,14 @@ use futures_core::stream::Stream as AsyncStream;
 use futures_sink::Sink;
 use tokio::io::{AsyncBufRead, AsyncRead, AsyncWrite, ReadBuf};
 
+use parking_lot::RwLock;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio_tungstenite::tungstenite::handshake::server::{Request, Response};
 use tokio_tungstenite::tungstenite::protocol::{Message, WebSocketConfig};
-use tokio_tungstenite::{accept_async_with_config, client_async_with_config, WebSocketStream};
+use tokio_tungstenite::{accept_hdr_async_with_config, client_async_with_config, WebSocketStream};
 use tokio_util::io::StreamReader;
-use tracing::debug;
+use tracing::{debug, trace};
 use url::Url;
 
 #[cfg(feature = "rustls")]
@@ -187,6 +191,7 @@ enum SubTransport {
 pub struct WebsocketTransport {
     sub: SubTransport,
     conf: WebSocketConfig,
+    headers: Arc<RwLock<HashMap<String, String>>>,
 }
 
 #[async_trait]
@@ -212,7 +217,8 @@ impl Transport for WebsocketTransport {
             true => unreachable!("TLS support not enabled"),
             false => SubTransport::Insecure(TcpTransport::new(config)?),
         };
-        Ok(WebsocketTransport { sub, conf })
+        let headers = Default::default();
+        Ok(WebsocketTransport { sub, conf, headers })
     }
 
     fn hint(conn: &Self::Stream, opt: SocketOpts) {
@@ -238,7 +244,23 @@ impl Transport for WebsocketTransport {
             #[cfg(feature = "rustls")]
             SubTransport::Secure(t) => TransportStream::Secure(t.handshake(conn).await?),
         };
-        let wsstream = accept_async_with_config(tsream, Some(self.conf)).await?;
+
+        let headers = self.headers.clone();
+
+        let callback = move |req: &Request, res: Response| {
+            let mut headers = headers.write();
+            for ref header in req.headers() {
+                trace!("WS headers: {:?}", header);
+                headers.insert(
+                    header.0.to_string(),
+                    header.1.to_str().unwrap_or_default().to_string(),
+                );
+            }
+            Ok(res)
+        };
+
+        let wsstream = accept_hdr_async_with_config(tsream, callback, Some(self.conf)).await?;
+
         let tun = WebsocketTunnel {
             inner: StreamReader::new(StreamWrapper { inner: wsstream }),
         };
@@ -264,5 +286,9 @@ impl Transport for WebsocketTransport {
             inner: StreamReader::new(StreamWrapper { inner: wsstream }),
         };
         Ok(tun)
+    }
+
+    fn get_header(&self, name: &str) -> Option<String> {
+        self.headers.read().get(&name.to_lowercase()).cloned()
     }
 }

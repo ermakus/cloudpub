@@ -5,7 +5,7 @@ use common::constants::{
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
 
-use common::config::{MaskedString, Protocol, TransportConfig};
+pub use common::config::{MaskedString, Protocol, TransportConfig};
 use common::protocol::{ClientEndpoint, ServerEndpoint};
 use std::fs::{self, create_dir_all};
 use std::path::PathBuf;
@@ -14,33 +14,31 @@ use tracing::debug;
 use url::Url;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
-pub struct EnvConfig {
-    pub home_1c: PathBuf,
-    pub redist: String,
-    pub apache: String,
+#[derive(Clone, Default, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum Platform {
+    #[default]
+    X64,
+    X32,
 }
 
-impl EnvConfig {
-    pub fn home_apache(&self) -> PathBuf {
-        let mut apache2: PathBuf = std::env::var("LocalAppData")
-            .unwrap_or_else(|_| {
-                if cfg!(target_family = "unix") {
-                    "/usr/local".to_string()
-                } else {
-                    "C:\\Program Files".to_string()
-                }
-            })
-            .into();
-        apache2.push("apache2");
-        apache2
+impl Display for Platform {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        match self {
+            Platform::X64 => write!(f, "x64"),
+            Platform::X32 => write!(f, "x32"),
+        }
     }
+}
 
-    pub fn httpd(&self) -> PathBuf {
-        let mut httpd = self.home_apache().clone();
-        httpd.push("bin");
-        httpd.push("httpd.exe");
-        httpd
+impl std::str::FromStr for Platform {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        match s {
+            "x64" => Ok(Platform::X64),
+            "x32" => Ok(Platform::X32),
+            _ => bail!("Invalid platform: {}", s),
+        }
     }
 }
 
@@ -77,7 +75,6 @@ impl Into<ClientEndpoint> for ClientServiceConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
-#[serde(deny_unknown_fields)]
 pub struct ClientConfig {
     #[serde(skip)]
     config_path: PathBuf,
@@ -86,8 +83,9 @@ pub struct ClientConfig {
     pub token: Option<MaskedString>,
     pub heartbeat_timeout: u64,
     pub retry_interval: u64,
+    pub one_c_home: Option<String>,
+    pub one_c_platform: Option<Platform>,
     pub transport: TransportConfig,
-    pub env1c: Option<EnvConfig>,
     #[serde(skip_serializing_if = "Vec::is_empty", default = "Vec::new")]
     pub services: Vec<ServerEndpoint>,
 }
@@ -159,6 +157,20 @@ impl ClientConfig {
             "retry_interval" => {
                 self.retry_interval = value.parse().context("Invalid retry_interval")?
             }
+            "1c_home" => {
+                if value.is_empty() {
+                    self.one_c_home = None
+                } else {
+                    self.one_c_home = Some(value.to_string())
+                }
+            }
+            "1c_platform" => {
+                if value.is_empty() {
+                    self.one_c_platform = None
+                } else {
+                    self.one_c_platform = Some(value.parse().context("Invalid platform")?)
+                }
+            }
             _ => bail!("Unknown key: {}", key),
         }
         self.save()?;
@@ -174,6 +186,12 @@ impl ClientConfig {
                 .map_or("".to_string(), |t| t.to_string())),
             "heartbeat_timeout" => Ok(self.heartbeat_timeout.to_string()),
             "retry_interval" => Ok(self.retry_interval.to_string()),
+            "1c_home" => Ok(self.one_c_home.clone().unwrap_or_default()),
+            "1c_platform" => Ok(self
+                .one_c_platform
+                .as_ref()
+                .map(|p| p.to_string())
+                .unwrap_or_default()),
             _ => bail!("Unknown key: {}", key),
         }
     }
@@ -196,9 +214,10 @@ impl Default for ClientConfig {
             token: None,
             heartbeat_timeout: DEFAULT_HEARTBEAT_TIMEOUT_SECS,
             retry_interval: DEFAULT_CLIENT_RETRY_INTERVAL_SECS,
+            one_c_home: None,
+            one_c_platform: None,
             transport: TransportConfig::default(),
             services: Vec::new(),
-            env1c: None,
         }
     }
 }

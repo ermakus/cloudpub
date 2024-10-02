@@ -7,11 +7,9 @@ pub const DEFAULT_HEARTBEAT_TIMEOUT_SECS: u64 = 40;
 
 /// Client
 pub const DEFAULT_CLIENT_RETRY_INTERVAL_SECS: u64 = 1;
-pub const DEFAULT_SERVER: &str = "https://cloudpub.ru";
+pub const DEFAULT_SERVER: &str = "https://cloudpub.ru/";
 
 /// Server
-pub const TCP_POOL_SIZE: usize = 8; // The number of cached connections for TCP servies
-pub const UDP_POOL_SIZE: usize = 2; // The number of cached connections for UDP services
 pub const CHAN_SIZE: usize = 2048; // The capacity of various chans
 pub const HANDSHAKE_TIMEOUT: u64 = 5; // Timeout for transport handshake
 

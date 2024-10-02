@@ -11,7 +11,7 @@ pub use crate::protocol::Protocol;
 /// String with Debug implementation that emits "MASKED"
 /// Used to mask sensitive strings when logging
 #[derive(Serialize, Deserialize, Default, PartialEq, Eq, Clone)]
-pub struct MaskedString(String);
+pub struct MaskedString(pub String);
 
 impl Debug for MaskedString {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
@@ -124,7 +124,7 @@ impl Default for TransportConfig {
 }
 
 impl TransportConfig {
-    pub fn validate(config: &TransportConfig, is_server: bool) -> Result<()> {
+    pub fn validate(config: &TransportConfig, _is_server: bool) -> Result<()> {
         config
             .tcp
             .proxy
@@ -142,7 +142,7 @@ impl TransportConfig {
                     .tls
                     .as_ref()
                     .ok_or_else(|| anyhow!("Missing TLS configuration"))?;
-                if is_server {
+                if _is_server {
                     tls_config
                         .pkcs12
                         .as_ref()

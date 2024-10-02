@@ -1,10 +1,9 @@
 use anyhow::{bail, Result};
-use clap::{Args, Subcommand, ValueEnum};
+use clap::{Args, Subcommand};
 use common::protocol::{ClientEndpoint, ErrorKind, Protocol, ServerEndpoint};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display, Formatter};
 use std::net::ToSocketAddrs;
-use std::path::{Path, PathBuf};
 
 #[derive(Subcommand, Debug, Serialize, Deserialize, Clone)]
 pub enum Commands {
@@ -12,16 +11,11 @@ pub enum Commands {
     Get(GetArgs),
     Run,
     Stop,
+    Break,
     Publish(PublishArgs),
-    Unpublish(PublishArgs),
+    Unpublish(UnpublishArgs),
     Ls,
-}
-
-#[derive(ValueEnum, Clone, Default, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub enum EnvPlatform {
-    #[default]
-    X64,
-    X86,
+    Cleanup,
 }
 
 #[derive(Args, Debug, Serialize, Deserialize, Clone)]
@@ -35,14 +29,6 @@ pub struct GetArgs {
     pub key: String,
 }
 
-#[derive(Args, Debug, Serialize, Deserialize, Clone, Default)]
-pub struct EnvArgs {
-    #[clap(long, help = "Optional path to the service home directory")]
-    pub home: Option<PathBuf>,
-    #[clap(long, help = "Service platform")]
-    pub platform: Option<EnvPlatform>,
-}
-
 #[derive(Args, Debug, Serialize, Deserialize, Clone, Eq)]
 pub struct PublishArgs {
     #[clap(help = "Protocol to use (http, https, udp, tcp, 1c)")]
@@ -51,19 +37,31 @@ pub struct PublishArgs {
     pub address: String,
     #[clap(short, long, help = "Optional name of the service to publish")]
     pub name: Option<String>,
-    #[clap(name = "home", long, help = "Optional path to the 1C home directory")]
-    pub home: Option<PathBuf>,
-    #[clap(long, help = "Optional platform type (x64 or x86)")]
-    pub platform: Option<EnvPlatform>,
+}
+
+#[derive(Args, Debug, Serialize, Deserialize, Clone)]
+pub struct UnpublishArgs {
+    pub guid: String,
+    #[clap(
+        short,
+        long,
+        help = "Remove service from the config",
+        default_value = "true"
+    )]
+    pub remove: bool,
 }
 
 impl PublishArgs {
     pub fn address(&self) -> String {
-        self.address
-            .split(':')
-            .next()
-            .unwrap_or("localhost")
-            .to_string()
+        if self.protocol == Protocol::OneC {
+            self.address.clone()
+        } else {
+            self.address
+                .split(':')
+                .next()
+                .unwrap_or("localhost")
+                .to_string()
+        }
     }
     pub fn port(&self) -> u16 {
         self.address
@@ -76,9 +74,6 @@ impl PublishArgs {
 
     pub fn populate(&mut self) -> Result<()> {
         if self.protocol == Protocol::OneC {
-            if Path::new(&self.address).exists() {
-                self.address = format!("File=\"{}\"", self.address);
-            }
             return Ok(());
         }
 
@@ -107,22 +102,12 @@ impl PartialEq for PublishArgs {
 
 impl Into<ClientEndpoint> for PublishArgs {
     fn into(self) -> ClientEndpoint {
-        if self.protocol == Protocol::OneC {
-            ClientEndpoint {
-                description: self.name.clone(),
-                local_proto: Protocol::Http,
-                local_addr: "127.0.0.1".to_string(),
-                local_port: 5050,
-                nodelay: Some(true),
-            }
-        } else {
-            ClientEndpoint {
-                description: self.name.clone(),
-                local_proto: self.protocol,
-                local_addr: self.address(),
-                local_port: self.port(),
-                nodelay: Some(true),
-            }
+        ClientEndpoint {
+            description: self.name.clone(),
+            local_proto: self.protocol,
+            local_addr: self.address(),
+            local_port: self.port(),
+            nodelay: Some(true),
         }
     }
 }
@@ -131,20 +116,34 @@ impl Into<PublishArgs> for ClientEndpoint {
     fn into(self) -> PublishArgs {
         PublishArgs {
             protocol: self.local_proto,
-            address: format!("{}:{}", self.local_addr, self.local_port),
+            address: if self.local_proto == Protocol::OneC {
+                self.local_addr.clone()
+            } else {
+                format!("{}:{}", self.local_addr, self.local_port)
+            },
             name: self.description,
-            home: None,
-            platform: None,
         }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ProgressInfo {
+    pub message: String,
+    pub template: String,
+    pub current: u64,
+    pub total: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum CommandResult {
     Ok(String),
+    Connecting,
     Connected,
     Disconnected,
+    Progress(ProgressInfo),
     Published(ServerEndpoint),
+    Unpublished(String),
+    Removed(String),
     Error(ErrorKind, String),
     Exit,
 }
@@ -155,9 +154,15 @@ impl Display for CommandResult {
             CommandResult::Ok(msg) => write!(f, "{}", msg),
             CommandResult::Error(kind, msg) => write!(f, "{:?} error: {}", kind, msg),
             CommandResult::Published(endpoint) => write!(f, "Service published: {}", endpoint),
+            CommandResult::Unpublished(guid) => write!(f, "Service unpublished: {}", guid),
+            CommandResult::Removed(guid) => write!(f, "Service removed: {}", guid),
+            CommandResult::Connecting => write!(f, "Connecting"),
             CommandResult::Connected => write!(f, "Connected"),
             CommandResult::Disconnected => write!(f, "Disconnected"),
             CommandResult::Exit => write!(f, "Exiting"),
+            CommandResult::Progress(info) => {
+                write!(f, "Progress: {:?}", info)
+            }
         }
     }
 }

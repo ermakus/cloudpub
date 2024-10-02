@@ -1,55 +1,74 @@
-import {themes as prismThemes} from 'prism-react-renderer';
-import type {Config} from '@docusaurus/types';
-import type * as Preset from '@docusaurus/preset-classic';
+import { themes as prismThemes } from "prism-react-renderer";
+import type { Config } from "@docusaurus/types";
+import type * as Preset from "@docusaurus/preset-classic";
+import path from "path";
+
+process.env.IS_PREACT = "false";
 
 const config: Config = {
-  title: 'CloudPub',
-  tagline: 'От локального к глобальному за один клик',
-  favicon: 'img/favicon.ico',
+  title: "CloudPub",
+  tagline: "От локального к глобальному за один клик",
+  favicon: "img/favicon.ico",
 
   // Set the production url of your site here
-  url: 'https://cloudpub.ru',
+  url: "https://cloudpub.ru",
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: '/docs/',
+  baseUrl: "/docs/",
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'cloudpub', // Usually your GitHub org/user name.
-  projectName: 'cloudpub', // Usually your repo name.
+  organizationName: "cloudpub", // Usually your GitHub org/user name.
+  projectName: "cloudpub", // Usually your repo name.
 
-  onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'warn',
+  onBrokenLinks: "throw",
+  onBrokenMarkdownLinks: "warn",
+
+  staticDirectories: ['public', 'static'],
+
 
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
   // may want to replace "en" with "zh-Hans".
   i18n: {
-    defaultLocale: 'ru',
-    locales: ['ru'],
+    defaultLocale: "ru",
+    locales: ["ru"],
   },
-
+  plugins: [
+    [
+      "docusaurus-plugin-module-alias",
+      {
+        alias: {
+          src: path.resolve(__dirname, "../frontend/src"),
+        },
+      },
+    ],
+    [
+      "docusaurus-plugin-dotenv",
+      {
+        path: "./.env",
+        systemvars: true,
+      },
+    ],
+  ],
   presets: [
     [
-      'classic',
+      "classic",
       {
         docs: {
-          sidebarPath: './sidebars.ts',
-          routeBasePath: '/',
+          sidebarPath: "./sidebars.ts",
+          routeBasePath: "/",
         },
-        blog: false, /*{
+        blog: {
+          blogTitle: "Блог",
           showReadingTime: true,
           feedOptions: {
             type: ['rss', 'atom'],
             xslt: true,
           },
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
-        } */
+        },
         theme: {
-          customCss: './src/css/custom.css',
+          customCss: "./src/css/custom.css",
         },
       } satisfies Preset.Options,
     ],
@@ -57,23 +76,24 @@ const config: Config = {
 
   themeConfig: {
     // Replace with your project's social card
-    image: 'img/docusaurus-social-card.jpg',
+    image: "img/docusaurus-social-card.jpg",
     navbar: {
-      title: 'CloudPub',
+      title: "CloudPub",
       logo: {
-        alt: 'CloudPub Logo',
-        src: 'img/logo.svg',
-        href: 'https://cloudpub.ru',
-        target: '_self',
+        alt: "CloudPub Logo",
+        src: "img/logo.svg",
+        href: "https://cloudpub.ru",
+        target: "_self",
       },
       items: [
-        /*{
+        {
           type: 'docSidebar',
           sidebarId: 'tutorialSidebar',
           position: 'left',
           label: 'Документация',
         },
         {to: '/blog', label: 'Блог', position: 'left'},
+          /*
         {
           href: 'https://github.com/ermakus/cloudpub',
           label: 'GitHub',
@@ -82,9 +102,9 @@ const config: Config = {
       ],
     },
     footer: {
-      style: 'dark',
+      style: "dark",
       links: [
-          /*
+        /*
         {
           title: 'Документация',
           items: [

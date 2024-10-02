@@ -75,23 +75,28 @@ impl Display for ClientEndpoint {
         if let Some(name) = self.description.as_ref() {
             write!(f, "[{}] ", name)?;
         }
-        write!(
-            f,
-            "{}://{}:{}",
-            self.local_proto, self.local_addr, self.local_port
-        )
+        if self.local_proto == Protocol::OneC {
+            write!(f, "{}://{}", self.local_proto, self.local_addr)
+        } else {
+            write!(
+                f,
+                "{}://{}:{}",
+                self.local_proto, self.local_addr, self.local_port
+            )
+        }
     }
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Eq)]
 pub struct ServerEndpoint {
-    #[serde(skip)]
-    pub bind_addr: String,
+    pub status: Option<String>,
+    pub guid: String,
     pub remote_proto: Protocol,
     pub remote_addr: String,
     pub remote_port: u16,
-    pub guid: String,
     pub client: ClientEndpoint,
+    #[serde(skip)]
+    pub bind_addr: String,
 }
 
 impl Display for ServerEndpoint {
@@ -115,6 +120,9 @@ pub enum ErrorKind {
     AuthFailed,
     Fatal,
     HandshakeFailed,
+    PermissionDenied,
+    PublishFailed,
+    ExecuteFailed,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]

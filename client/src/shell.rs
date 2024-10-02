@@ -5,9 +5,10 @@ use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 
+use crate::commands::{CommandResult, Commands, ProgressInfo};
+use common::protocol::ErrorKind;
 use common::transport::rustls::load_roots;
 use futures::stream::StreamExt;
-use indicatif::{ProgressBar, ProgressStyle};
 use parking_lot::RwLock;
 use reqwest::{Certificate, ClientBuilder};
 use runas::Command as ElevatedCommand;
@@ -17,9 +18,46 @@ use std::process::Stdio;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
-use tracing::{debug, info, warn};
+use tokio::sync::broadcast;
+use tracing::{debug, error, info, warn};
 use walkdir::WalkDir;
 use zip::read::ZipArchive;
+
+pub struct SubProcess {
+    shutdown_tx: broadcast::Sender<Commands>,
+}
+
+impl SubProcess {
+    pub fn new(
+        command: PathBuf,
+        args: Vec<String>,
+        result_tx: broadcast::Sender<CommandResult>,
+    ) -> Self {
+        let (shutdown_tx, shutdown_rx) = broadcast::channel(1);
+        tokio::spawn(async move {
+            if let Err(err) = execute(command, args, shutdown_rx).await {
+                error!("Failed to execute command: {:?}", err);
+                result_tx
+                    .send(CommandResult::Error(
+                        ErrorKind::ExecuteFailed,
+                        err.to_string(),
+                    ))
+                    .ok();
+            }
+        });
+        Self { shutdown_tx }
+    }
+
+    pub fn stop(&mut self) {
+        self.shutdown_tx.send(Commands::Break).ok();
+    }
+}
+
+impl Drop for SubProcess {
+    fn drop(&mut self) {
+        self.stop();
+    }
+}
 
 #[allow(dead_code)]
 pub fn elevated_execute(command: &Path, args: &[&str]) -> Result<()> {
@@ -46,11 +84,67 @@ pub fn pause() {
         .expect("Failed to read line");
 }
 
-pub async fn execute(command: &Path, args: &[&str]) -> Result<()> {
-    info!("Executing command: {:?} {:?}", command, args);
+#[allow(dead_code)]
+pub async fn execute_with_progress(
+    message: &str,
+    command: PathBuf,
+    args: Vec<String>,
+    shutdown_rx: broadcast::Receiver<Commands>,
+    result_tx: broadcast::Sender<CommandResult>,
+) -> Result<()> {
+    const TEMPLATE: &str = "[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} исполнено";
 
-    let mut child = Command::new(command)
-        .args(args)
+    result_tx
+        .send(CommandResult::Progress(ProgressInfo {
+            message: message.to_string(),
+            template: TEMPLATE.to_string(),
+            current: 0,
+            total: 1,
+        }))
+        .ok();
+
+    let res = execute(command, args, shutdown_rx).await;
+
+    result_tx
+        .send(CommandResult::Progress(ProgressInfo {
+            message: message.to_string(),
+            template: TEMPLATE.to_string(),
+            current: 1,
+            total: 1,
+        }))
+        .ok();
+
+    res
+}
+
+pub async fn execute(
+    command: PathBuf,
+    args: Vec<String>,
+    mut shutdown_rx: broadcast::Receiver<Commands>,
+) -> Result<()> {
+    info!(
+        "Executing command: {} {}",
+        command.to_str().unwrap(),
+        args.join(" ")
+    );
+
+    #[cfg(windows)]
+    let mut child = Command::new(command.clone())
+        .args(args.clone())
+        .kill_on_drop(true)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .creation_flags(0x08000000)
+        .spawn()
+        .context(format!(
+            "Failed to execute command: {:?} {:?}",
+            command, args
+        ))?;
+
+    #[cfg(not(windows))]
+    let mut child = Command::new(command.clone())
+        .args(args.clone())
+        .kill_on_drop(true)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -65,37 +159,69 @@ pub async fn execute(command: &Path, args: &[&str]) -> Result<()> {
     let stdout_reader = BufReader::new(stdout).lines();
     let stderr_reader = BufReader::new(stderr).lines();
 
-    tokio::pin!(stdout_reader);
-    tokio::pin!(stderr_reader);
-
-    loop {
-        tokio::select! {
-            line = stdout_reader.next_line() => match line {
-                Ok(Some(line)) => info!("STDOUT: {}", line),
-                Err(e) => {
-                    bail!("Error reading stdout: {}", e);
+    tokio::spawn(async move {
+        tokio::pin!(stdout_reader);
+        tokio::pin!(stderr_reader);
+        loop {
+            tokio::select! {
+                line = stdout_reader.next_line() => match line {
+                    Ok(Some(line)) => info!("STDOUT: {}", line),
+                    Err(e) => {
+                        bail!("Error reading stdout: {}", e);
+                    },
+                    Ok(None) => {
+                        info!("STDOUT EOF");
+                        break;
+                    }
                 },
-                Ok(None) => break,
-            },
-            line = stderr_reader.next_line() => match line {
-                Ok(Some(line)) => warn!("STDERR: {}", line),
-                Err(e) => {
-                    bail!("Error reading stderr: {}", e);
+                line = stderr_reader.next_line() => match line {
+                    Ok(Some(line)) => warn!("STDERR: {}", line),
+                    Err(e) => {
+                        bail!("Error reading stderr: {}", e);
+                    },
+                    Ok(None) => {
+                        info!("STDERR EOF");
+                        break;
+                    }
                 },
-                Ok(None) => break,
             }
+        }
+        Ok(())
+    });
+
+    tokio::select! {
+        status = child.wait() => {
+            let status = status.context("Failed to wait on child")?;
+            if !status.success() {
+                bail!("Command failed: {:?}", status);
+            }
+        }
+
+        cmd = shutdown_rx.recv() => match cmd {
+            Ok(Commands::Break) => {
+                info!("Received break command, killing child process");
+                child.kill().await.ok();
+            }
+            Err(e) => {
+                info!("Command channel error, killing child process: {:?}", e);
+                child.kill().await.ok();
+            }
+            _ => {}
         }
     }
 
-    let status = child.wait().await.context("Failed to wait on child")?;
-    if !status.success() {
-        bail!("Command failed: {:?}", status);
-    }
+    info!("Command executed successfully");
 
     Ok(())
 }
 
-pub fn unzip(zip_file_path: &Path, extract_dir: &Path, skip: usize) -> Result<()> {
+pub fn unzip(
+    message: &str,
+    zip_file_path: &Path,
+    extract_dir: &Path,
+    skip: usize,
+    result_tx: broadcast::Sender<CommandResult>,
+) -> Result<()> {
     info!("Unzipping {:?} to {:?}", zip_file_path, extract_dir);
     let file = File::open(zip_file_path)?;
     let mut archive = ZipArchive::new(file)?;
@@ -103,12 +229,18 @@ pub fn unzip(zip_file_path: &Path, extract_dir: &Path, skip: usize) -> Result<()
     std::fs::create_dir_all(extract_dir)
         .context(format!("Failed to create dir '{:?}'", extract_dir))?;
 
-    let progress_bar = ProgressBar::new(archive.len() as u64);
-    progress_bar.set_style(
-        ProgressStyle::default_bar().template(
-            "[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} files extracted ({eta})",
-        )?,
-    );
+    const TEMPLATE: &str = "[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} файлов ({eta})";
+
+    let mut progress = ProgressInfo {
+        message: message.to_string(),
+        template: TEMPLATE.to_string(),
+        total: archive.len() as u64,
+        current: 0,
+    };
+
+    result_tx
+        .send(CommandResult::Progress(progress.clone()))
+        .ok();
 
     for i in 0..archive.len() {
         let mut file = archive
@@ -132,15 +264,23 @@ pub fn unzip(zip_file_path: &Path, extract_dir: &Path, skip: usize) -> Result<()
             io::copy(&mut file, &mut output_file).context("unzip failed to copy file")?;
         }
 
-        progress_bar.inc(1);
+        progress.current = (i + 1) as u64;
+        result_tx
+            .send(CommandResult::Progress(progress.clone()))
+            .ok();
     }
-
-    progress_bar.finish();
 
     Ok(())
 }
 
-pub async fn download(config: Arc<RwLock<ClientConfig>>, url: &str, path: &Path) -> Result<()> {
+pub async fn download(
+    message: &str,
+    config: Arc<RwLock<ClientConfig>>,
+    url: &str,
+    path: &Path,
+    mut command_rx: broadcast::Receiver<Commands>,
+    result_tx: broadcast::Sender<CommandResult>,
+) -> Result<()> {
     info!("Downloading {} to {:?}", url, path);
 
     let mut client = ClientBuilder::default();
@@ -165,14 +305,6 @@ pub async fn download(config: Arc<RwLock<ClientConfig>>, url: &str, path: &Path)
         .content_length()
         .context(format!("Failed to get content length from '{}'", &url))?;
 
-    let pb = ProgressBar::new(total_size);
-    pb.set_style(
-        ProgressStyle::default_bar().template(
-            "[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} bytes download ({eta})",
-        )?,
-    );
-    pb.set_message(format!("Downloading {} to {:?}", url, path));
-
     if let Ok(file) = File::open(&path) {
         if file
             .metadata()
@@ -180,26 +312,65 @@ pub async fn download(config: Arc<RwLock<ClientConfig>>, url: &str, path: &Path)
             .len()
             == total_size
         {
-            pb.finish_with_message(format!("File already downloaded"));
             return Ok(());
         }
     }
 
+    const TEMPLATE: &str = "[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} байт ({eta})";
+
+    let mut progress = ProgressInfo {
+        message: message.to_string(),
+        template: TEMPLATE.to_string(),
+        total: total_size,
+        current: 0,
+    };
+
+    result_tx
+        .send(CommandResult::Progress(progress.clone()))
+        .ok();
+
     // download chunks
     let mut file = File::create(path).context(format!("Failed to create file '{:?}'", path))?;
-    let mut downloaded: u64 = 0;
     let mut stream = res.bytes_stream();
 
-    while let Some(item) = stream.next().await {
-        let chunk = item.context("Failed to get chunk")?;
-        file.write_all(&chunk)
-            .context("Error while writing to file")?;
-        let new = min(downloaded + (chunk.len() as u64), total_size);
-        downloaded = new;
-        pb.set_position(new);
+    loop {
+        tokio::select! {
+            cmd = command_rx.recv() => {
+                match cmd {
+                    Ok(Commands::Break) => {
+                        info!("Download cancelled");
+                        progress.total = total_size;
+                        result_tx.send(CommandResult::Progress(progress.clone())).ok();
+                        bail!("Download cancelled");
+                    }
+                    Err(err) => {
+                        error!("Command channel error: {:?}", err);
+                        progress.total = total_size;
+                        result_tx.send(CommandResult::Progress(progress.clone())).ok();
+                        bail!(err);
+                    }
+                    _ => {}
+                }
+            }
+
+            item = stream.next() => {
+                if let Some(item) =  item {
+                let chunk = item.context("Failed to get chunk")?;
+                    file.write_all(&chunk)
+                        .context("Error while writing to file")?;
+                    progress.current = min(progress.current + (chunk.len() as u64), total_size);
+                    result_tx.send(CommandResult::Progress(progress.clone())).ok();
+                } else {
+                    break;
+                }
+            }
+        }
     }
 
-    pb.finish_with_message(format!("File downloaded"));
+    progress.current = total_size;
+    result_tx
+        .send(CommandResult::Progress(progress.clone()))
+        .ok();
     return Ok(());
 }
 
