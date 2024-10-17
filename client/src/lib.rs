@@ -4,5 +4,6 @@ pub mod base;
 pub mod client;
 pub mod commands;
 pub mod config;
+pub mod minecraft;
 pub mod mod_1c;
 pub mod shell;

@@ -1,8 +1,7 @@
 use anyhow::{bail, Result};
 use clap::{Args, Subcommand};
-use common::protocol::{ClientEndpoint, ErrorKind, Protocol, ServerEndpoint};
+use common::protocol::{ClientEndpoint, ErrorKind, Protocol, ServerEndpoint, UpgradeInfo};
 use serde::{Deserialize, Serialize};
-use std::fmt::{self, Display, Formatter};
 use std::net::ToSocketAddrs;
 
 #[derive(Subcommand, Debug, Serialize, Deserialize, Clone)]
@@ -15,7 +14,8 @@ pub enum Commands {
     Publish(PublishArgs),
     Unpublish(UnpublishArgs),
     Ls,
-    Cleanup,
+    Clean,
+    Purge,
 }
 
 #[derive(Args, Debug, Serialize, Deserialize, Clone)]
@@ -53,14 +53,11 @@ pub struct UnpublishArgs {
 
 impl PublishArgs {
     pub fn address(&self) -> String {
-        if self.protocol == Protocol::OneC {
-            self.address.clone()
-        } else {
-            self.address
-                .split(':')
-                .next()
-                .unwrap_or("localhost")
-                .to_string()
+        match self.protocol {
+            Protocol::OneC | Protocol::Minecraft => self.address.clone(),
+            Protocol::Http | Protocol::Https | Protocol::Tcp | Protocol::Udp => {
+                self.address.split(':').next().unwrap().to_string()
+            }
         }
     }
     pub fn port(&self) -> u16 {
@@ -73,23 +70,25 @@ impl PublishArgs {
     }
 
     pub fn populate(&mut self) -> Result<()> {
-        if self.protocol == Protocol::OneC {
-            return Ok(());
-        }
+        match self.protocol {
+            Protocol::OneC | Protocol::Minecraft => Ok(()),
 
-        if !self.address.contains(':') {
-            self.address = format!("localhost:{}", self.address);
-        }
+            Protocol::Http | Protocol::Https | Protocol::Tcp | Protocol::Udp => {
+                if !self.address.contains(':') {
+                    self.address = format!("localhost:{}", self.address);
+                }
 
-        match self.address.to_socket_addrs() {
-            Ok(mut addrs) => {
-                if let Some(_addr) = addrs.next() {
-                    Ok(())
-                } else {
-                    bail!("Invalid socket address: {}", self.address);
+                match self.address.to_socket_addrs() {
+                    Ok(mut addrs) => {
+                        if let Some(_addr) = addrs.next() {
+                            Ok(())
+                        } else {
+                            bail!("Invalid socket address: {}", self.address);
+                        }
+                    }
+                    Err(err) => bail!("Invalid socket address: {}", err),
                 }
             }
-            Err(err) => bail!("Invalid socket address: {}", err),
         }
     }
 }
@@ -116,10 +115,11 @@ impl Into<PublishArgs> for ClientEndpoint {
     fn into(self) -> PublishArgs {
         PublishArgs {
             protocol: self.local_proto,
-            address: if self.local_proto == Protocol::OneC {
-                self.local_addr.clone()
-            } else {
-                format!("{}:{}", self.local_addr, self.local_port)
+            address: match self.local_proto {
+                Protocol::OneC | Protocol::Minecraft => self.local_addr.clone(),
+                Protocol::Http | Protocol::Https | Protocol::Tcp | Protocol::Udp => {
+                    format!("{}:{}", self.local_addr, self.local_port)
+                }
             },
             name: self.description,
         }
@@ -145,26 +145,8 @@ pub enum CommandResult {
     Unpublished(String),
     Removed(String),
     Error(ErrorKind, String),
+    UpgradeAvailable(UpgradeInfo),
     Exit,
-}
-
-impl Display for CommandResult {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            CommandResult::Ok(msg) => write!(f, "{}", msg),
-            CommandResult::Error(kind, msg) => write!(f, "{:?} error: {}", kind, msg),
-            CommandResult::Published(endpoint) => write!(f, "Service published: {}", endpoint),
-            CommandResult::Unpublished(guid) => write!(f, "Service unpublished: {}", guid),
-            CommandResult::Removed(guid) => write!(f, "Service removed: {}", guid),
-            CommandResult::Connecting => write!(f, "Connecting"),
-            CommandResult::Connected => write!(f, "Connected"),
-            CommandResult::Disconnected => write!(f, "Disconnected"),
-            CommandResult::Exit => write!(f, "Exiting"),
-            CommandResult::Progress(info) => {
-                write!(f, "Progress: {:?}", info)
-            }
-        }
-    }
 }
 
 impl From<anyhow::Error> for CommandResult {

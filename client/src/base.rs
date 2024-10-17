@@ -1,9 +1,12 @@
 use crate::client::run_client;
 use crate::commands::{CommandResult, Commands};
 pub use crate::config::ClientConfig;
+use crate::shell::get_cache_dir;
+use crate::{minecraft, mod_1c};
 use anyhow::{Context, Result};
 use clap::Parser;
 use common::logging::{init_log, WorkerGuard};
+use common::protocol::ErrorKind;
 use common::version::{LONG_VERSION, VERSION};
 use dirs::cache_dir;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -19,15 +22,17 @@ const CONFIG_FILE: &str = "client.toml";
 pub struct Cli {
     #[clap(subcommand)]
     pub command: Commands,
-    #[clap(short, long, default_value = "debug")]
+    #[clap(short, long, default_value = "debug", help = "Log level")]
     pub log_level: String,
-    #[clap(short, long, default_value = "false")]
+    #[clap(short, long, default_value = "false", help = "Ouput log to console")]
     pub verbose: bool,
-    #[clap(short, long)]
+    #[clap(short, long, help = "Path to the config file")]
     pub conf: Option<String>,
+    #[clap(short, long, default_value = "false", help = "Read-only config mode")]
+    pub readonly: bool,
 }
 
-pub fn init(args: &Cli) -> Result<(WorkerGuard, Arc<RwLock<ClientConfig>>)> {
+pub fn init(args: &Cli, gui: bool) -> Result<(WorkerGuard, Arc<RwLock<ClientConfig>>)> {
     // Raise `nofile` limit on linux and mac
     fdlimit::raise_fd_limit();
 
@@ -41,9 +46,9 @@ pub fn init(args: &Cli) -> Result<(WorkerGuard, Arc<RwLock<ClientConfig>>)> {
         .context("Failed to initialize logging")?;
 
     let config = if let Some(path) = args.conf.as_ref() {
-        ClientConfig::from_file(&path.into())?
+        ClientConfig::from_file(&path.into(), args.readonly, gui)?
     } else {
-        ClientConfig::load(CONFIG_FILE, true)?
+        ClientConfig::load(CONFIG_FILE, true, args.readonly, gui)?
     };
     let config = Arc::new(RwLock::new(config));
     Ok((guard, config))
@@ -70,16 +75,32 @@ pub async fn cli_main(mut cli: Cli, config: Arc<RwLock<ClientConfig>>) -> Result
             }
             return Ok(());
         }
-        Commands::Cleanup => {
-            crate::mod_1c::cleanup(config)
-                .await
-                .context("Failed to cleanup")?;
+        Commands::Purge => {
+            for dir in [
+                mod_1c::DOWNLOAD_SUBDIR,
+                mod_1c::PUBLISH_SUBDIR,
+                mod_1c::APACHE_SUBDIR,
+                minecraft::JDK_SUBDIR,
+            ]
+            .iter()
+            {
+                let cache_dir = get_cache_dir(dir)?;
+                debug!("Purge cache dir: {:?}", cache_dir.to_str().unwrap());
+                std::fs::remove_dir_all(&cache_dir).ok();
+            }
+            return Ok(());
+        }
+        Commands::Clean => {
+            let mut guard = config.write();
+            guard.services.clear();
+            guard.save().context("Failed to save config")?;
             return Ok(());
         }
         Commands::Publish(publish_args) => {
+            config.read().validate()?;
             publish_args.populate()?;
         }
-        _ => {
+        Commands::Unpublish(_) | Commands::Run | Commands::Stop | Commands::Break => {
             config.read().validate()?;
         }
     }
@@ -87,6 +108,12 @@ pub async fn cli_main(mut cli: Cli, config: Arc<RwLock<ClientConfig>>) -> Result
     debug!("Config: {:?}", config);
 
     tokio::spawn(run_client(config.clone(), command_rx, result_tx));
+
+    let command_tx1 = command_tx.clone();
+    ctrlc::set_handler(move || {
+        command_tx1.send(Commands::Stop).ok();
+    })
+    .context("Error setting Ctrl-C handler")?;
 
     let mut current_spinner = None;
     let mut progress_bar = None;
@@ -98,13 +125,21 @@ pub async fn cli_main(mut cli: Cli, config: Arc<RwLock<ClientConfig>>) -> Result
                 break;
             }
 
-            CommandResult::Error(_, res) => {
+            CommandResult::Error(kind, res) => {
                 eprintln!("{}", res);
-                break;
+                if kind == ErrorKind::Fatal || kind == ErrorKind::AuthFailed {
+                    break;
+                }
+            }
+
+            CommandResult::UpgradeAvailable(info) => {
+                println!("Доступна новая версия: {}", info.version);
             }
 
             CommandResult::Published(endpoint) => {
-                println!("Service published: {}", endpoint);
+                if endpoint.status == Some("online".to_string()) {
+                    println!("Cервис опубликован: {}", endpoint);
+                }
                 let mut guard = config.write();
                 guard.services.retain(|service| *service != endpoint);
                 guard.services.push(endpoint);
@@ -112,7 +147,7 @@ pub async fn cli_main(mut cli: Cli, config: Arc<RwLock<ClientConfig>>) -> Result
             }
 
             CommandResult::Unpublished(guid) => {
-                println!("Service unpublished: {}", guid);
+                println!("Сервис остановлен: {}", guid);
                 let mut guard = config.write();
                 for service in guard.services.iter_mut() {
                     if service.guid == guid {
@@ -124,7 +159,7 @@ pub async fn cli_main(mut cli: Cli, config: Arc<RwLock<ClientConfig>>) -> Result
             }
 
             CommandResult::Removed(guid) => {
-                println!("Service removed: {}", guid);
+                println!("Сервис удален: {}", guid);
                 let mut guard = config.write();
                 guard.services.retain(|service| service.guid != guid);
                 guard.save().context("Failed to save config")?;
@@ -139,7 +174,7 @@ pub async fn cli_main(mut cli: Cli, config: Arc<RwLock<ClientConfig>>) -> Result
                 #[cfg(target_os = "windows")]
                 let style = style.tick_chars("-\\|/ ");
                 spinner.set_style(style);
-                spinner.set_message("Connecting to server...");
+                spinner.set_message("Подключение к серверу...");
                 #[cfg(unix)]
                 spinner.enable_steady_tick(std::time::Duration::from_millis(100));
                 current_spinner = Some(spinner);
@@ -189,7 +224,7 @@ pub async fn cli_main(mut cli: Cli, config: Arc<RwLock<ClientConfig>>) -> Result
         }
     }
 
-    command_tx.send(Commands::Stop)?;
+    command_tx.send(Commands::Stop).ok();
 
     Ok(())
 }

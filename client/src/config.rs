@@ -76,8 +76,14 @@ impl Into<ClientEndpoint> for ClientServiceConfig {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct ClientConfig {
+    // This fields are not persistent
     #[serde(skip)]
     config_path: PathBuf,
+    #[serde(skip)]
+    pub readonly: bool,
+    #[serde(skip)]
+    pub gui: bool,
+    // Next fields are persistent
     pub agent_id: String,
     pub server: Url,
     pub token: Option<MaskedString>,
@@ -96,7 +102,7 @@ impl ClientConfig {
         Ok(config)
     }
 
-    pub fn from_file(path: &PathBuf) -> Result<Self> {
+    pub fn from_file(path: &PathBuf, readonly: bool, gui: bool) -> Result<Self> {
         let s: String = fs::read_to_string(path)
             .with_context(|| format!("Failed to read the config {:?}", path))?;
         let mut cfg = Self::from_str(&s).with_context(|| {
@@ -104,6 +110,8 @@ impl ClientConfig {
         })?;
 
         cfg.config_path = path.clone();
+        cfg.readonly = readonly;
+        cfg.gui = gui;
         Ok(cfg)
     }
 
@@ -129,12 +137,16 @@ impl ClientConfig {
     }
 
     pub fn save(&self) -> Result<()> {
-        let s = toml::to_string_pretty(self).context("Failed to serialize the config")?;
-        fs::write(&self.config_path, s).context("Failed to write the config")?;
+        if self.readonly {
+            debug!("Skipping saving the config in readonly mode");
+        } else {
+            let s = toml::to_string_pretty(self).context("Failed to serialize the config")?;
+            fs::write(&self.config_path, s).context("Failed to write the config")?;
+        }
         Ok(())
     }
 
-    pub fn load(cfg_name: &str, user_dir: bool) -> Result<Self> {
+    pub fn load(cfg_name: &str, user_dir: bool, readonly: bool, gui: bool) -> Result<Self> {
         let mut config_path = Self::get_config_dir(user_dir)?;
         config_path.push(cfg_name);
         if !config_path.exists() {
@@ -144,7 +156,7 @@ impl ClientConfig {
             fs::write(&config_path, s).context("Failed to write the default config")?;
         }
 
-        Self::from_file(&config_path)
+        Self::from_file(&config_path, readonly, gui)
     }
 
     pub fn set(&mut self, key: &str, value: &str) -> Result<()> {
@@ -218,6 +230,8 @@ impl Default for ClientConfig {
             one_c_platform: None,
             transport: TransportConfig::default(),
             services: Vec::new(),
+            readonly: false,
+            gui: false,
         }
     }
 }

@@ -4,7 +4,7 @@ use backoff::Notify;
 use std::future::Future;
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 use tokio::net::{lookup_host, ToSocketAddrs, UdpSocket};
-use tokio::sync::broadcast;
+use tokio::sync::watch;
 
 #[allow(dead_code)]
 pub fn feature_not_compile(feature: &str) -> ! {
@@ -53,7 +53,7 @@ pub async fn retry_notify_with_deadline<I, E, Fn, Fut, B, N>(
     backoff: B,
     operation: Fn,
     notify: N,
-    deadline: &mut broadcast::Receiver<bool>,
+    deadline: &mut watch::Receiver<bool>,
 ) -> Result<I>
 where
     E: std::error::Error + Send + Sync + 'static,
@@ -66,7 +66,7 @@ where
         v = backoff::future::retry_notify(backoff, operation, notify) => {
             v.map_err(anyhow::Error::new)
         }
-        _ = deadline.recv() => {
+        _ = deadline.changed() => {
             Err(anyhow!("shutdown"))
         }
     }

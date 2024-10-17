@@ -75,8 +75,7 @@ const config: Config = {
   ],
 
   themeConfig: {
-    // Replace with your project's social card
-    image: "img/docusaurus-social-card.jpg",
+    image: "img/welcome.png",
     navbar: {
       title: "CloudPub",
       logo: {
@@ -93,12 +92,6 @@ const config: Config = {
           label: 'Документация',
         },
         {to: '/blog', label: 'Блог', position: 'left'},
-          /*
-        {
-          href: 'https://github.com/ermakus/cloudpub',
-          label: 'GitHub',
-          position: 'right',
-        },*/
       ],
     },
     footer: {

@@ -44,7 +44,8 @@ hostname = "0.4.0"
 url = "2.5.2"
 xml-rs = "0.8.22"
 runas = "1.2.0"
-sha1 = "0.10.6"
+ctrlc = "3.4.5"
+regex = "1.11.0"
 
 # Dependencies for windows config
 [target.'cfg(windows)'.dependencies]

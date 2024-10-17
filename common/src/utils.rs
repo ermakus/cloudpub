@@ -1,23 +1,58 @@
 use anyhow::{Context, Result};
 use std::io;
-use tokio::net::{TcpListener, UdpSocket};
+use std::net::SocketAddr;
+use tokio::net::{TcpListener, TcpSocket, UdpSocket};
 
-pub async fn find_free_port() -> Result<u16> {
-    // Bind a TCP listener to port 0 to find an available port
-    loop {
-        let tcp_listener = TcpListener::bind("127.0.0.1:0").await?;
+pub async fn find_free_tcp_port() -> Result<u16> {
+    let tcp_listener = TcpListener::bind("0.0.0.0:0").await?;
+    let port = tcp_listener.local_addr()?.port();
+    Ok(port)
+}
 
-        // Retrieve the port number assigned by the system
-        let port = tcp_listener.local_addr()?.port();
+pub async fn find_free_udp_port() -> Result<u16> {
+    let udp_listener = UdpSocket::bind("0.0.0.0:0").await?;
+    let port = udp_listener.local_addr()?.port();
+    Ok(port)
+}
 
-        // Attempt to bind a UDP socket to the same port
-        match UdpSocket::bind(("127.0.0.1", port)).await {
-            Ok(_) => return Ok(port),
-            Err(ref e) if e.kind() == io::ErrorKind::AddrInUse => {
-                // Port already in use, try again
-                continue;
-            }
-            Err(e) => Err(e).context("Failed to bind UDP socket")?,
-        }
+pub async fn is_udp_port_available(bind_addr: &str, port: u16) -> Result<bool> {
+    match UdpSocket::bind((bind_addr, port)).await {
+        Ok(_) => return Ok(true),
+        Err(ref e) if e.kind() == io::ErrorKind::AddrInUse => Ok(false),
+        Err(e) => Err(e).context("Failed to check UDP port")?,
     }
+}
+
+pub async fn is_tcp_port_available(bind_addr: &str, port: u16) -> Result<bool> {
+    let tcp_socket = TcpSocket::new_v4()?;
+    let bind_addr: SocketAddr = format!("{}:{}", bind_addr, port).parse().unwrap();
+    match tcp_socket.bind(bind_addr) {
+        Ok(_) => return Ok(true),
+        Err(ref e) if e.kind() == io::ErrorKind::AddrInUse => Ok(false),
+        Err(e) => Err(e).context("Failed to check UDP port")?,
+    }
+}
+
+pub fn get_version_number(version: &str) -> i64 {
+    let mut n = 0;
+    for x in version.split(".") {
+        n = n * 10000 + x.parse::<i64>().unwrap_or(0);
+    }
+    n
+}
+
+pub fn get_platform() -> String {
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    let platform = "linux-x86_64".to_string();
+    #[cfg(all(target_os = "linux", target_arch = "x86"))]
+    let platform = "linux-i686".to_string();
+    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+    let platform = "windows-x86_64".to_string();
+    #[cfg(all(target_os = "windows", target_arch = "x86"))]
+    let platform = "windows-i686".to_string();
+    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+    let platform = "macos-x86_64".to_string();
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    let platform = "macos-aarch64".to_string();
+    platform
 }

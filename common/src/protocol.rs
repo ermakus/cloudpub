@@ -24,6 +24,9 @@ pub enum Protocol {
     #[serde(rename = "1c")]
     #[clap(name = "1c")]
     OneC,
+    #[serde(rename = "minecraft")]
+    #[clap(name = "minecraft")]
+    Minecraft,
 }
 
 impl Display for Protocol {
@@ -34,6 +37,7 @@ impl Display for Protocol {
             Protocol::Tcp => write!(f, "tcp"),
             Protocol::Udp => write!(f, "udp"),
             Protocol::OneC => write!(f, "1c"),
+            Protocol::Minecraft => write!(f, "minecraft"),
         }
     }
 }
@@ -48,6 +52,7 @@ impl FromStr for Protocol {
             "tcp" => Ok(Protocol::Tcp),
             "udp" => Ok(Protocol::Udp),
             "1c" => Ok(Protocol::OneC),
+            "minecraft" => Ok(Protocol::Minecraft),
             _ => bail!("Invalid protocol: {}", s),
         }
     }
@@ -75,7 +80,7 @@ impl Display for ClientEndpoint {
         if let Some(name) = self.description.as_ref() {
             write!(f, "[{}] ", name)?;
         }
-        if self.local_proto == Protocol::OneC {
+        if self.local_proto == Protocol::OneC || self.local_proto == Protocol::Minecraft {
             write!(f, "{}://{}", self.local_proto, self.local_addr)
         } else {
             write!(
@@ -97,6 +102,8 @@ pub struct ServerEndpoint {
     pub client: ClientEndpoint,
     #[serde(skip)]
     pub bind_addr: String,
+    #[serde(skip)]
+    pub id: Option<i64>,
 }
 
 impl Display for ServerEndpoint {
@@ -115,7 +122,7 @@ impl PartialEq for ServerEndpoint {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub enum ErrorKind {
     AuthFailed,
     Fatal,
@@ -125,17 +132,34 @@ pub enum ErrorKind {
     ExecuteFailed,
 }
 
+fn default_version() -> String {
+    "1.0.x".to_string()
+}
+
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct AgentInfo {
     pub agent_id: String,
     pub token: MaskedString,
     pub hostname: String,
+    // Next fields should have default values
+    #[serde(default = "default_version")]
+    pub version: String,
+    #[serde(default)]
+    pub gui: bool,
+    #[serde(default)]
+    pub platform: String,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct DataChannelInfo {
     pub agent_id: String,
     pub guid: String,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct UpgradeInfo {
+    pub version: String,
+    pub url: String,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -151,6 +175,7 @@ pub enum Message {
     StartForwardTcp,
     StartForwardUdp,
     Error(ErrorKind, String),
+    UpgradeAvailable(UpgradeInfo),
 }
 
 type UdpPacketLen = u16; // `u16` should be enough for any practical UDP traffic on the Internet

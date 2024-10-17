@@ -12,6 +12,8 @@ use common::protocol::{
 use common::transport::{
     AddrMaybeCached, SocketOpts, TcpTransport, TlsTransport, Transport, WebsocketTransport,
 };
+use common::utils::get_platform;
+use common::version::VERSION;
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -23,7 +25,7 @@ use tokio::time::{self, Duration, Instant};
 use tracing::{debug, error, info, instrument, trace, warn};
 
 use common::constants::{run_control_chan_backoff, UDP_BUFFER_SIZE, UDP_SENDQ_SIZE, UDP_TIMEOUT};
-use common::utils::find_free_port;
+use common::utils::find_free_tcp_port;
 
 use crate::commands::{CommandResult, Commands};
 use crate::config::ClientConfig;
@@ -67,7 +69,7 @@ impl<T: 'static + Transport> Client<T> {
     // The entrypoint of Client
     async fn run(
         &mut self,
-        command_rx: broadcast::Receiver<Commands>,
+        mut command_rx: broadcast::Receiver<Commands>,
         result_tx: broadcast::Sender<CommandResult>,
     ) -> Result<()> {
         let result_tx = result_tx.clone();
@@ -88,11 +90,15 @@ impl<T: 'static + Transport> Client<T> {
                 result_tx.clone(),
             )
             .await
-            .context("Failed to run the control channel")
         {
+            error!("Control channel error: {:?}", err);
             let is_disconnected = !services.read().is_empty();
 
             if is_disconnected {
+                result_tx.send(CommandResult::Error(
+                    ErrorKind::HandshakeFailed,
+                    "Ошибка сети, пробуем еще раз.".to_string(),
+                ))?;
                 result_tx.send(CommandResult::Disconnected)?;
                 result_tx.send(CommandResult::Connecting)?;
             }
@@ -106,10 +112,14 @@ impl<T: 'static + Transport> Client<T> {
 
             if let Some(duration) = retry_backoff.next_backoff() {
                 warn!("{:#}. Retry in {:?}...", err, duration);
-                time::sleep(duration).await;
-            } else {
-                // Should never reach
-                panic!("{:#}. Break", err);
+                tokio::select! {
+                    _ = time::sleep(duration) => {},
+                    command = command_rx.recv() => {
+                        if matches!(command, Ok(Commands::Stop)) {
+                            break;
+                        }
+                    }
+                }
             }
 
             start = Instant::now();
@@ -149,10 +159,14 @@ impl<T: 'static + Transport> Client<T> {
 
         // Send hello
         debug!("Sending hello");
+
         let agent_info = AgentInfo {
             agent_id: config.read().agent_id.clone(),
             token: config.read().token.clone().unwrap(),
             hostname: hostname::get()?.into_string().unwrap(),
+            version: VERSION.to_string(),
+            gui: config.read().gui,
+            platform: get_platform(),
         };
 
         let hello_send = Message::AgentHello(agent_info);
@@ -181,23 +195,40 @@ impl<T: 'static + Transport> Client<T> {
                     if let Ok(cmd) = cmd {
                         match cmd {
                             Commands::Publish(service) => {
+                                let server_endpoint = ServerEndpoint {
+                                    guid: String::new(),
+                                    client: service.clone().into(),
+                                    status: Some("offline".to_string()),
+                                    remote_proto: service.protocol,
+                                    remote_addr: String::new(),
+                                    remote_port: 0,
+                                    bind_addr: String::new(),
+                                    id: None,
+                                };
+
+                                result_tx.send(CommandResult::Published(server_endpoint))?;
+
                                 if service.protocol == Protocol::OneC {
                                     if let Err(err) =
                                         crate::mod_1c::setup(config.clone(), command_rx.resubscribe(), result_tx.clone()).await
                                      {
                                         error!("{:?}", err);
-                                        result_tx.send(CommandResult::Error(ErrorKind::PublishFailed, err.to_string()))?;
+                                        result_tx.send(CommandResult::Error(ErrorKind::Fatal, err.to_string()))?;
                                         continue;
                                     }
-
-                                    info!("Publishing 1C service: {:?}", service);
-                                    let msg = Message::EndpointStart(service.into());
-                                    write_message(&mut conn, &msg).await.context("Failed to send message")?;
-                                } else {
-                                    info!("Publishing service: {:?}", service);
-                                    let msg = Message::EndpointStart(service.into());
-                                    write_message(&mut conn, &msg).await.context("Failed to send message")?;
                                 }
+                                if service.protocol == Protocol::Minecraft {
+                                    if let Err(err) =
+                                        crate::minecraft::setup(config.clone(), command_rx.resubscribe(), result_tx.clone()).await
+                                     {
+                                        error!("{:?}", err);
+                                        result_tx.send(CommandResult::Error(ErrorKind::Fatal, err.to_string()))?;
+                                        continue;
+                                    }
+                                }
+                                info!("Publishing service: {:?}", service);
+                                let msg = Message::EndpointStart(service.into());
+                                write_message(&mut conn, &msg).await.context("Failed to send message")?;
                             }
                             Commands::Unpublish(service) => {
                                 info!("Unpublishing service: {:?}", service);
@@ -209,7 +240,6 @@ impl<T: 'static + Transport> Client<T> {
                                     srv.0.stop();
                                 }
 
-                                //crate::mod_1c::cleanup(config.clone()).await?;
                                 if service.remove {
                                     result_tx.send(CommandResult::Removed(service.guid))?;
                                 } else {
@@ -219,6 +249,9 @@ impl<T: 'static + Transport> Client<T> {
                             Commands::Stop => {
                                 debug!("Shutting down gracefully...");
                                 break;
+                            }
+                            Commands::Break => {
+                                debug!("Break signal");
                             }
                             _ => unreachable!(),
                         };
@@ -245,7 +278,7 @@ impl<T: 'static + Transport> Client<T> {
 
                             if endpoint.client.local_proto == Protocol::OneC && maybe_port.is_none() {
 
-                                endpoint.client.local_port = find_free_port().await?;
+                                endpoint.client.local_port = find_free_tcp_port().await?;
 
                                 info!("Allocate local port: {}", endpoint.client.local_port);
 
@@ -256,7 +289,27 @@ impl<T: 'static + Transport> Client<T> {
                                     }
                                     Err(err) => {
                                         error!("{:?}", err);
-                                        result_tx.send(CommandResult::Error(ErrorKind::PublishFailed, err.to_string()))?;
+                                        result_tx.send(CommandResult::Error(ErrorKind::Fatal, err.to_string()))?;
+                                        continue;
+                                    }
+                                }
+
+                            }
+
+                            if endpoint.client.local_proto == Protocol::Minecraft && maybe_port.is_none() {
+
+                                endpoint.client.local_port = find_free_tcp_port().await?;
+
+                                info!("Allocate local port: {}", endpoint.client.local_port);
+
+                                match crate::minecraft::publish(&endpoint, config.clone(),result_tx.clone()).await {
+                                    Ok(p) => {
+                                        endpoint.client.local_addr = "localhost".to_string();
+                                        self.servers.insert(endpoint.guid.clone(), (p, endpoint.client.local_port));
+                                    }
+                                    Err(err) => {
+                                        error!("{:?}", err);
+                                        result_tx.send(CommandResult::Error(ErrorKind::Fatal, err.to_string()))?;
                                         continue;
                                     }
                                 }
@@ -282,8 +335,16 @@ impl<T: 'static + Transport> Client<T> {
                             result_tx.send(CommandResult::Published(endpoint))?;
                         },
                         Message::HeartBeat => (),
+                        Message::Error(kind, msg) => {
+                            info!("Server error: {:?} {}", kind, msg);
+                            result_tx.send(CommandResult::Error(kind.clone(), msg.clone()))?;
+                        },
+                        Message::UpgradeAvailable(info) => {
+                            info!("Upgrade available: {:?}", info);
+                            result_tx.send(CommandResult::UpgradeAvailable(info))?;
+                        },
                         v => {
-                            bail!("Unexpected message: {:?}", v);
+                            warn!("Unexpected message: {:?}", v);
                         }
                     }
                 },
@@ -358,8 +419,11 @@ async fn run_data_channel<T: Transport>(service: Service<T>) -> Result<()> {
                 Ok(Message::StartForwardUdp) => {
                     run_data_channel_for_udp::<T>(conn, &local_addr, local_port).await?;
                 }
-                v => {
-                    bail!("Unexpected message: {:?}", v);
+                Ok(msg) => {
+                    warn!("Unexpected data channel message: {:?}", msg);
+                }
+                Err(e) => {
+                    return Err(e)
                 }
             }
         }

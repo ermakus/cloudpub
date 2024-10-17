@@ -1,17 +1,14 @@
 use crate::commands::{CommandResult, Commands};
 use crate::config::{ClientConfig, Platform};
-use crate::shell::{download, find, unzip, SubProcess};
+use crate::shell::{download, find, get_cache_dir, unzip, SubProcess};
 use anyhow::{bail, Context, Result};
 use common::protocol::ServerEndpoint;
-use dirs::cache_dir;
 use lazy_static::lazy_static;
 use parking_lot::RwLock;
 use std::collections::HashMap;
-use std::fs::remove_dir_all;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use tracing::info;
 use xml::escape::escape_str_attribute;
 
 #[cfg(target_os = "windows")]
@@ -28,9 +25,9 @@ const WSAP_MODULE: &str = "wsap24t.so";
 #[cfg(all(unix, not(debug_assertions)))]
 const WSAP_MODULE: &str = "wsap24.so";
 
-const APACHE_SUBDIR: &str = "apache";
-const DOWNLOAD_SUBDIR: &str = "download";
-const PUBLISH_SUBDIR: &str = "1c";
+pub const APACHE_SUBDIR: &str = "apache";
+pub const DOWNLOAD_SUBDIR: &str = "download";
+pub const PUBLISH_SUBDIR: &str = "1c";
 
 const APACHE_CONFIG: &str = include_str!("httpd.conf");
 const DEFAULT_VRD: &str = include_str!("default.vrd");
@@ -111,14 +108,6 @@ fn check_enviroment(config: Arc<RwLock<ClientConfig>>) -> Result<EnvConfig> {
     Ok(env)
 }
 
-pub fn get_cache_dir(subdir: &str) -> Result<PathBuf> {
-    let mut cache_dir = cache_dir().context("Can't get cache dir")?;
-    cache_dir.push("cloudpub");
-    cache_dir.push(&subdir);
-    std::fs::create_dir_all(cache_dir.clone()).context("Can't create cache dir")?;
-    Ok(cache_dir)
-}
-
 pub async fn setup(
     config: Arc<RwLock<ClientConfig>>,
     command_rx: broadcast::Receiver<Commands>,
@@ -161,7 +150,7 @@ pub async fn setup(
 
     #[cfg(target_os = "windows")]
     {
-        use crate::shell::execute_with_progress;
+        use crate::shell::execute;
         let mut redist = cache_dir.clone();
         redist.push(env.redist.clone());
 
@@ -176,16 +165,20 @@ pub async fn setup(
         .await
         .context("Ошибка загрузки компонентов VC++")?;
 
-        execute_with_progress(
-            "Установка компонентов VC++",
+        execute(
             redist,
             vec![
                 "/install".to_string(),
                 "/quiet".to_string(),
                 "/norestart".to_string(),
             ],
+            None,
+            Some((
+                "Установка компонентов VC++".to_string(),
+                result_tx.clone(),
+                2,
+            )),
             command_rx.resubscribe(),
-            result_tx.clone(),
         )
         .await
         .context("Ошибка установки компонентов VC++")?;
@@ -194,15 +187,6 @@ pub async fn setup(
     // Touch file to mark success
     std::fs::write(touch, "Delete to reinstall").context("Ошибка создания файла метки")?;
 
-    Ok(())
-}
-
-pub async fn cleanup(_config: Arc<RwLock<ClientConfig>>) -> Result<()> {
-    for dir in [DOWNLOAD_SUBDIR, PUBLISH_SUBDIR, APACHE_SUBDIR].iter() {
-        let cache_dir = get_cache_dir(dir)?;
-        info!("Удаление каталога {}", cache_dir.to_str().unwrap());
-        remove_dir_all(&cache_dir).ok();
-    }
     Ok(())
 }
 
@@ -271,6 +255,7 @@ pub async fn publish(
     let server = SubProcess::new(
         apache_exe,
         vec!["-X".to_string(), "-f".to_string(), apache_cfg],
+        None,
         result_tx,
     );
     Ok(server)
