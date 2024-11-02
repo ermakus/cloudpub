@@ -90,6 +90,7 @@ pub async fn setup(
             "--strip-components=1".to_string(),
         ],
         None,
+        Default::default(),
         Some(("Установка JDK".to_string(), result_tx.clone(), 450)),
         command_rx.resubscribe(),
     )
@@ -163,6 +164,7 @@ pub async fn publish(
         get_java().context("Ошибка получения пути к java")?,
         args,
         Some(minecraft_dir),
+        Default::default(),
         result_tx,
     );
     Ok(server)

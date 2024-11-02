@@ -13,6 +13,7 @@ use futures::stream::StreamExt;
 use parking_lot::RwLock;
 use reqwest::{Certificate, ClientBuilder};
 use runas::Command as ElevatedCommand;
+use std::collections::HashMap;
 use std::io;
 use std::path::Path;
 use std::process::Stdio;
@@ -24,6 +25,8 @@ use tracing::{debug, error, info, warn};
 use walkdir::WalkDir;
 use zip::read::ZipArchive;
 
+pub const DOWNLOAD_SUBDIR: &str = "download";
+
 pub struct SubProcess {
     shutdown_tx: broadcast::Sender<Commands>,
 }
@@ -33,11 +36,12 @@ impl SubProcess {
         command: PathBuf,
         args: Vec<String>,
         chdir: Option<PathBuf>,
+        envs: HashMap<String, String>,
         result_tx: broadcast::Sender<CommandResult>,
     ) -> Self {
         let (shutdown_tx, shutdown_rx) = broadcast::channel(1);
         tokio::spawn(async move {
-            if let Err(err) = execute(command, args, chdir, None, shutdown_rx).await {
+            if let Err(err) = execute(command, args, chdir, envs, None, shutdown_rx).await {
                 error!("Failed to execute command: {:?}", err);
                 result_tx
                     .send(CommandResult::Error(ErrorKind::Fatal, err.to_string()))
@@ -110,6 +114,7 @@ pub async fn execute(
     command: PathBuf,
     args: Vec<String>,
     chdir: Option<PathBuf>,
+    envs: HashMap<String, String>,
     progress: Option<(String, broadcast::Sender<CommandResult>, u64)>,
     mut shutdown_rx: broadcast::Receiver<Commands>,
 ) -> Result<()> {
@@ -135,6 +140,7 @@ pub async fn execute(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .creation_flags(0x08000000)
+        .envs(envs)
         .spawn()
         .context(format!(
             "Failed to execute command: {:?} {:?}",
@@ -148,6 +154,7 @@ pub async fn execute(
         .current_dir(&chdir)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
+        .envs(envs)
         .spawn()
         .context(format!(
             "Failed to execute command: {:?} {:?}",
@@ -426,7 +433,9 @@ pub fn find(dir: &Path, file: &Path) -> Result<Option<PathBuf>> {
 pub fn get_cache_dir(subdir: &str) -> Result<PathBuf> {
     let mut cache_dir = cache_dir().context("Can't get cache dir")?;
     cache_dir.push("cloudpub");
-    cache_dir.push(&subdir);
+    if !subdir.is_empty() {
+        cache_dir.push(&subdir);
+    }
     std::fs::create_dir_all(cache_dir.clone()).context("Can't create cache dir")?;
     Ok(cache_dir)
 }

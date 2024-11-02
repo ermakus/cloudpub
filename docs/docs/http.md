@@ -18,7 +18,7 @@ clo publish http 8080
 После выполнения команды, вы получите сообщение о том, что ваш сервис опубликован:
 
 ```bash
-Service published: http://localhost:8080 -> https://wildly-suitable-fish.cloudpub.ru
+Сервис опубликован: http://localhost:8080 -> https://wildly-suitable-fish.cloudpub.ru
 ```
 
 Сервис будет доступен публично по протоколу HTTPS, при этом мы автоматически сгенерируем сертификат для этого домена.

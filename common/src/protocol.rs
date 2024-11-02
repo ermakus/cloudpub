@@ -27,6 +27,9 @@ pub enum Protocol {
     #[serde(rename = "minecraft")]
     #[clap(name = "minecraft")]
     Minecraft,
+    #[serde(rename = "webdav")]
+    #[clap(name = "webdav")]
+    WebDav,
 }
 
 impl Display for Protocol {
@@ -38,6 +41,7 @@ impl Display for Protocol {
             Protocol::Udp => write!(f, "udp"),
             Protocol::OneC => write!(f, "1c"),
             Protocol::Minecraft => write!(f, "minecraft"),
+            Protocol::WebDav => write!(f, "webdav"),
         }
     }
 }
@@ -53,9 +57,47 @@ impl FromStr for Protocol {
             "udp" => Ok(Protocol::Udp),
             "1c" => Ok(Protocol::OneC),
             "minecraft" => Ok(Protocol::Minecraft),
+            "webdav" => Ok(Protocol::WebDav),
             _ => bail!("Invalid protocol: {}", s),
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
+pub enum Access {
+    #[default]
+    NONE,
+    READ,
+    WRITE,
+}
+
+impl FromStr for Access {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        match s {
+            "none" => Ok(Access::NONE),
+            "read" => Ok(Access::READ),
+            "write" => Ok(Access::WRITE),
+            _ => bail!("Invalid access: {}", s),
+        }
+    }
+}
+
+impl Display for Access {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Access::NONE => write!(f, "none"),
+            Access::READ => write!(f, "read"),
+            Access::WRITE => write!(f, "write"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
+pub struct Permission {
+    pub user: String,
+    pub access: Access,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, Default)]
@@ -65,6 +107,8 @@ pub struct ClientEndpoint {
     pub local_port: u16,
     pub nodelay: Option<bool>,
     pub description: Option<String>,
+    #[serde(default)]
+    pub access: Vec<Permission>,
 }
 
 impl PartialEq for ClientEndpoint {
@@ -80,7 +124,10 @@ impl Display for ClientEndpoint {
         if let Some(name) = self.description.as_ref() {
             write!(f, "[{}] ", name)?;
         }
-        if self.local_proto == Protocol::OneC || self.local_proto == Protocol::Minecraft {
+        if self.local_proto == Protocol::OneC
+            || self.local_proto == Protocol::Minecraft
+            || self.local_proto == Protocol::WebDav
+        {
             write!(f, "{}://{}", self.local_proto, self.local_addr)
         } else {
             write!(

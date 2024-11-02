@@ -24,7 +24,7 @@ clo publish minecraft [путь к папке с сервером]
 После этого вам будет предоставлен URL, по которому ваш сервер будет доступен в интернете, например:
 
 ```bash
-Service published: minecraft://C:\Minecraft -> minecraft://minecraft.cloudpub.ru:32123
+Сервис опубликован: minecraft://C:\Minecraft -> minecraft://minecraft.cloudpub.ru:32123
 ```
 
 Указанный после стрелки (`-> minecraft://`) адрес и будет адресом, который и нужен игрокам для входа в игру.

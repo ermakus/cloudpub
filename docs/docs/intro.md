@@ -3,7 +3,7 @@ sidebar_position: 1
 slug: /
 ---
 
-import { Downloads, getUrl, getFile } from 'src/components/dashboard/downloads';
+import { Downloads, getUrl, getFile } from 'src/app/components/downloads';
 import CodeBlock from '@theme/CodeBlock';
 
 # Быстрый старт
@@ -91,7 +91,7 @@ clo publish http 8080
 После этого вам будет предоставлен URL, по которому ваш ресурс будет доступен в интернете, например:
 
 ```bash
-Service published: http://localhost:8080 -> https://wildly-suitable-fish.cloudpub.ru
+Сервис опубликован: http://localhost:8080 -> https://wildly-suitable-fish.cloudpub.ru
 ```
 
 В этом случае ваш ресурс будет доступен по адресу `https://wildly-suitable-fish.cloudpub.ru`.

@@ -2,9 +2,11 @@ mod base;
 mod client;
 mod commands;
 mod config;
+mod httpd;
 mod minecraft;
-mod mod_1c;
+mod onec;
 mod shell;
+mod webdav;
 
 use anyhow::{Context, Result};
 use base::{cli_main, init, Cli};

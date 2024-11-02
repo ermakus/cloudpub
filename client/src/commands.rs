@@ -1,8 +1,12 @@
 use anyhow::{bail, Result};
 use clap::{Args, Subcommand};
-use common::protocol::{ClientEndpoint, ErrorKind, Protocol, ServerEndpoint, UpgradeInfo};
+use common::protocol::{
+    Access, ClientEndpoint, ErrorKind, Permission, Protocol, ServerEndpoint, UpgradeInfo,
+};
 use serde::{Deserialize, Serialize};
 use std::net::ToSocketAddrs;
+
+const ACCESS_SEP: &str = ":";
 
 #[derive(Subcommand, Debug, Serialize, Deserialize, Clone)]
 pub enum Commands {
@@ -37,6 +41,8 @@ pub struct PublishArgs {
     pub address: String,
     #[clap(short, long, help = "Optional name of the service to publish")]
     pub name: Option<String>,
+    #[clap(short, long)]
+    pub access: Option<Vec<String>>,
 }
 
 #[derive(Args, Debug, Serialize, Deserialize, Clone)]
@@ -54,7 +60,7 @@ pub struct UnpublishArgs {
 impl PublishArgs {
     pub fn address(&self) -> String {
         match self.protocol {
-            Protocol::OneC | Protocol::Minecraft => self.address.clone(),
+            Protocol::OneC | Protocol::Minecraft | Protocol::WebDav => self.address.clone(),
             Protocol::Http | Protocol::Https | Protocol::Tcp | Protocol::Udp => {
                 self.address.split(':').next().unwrap().to_string()
             }
@@ -70,8 +76,9 @@ impl PublishArgs {
     }
 
     pub fn populate(&mut self) -> Result<()> {
+        parse_accesses(self.access.clone())?;
         match self.protocol {
-            Protocol::OneC | Protocol::Minecraft => Ok(()),
+            Protocol::OneC | Protocol::Minecraft | Protocol::WebDav => Ok(()),
 
             Protocol::Http | Protocol::Https | Protocol::Tcp | Protocol::Udp => {
                 if !self.address.contains(':') {
@@ -107,6 +114,7 @@ impl Into<ClientEndpoint> for PublishArgs {
             local_addr: self.address(),
             local_port: self.port(),
             nodelay: Some(true),
+            access: parse_accesses(self.access).unwrap_or_default(),
         }
     }
 }
@@ -116,16 +124,50 @@ impl Into<PublishArgs> for ClientEndpoint {
         PublishArgs {
             protocol: self.local_proto,
             address: match self.local_proto {
-                Protocol::OneC | Protocol::Minecraft => self.local_addr.clone(),
+                Protocol::OneC | Protocol::Minecraft | Protocol::WebDav => self.local_addr.clone(),
                 Protocol::Http | Protocol::Https | Protocol::Tcp | Protocol::Udp => {
                     format!("{}:{}", self.local_addr, self.local_port)
                 }
             },
             name: self.description,
+            access: Some(
+                self.access
+                    .iter()
+                    .map(|p| format!("{}{}{}", p.user, ACCESS_SEP, p.access))
+                    .collect(),
+            ),
         }
     }
 }
 
+fn parse_access(s: &str) -> Result<Permission> {
+    let sv: Vec<&str> = s.split(ACCESS_SEP).collect();
+    if sv.len() != 2 {
+        bail!(format!(
+            "Неверный парамер доступа ({}). Ожидается формат [email|guest|owner]:[read|write]",
+            s
+        ));
+    }
+
+    if let Ok(access) = sv[1].parse::<Access>() {
+        return Ok(Permission {
+            user: sv[0].to_string(),
+            access,
+        });
+    } else {
+        bail!(format!(
+            "Неверное значение доступа: {}. Ожидается read или write",
+            sv[1]
+        ));
+    }
+}
+
+fn parse_accesses(s: Option<Vec<String>>) -> Result<Vec<Permission>> {
+    match s {
+        Some(s) => s.into_iter().map(|s| parse_access(&s)).collect(),
+        None => Ok(vec![]),
+    }
+}
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ProgressInfo {
     pub message: String,

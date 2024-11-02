@@ -2,7 +2,6 @@ use crate::client::run_client;
 use crate::commands::{CommandResult, Commands};
 pub use crate::config::ClientConfig;
 use crate::shell::get_cache_dir;
-use crate::{minecraft, mod_1c};
 use anyhow::{Context, Result};
 use clap::Parser;
 use common::logging::{init_log, WorkerGuard};
@@ -76,18 +75,9 @@ pub async fn cli_main(mut cli: Cli, config: Arc<RwLock<ClientConfig>>) -> Result
             return Ok(());
         }
         Commands::Purge => {
-            for dir in [
-                mod_1c::DOWNLOAD_SUBDIR,
-                mod_1c::PUBLISH_SUBDIR,
-                mod_1c::APACHE_SUBDIR,
-                minecraft::JDK_SUBDIR,
-            ]
-            .iter()
-            {
-                let cache_dir = get_cache_dir(dir)?;
-                debug!("Purge cache dir: {:?}", cache_dir.to_str().unwrap());
-                std::fs::remove_dir_all(&cache_dir).ok();
-            }
+            let cache_dir = get_cache_dir("")?;
+            debug!("Purge cache dir: {:?}", cache_dir.to_str().unwrap());
+            std::fs::remove_dir_all(&cache_dir).ok();
             return Ok(());
         }
         Commands::Clean => {

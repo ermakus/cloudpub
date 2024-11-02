@@ -1,8 +1,8 @@
 #!/bin/sh
 if [ -n "$TOKEN" ]; then
-    exec clo set token $TOKEN
+/clo set token $TOKEN
 fi
-
-if [ $# -eq 0 ]; then
-    exec clo "$@"
+if [ -n "$SERVER" ]; then
+./clo set server $SERVER
 fi
+/clo "$@"

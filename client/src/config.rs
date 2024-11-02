@@ -6,7 +6,9 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
 
 pub use common::config::{MaskedString, Protocol, TransportConfig};
-use common::protocol::{ClientEndpoint, ServerEndpoint};
+use common::protocol::{Access, ClientEndpoint, ServerEndpoint};
+use lazy_static::lazy_static;
+use std::collections::HashMap;
 use std::fs::{self, create_dir_all};
 use std::path::PathBuf;
 use toml;
@@ -19,6 +21,69 @@ pub enum Platform {
     #[default]
     X64,
     X32,
+}
+
+#[derive(Clone)]
+pub struct EnvConfig {
+    pub home_1c: PathBuf,
+    #[cfg(target_os = "windows")]
+    pub redist: String,
+    pub httpd: String,
+    pub httpd_dir: String,
+}
+
+impl Default for EnvConfig {
+    fn default() -> Self {
+        #[cfg(target_pointer_width = "64")]
+        return ENV_CONFIG.get(&Platform::X64).unwrap().clone();
+        #[cfg(target_pointer_width = "32")]
+        return ENV_CONFIG.get(&Platform::X32).unwrap().clone();
+    }
+}
+
+lazy_static! {
+    pub static ref ENV_CONFIG: HashMap<Platform, EnvConfig> = {
+        let mut m = HashMap::new();
+        #[cfg(target_os = "windows")]
+        m.insert(
+            Platform::X64,
+            EnvConfig {
+                home_1c: PathBuf::from("C:\\Program Files\\1cv8\\"),
+                redist: "vc_redist.x64.exe".to_string(),
+                httpd: "httpd-2.4.61-240703-win64-VS17.zip".to_string(),
+                httpd_dir: "httpd-x64".to_string(),
+            },
+        );
+        #[cfg(target_os = "windows")]
+        m.insert(
+            Platform::X32,
+            EnvConfig {
+                home_1c: PathBuf::from("C:\\Program Files (x86)\\1cv8"),
+                redist: "vc_redist.x86.exe".to_string(),
+                httpd: "httpd-2.4.61-240703-win32-vs17.zip".to_string(),
+                httpd_dir: "httpd-x32".to_string(),
+            },
+        );
+        #[cfg(target_os = "linux")]
+        m.insert(
+            Platform::X64,
+            EnvConfig {
+                home_1c: PathBuf::from("/opt/1C"),
+                httpd: "httpd-2.4.62-linux.zip".to_string(),
+                httpd_dir: "httpd-x64".to_string(),
+            },
+        );
+        #[cfg(target_os = "macos")]
+        m.insert(
+            Platform::X64,
+            EnvConfig {
+                home_1c: PathBuf::from("/Applications/1C"),
+                httpd: "httpd-2.4.62-macos.zip".to_string(),
+                httpd_dir: "httpd-x64".to_string(),
+            },
+        );
+        m
+    };
 }
 
 impl Display for Platform {
@@ -50,6 +115,7 @@ pub struct ClientServiceConfig {
     pub local_port: u16,
     pub local_addr: String,
     pub nodelay: Option<bool>,
+    pub access: Vec<Access>,
 }
 
 impl Display for ClientServiceConfig {
@@ -70,6 +136,7 @@ impl Into<ClientEndpoint> for ClientServiceConfig {
             local_port: self.local_port,
             nodelay: self.nodelay,
             description: None,
+            access: Vec::new(),
         }
     }
 }

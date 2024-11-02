@@ -208,24 +208,28 @@ impl<T: 'static + Transport> Client<T> {
 
                                 result_tx.send(CommandResult::Published(server_endpoint))?;
 
-                                if service.protocol == Protocol::OneC {
-                                    if let Err(err) =
-                                        crate::mod_1c::setup(config.clone(), command_rx.resubscribe(), result_tx.clone()).await
-                                     {
-                                        error!("{:?}", err);
-                                        result_tx.send(CommandResult::Error(ErrorKind::Fatal, err.to_string()))?;
-                                        continue;
+                                let err = match service.protocol {
+                                    Protocol::WebDav => {
+                                        crate::webdav::setup(config.clone(), command_rx.resubscribe(), result_tx.clone()).await
                                     }
-                                }
-                                if service.protocol == Protocol::Minecraft {
-                                    if let Err(err) =
+                                    Protocol::OneC => {
+                                        crate::onec::setup(config.clone(), command_rx.resubscribe(), result_tx.clone()).await
+                                    }
+                                    Protocol::Minecraft => {
                                         crate::minecraft::setup(config.clone(), command_rx.resubscribe(), result_tx.clone()).await
+                                    }
+                                    Protocol::Tcp | Protocol::Udp | Protocol::Http | Protocol::Https => {
+                                        Ok(())
+                                    }
+
+                                };
+
+                                    if let Err(err) = err
                                      {
                                         error!("{:?}", err);
                                         result_tx.send(CommandResult::Error(ErrorKind::Fatal, err.to_string()))?;
                                         continue;
                                     }
-                                }
                                 info!("Publishing service: {:?}", service);
                                 let msg = Message::EndpointStart(service.into());
                                 write_message(&mut conn, &msg).await.context("Failed to send message")?;
@@ -276,45 +280,38 @@ impl<T: 'static + Transport> Client<T> {
                                 None
                             };
 
-                            if endpoint.client.local_proto == Protocol::OneC && maybe_port.is_none() {
-
-                                endpoint.client.local_port = find_free_tcp_port().await?;
-
-                                info!("Allocate local port: {}", endpoint.client.local_port);
-
-                                match crate::mod_1c::publish(&endpoint, config.clone(),result_tx.clone()).await {
-                                    Ok(p) => {
+                            if maybe_port.is_none() {
+                                let res = match endpoint.client.local_proto {
+                                    Protocol::OneC => {
+                                        endpoint.client.local_port = find_free_tcp_port().await?;
+                                        Some(crate::onec::publish(&endpoint, config.clone(),result_tx.clone()).await)
+                                    },
+                                    Protocol::Minecraft => {
+                                        endpoint.client.local_port = find_free_tcp_port().await?;
+                                        Some(crate::minecraft::publish(&endpoint, config.clone(),result_tx.clone()).await)
+                                    },
+                                    Protocol::WebDav => {
+                                        endpoint.client.local_port = find_free_tcp_port().await?;
+                                        Some(crate::webdav::publish(&endpoint, config.clone(),result_tx.clone()).await)
+                                    },
+                                    _ => {
+                                        None
+                                    }
+                                };
+                                match res {
+                                    Some(Ok(p)) => {
                                         endpoint.client.local_addr = "localhost".to_string();
                                         self.servers.insert(endpoint.guid.clone(), (p, endpoint.client.local_port));
                                     }
-                                    Err(err) => {
+                                    Some(Err(err)) => {
                                         error!("{:?}", err);
                                         result_tx.send(CommandResult::Error(ErrorKind::Fatal, err.to_string()))?;
                                         continue;
                                     }
+                                    None => {}
                                 }
-
                             }
 
-                            if endpoint.client.local_proto == Protocol::Minecraft && maybe_port.is_none() {
-
-                                endpoint.client.local_port = find_free_tcp_port().await?;
-
-                                info!("Allocate local port: {}", endpoint.client.local_port);
-
-                                match crate::minecraft::publish(&endpoint, config.clone(),result_tx.clone()).await {
-                                    Ok(p) => {
-                                        endpoint.client.local_addr = "localhost".to_string();
-                                        self.servers.insert(endpoint.guid.clone(), (p, endpoint.client.local_port));
-                                    }
-                                    Err(err) => {
-                                        error!("{:?}", err);
-                                        result_tx.send(CommandResult::Error(ErrorKind::Fatal, err.to_string()))?;
-                                        continue;
-                                    }
-                                }
-
-                            }
 
                             let service = Arc::new(DataChannel {
                                 agent_id: config.read().agent_id.clone(),
