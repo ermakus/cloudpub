@@ -15,6 +15,7 @@ pub enum Commands {
     Run,
     Stop,
     Break,
+    Register(PublishArgs),
     Publish(PublishArgs),
     Unpublish(UnpublishArgs),
     Ls,

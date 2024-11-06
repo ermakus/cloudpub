@@ -58,6 +58,8 @@ pub async fn cli_main(mut cli: Cli, config: Arc<RwLock<ClientConfig>>) -> Result
     let (command_tx, command_rx) = broadcast::channel(1024);
     let (result_tx, mut result_rx) = broadcast::channel(1024);
 
+    let mut exit_on_published = false;
+
     match &mut cli.command {
         Commands::Set(set_args) => {
             config.write().set(&set_args.key, &set_args.value)?;
@@ -85,6 +87,11 @@ pub async fn cli_main(mut cli: Cli, config: Arc<RwLock<ClientConfig>>) -> Result
             guard.services.clear();
             guard.save().context("Failed to save config")?;
             return Ok(());
+        }
+        Commands::Register(publish_args) => {
+            config.read().validate()?;
+            publish_args.populate()?;
+            exit_on_published = true;
         }
         Commands::Publish(publish_args) => {
             config.read().validate()?;
@@ -134,6 +141,9 @@ pub async fn cli_main(mut cli: Cli, config: Arc<RwLock<ClientConfig>>) -> Result
                 guard.services.retain(|service| *service != endpoint);
                 guard.services.push(endpoint);
                 guard.save().context("Failed to save config")?;
+                if exit_on_published {
+                    break;
+                }
             }
 
             CommandResult::Unpublished(guid) => {

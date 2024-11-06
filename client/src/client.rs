@@ -194,7 +194,7 @@ impl<T: 'static + Transport> Client<T> {
                 cmd = command_rx.recv() => {
                     if let Ok(cmd) = cmd {
                         match cmd {
-                            Commands::Publish(service) => {
+                            Commands::Publish(service) | Commands::Register(service) => {
                                 let server_endpoint = ServerEndpoint {
                                     guid: String::new(),
                                     client: service.clone().into(),
