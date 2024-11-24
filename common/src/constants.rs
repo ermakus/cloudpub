@@ -6,7 +6,7 @@ pub const DEFAULT_HEARTBEAT_INTERVAL_SECS: u64 = 30;
 pub const DEFAULT_HEARTBEAT_TIMEOUT_SECS: u64 = 40;
 
 /// Client
-pub const DEFAULT_CLIENT_RETRY_INTERVAL_SECS: u64 = 1;
+pub const DEFAULT_CLIENT_RETRY_INTERVAL_SECS: u64 = 60;
 pub const DEFAULT_SERVER: &str = "https://cloudpub.ru/";
 
 /// Server

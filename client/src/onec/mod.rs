@@ -74,7 +74,15 @@ pub async fn publish(
 ) -> Result<SubProcess> {
     let env = check_enviroment(config.clone())?;
 
-    let publish_dir = get_cache_dir(ONEC_SUBDIR)?.join(endpoint.guid.to_string());
+    let one_c_publish_dir = config
+        .read()
+        .one_c_publish_dir
+        .as_ref()
+        .map(|x| PathBuf::from(x))
+        .unwrap_or_else(|| get_cache_dir(ONEC_SUBDIR).unwrap());
+
+    let publish_dir = one_c_publish_dir.join(endpoint.guid.to_string());
+
     std::fs::create_dir_all(publish_dir.clone()).context("Can't create publish dir")?;
 
     let mut default_vrd = publish_dir.clone();

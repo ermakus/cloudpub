@@ -117,9 +117,17 @@ pub async fn start_httpd(
     let mut httpd_cfg = configs_dir.clone();
     httpd_cfg.push(format!("{}.conf", endpoint.guid));
 
+    let mut pid_file = configs_dir.clone();
+    pid_file.push(format!("{}.pid", endpoint.guid));
+
+    let mut lock_file = configs_dir.clone();
+    lock_file.push(format!("{}.lock", endpoint.guid));
+
     let httpd_config = config_template.replace("[[PUBLISH_DIR]]", &publish_dir);
     let httpd_config = httpd_config.replace("[[SRVROOT]]", &httpd_dir.to_str().unwrap());
     let httpd_config = httpd_config.replace("[[PORT]]", &endpoint.client.local_port.to_string());
+    let httpd_config = httpd_config.replace("[[PID_FILE]]", &pid_file.to_str().unwrap());
+    let httpd_config = httpd_config.replace("[[LOCK_FILE]]", &lock_file.to_str().unwrap());
 
     #[cfg(unix)]
     let httpd_config = httpd_config.replace("[[IS_LINUX]]", "");
@@ -138,6 +146,12 @@ pub async fn start_httpd(
     #[cfg(target_os = "macos")]
     envs.insert(
         "DYLD_LIBRARY_PATH".to_string(),
+        httpd_dir.join("lib").to_str().unwrap().to_string(),
+    );
+
+    #[cfg(target_os = "linux")]
+    envs.insert(
+        "LD_LIBRARY_PATH".to_string(),
         httpd_dir.join("lib").to_str().unwrap().to_string(),
     );
 

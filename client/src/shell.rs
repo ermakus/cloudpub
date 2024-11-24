@@ -294,9 +294,11 @@ pub fn unzip(
         }
 
         progress.current = (i + 1) as u64;
-        result_tx
-            .send(CommandResult::Progress(progress.clone()))
-            .ok();
+        if progress.current % 100 == 0 || progress.current == progress.total {
+            result_tx
+                .send(CommandResult::Progress(progress.clone()))
+                .ok();
+        }
     }
 
     Ok(())

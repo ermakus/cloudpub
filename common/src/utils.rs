@@ -44,6 +44,8 @@ pub fn get_version_number(version: &str) -> i64 {
 pub fn get_platform() -> String {
     #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
     let platform = "linux-x86_64".to_string();
+    #[cfg(all(target_os = "linux", target_arch = "arm"))]
+    let platform = "linux-armv7".to_string();
     #[cfg(all(target_os = "linux", target_arch = "x86"))]
     let platform = "linux-i686".to_string();
     #[cfg(all(target_os = "windows", target_arch = "x86_64"))]

@@ -106,9 +106,8 @@ pub async fn cli_main(mut cli: Cli, config: Arc<RwLock<ClientConfig>>) -> Result
 
     tokio::spawn(run_client(config.clone(), command_rx, result_tx));
 
-    let command_tx1 = command_tx.clone();
     ctrlc::set_handler(move || {
-        command_tx1.send(Commands::Stop).ok();
+        std::process::exit(1);
     })
     .context("Error setting Ctrl-C handler")?;
 

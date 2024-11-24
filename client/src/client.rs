@@ -24,12 +24,16 @@ use tokio::sync::{broadcast, mpsc};
 use tokio::time::{self, Duration, Instant};
 use tracing::{debug, error, info, instrument, trace, warn};
 
-use common::constants::{run_control_chan_backoff, UDP_BUFFER_SIZE, UDP_SENDQ_SIZE, UDP_TIMEOUT};
+use common::constants::{
+    run_control_chan_backoff, DEFAULT_CLIENT_RETRY_INTERVAL_SECS, UDP_BUFFER_SIZE, UDP_SENDQ_SIZE,
+    UDP_TIMEOUT,
+};
 use common::utils::find_free_tcp_port;
 
 use crate::commands::{CommandResult, Commands};
 use crate::config::ClientConfig;
 use crate::shell::SubProcess;
+use std::fmt::{self, Debug, Formatter};
 
 struct DataChannel<T: Transport> {
     agent_id: String,
@@ -42,6 +46,12 @@ struct DataChannel<T: Transport> {
 type Service<T> = Arc<DataChannel<T>>;
 
 type Services<T> = Arc<RwLock<HashMap<String, Service<T>>>>;
+
+impl<T: Transport> Debug for DataChannel<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.endpoint.client.to_string())
+    }
+}
 
 // Holds the state of a client
 struct Client<T: Transport> {
@@ -69,7 +79,7 @@ impl<T: 'static + Transport> Client<T> {
     // The entrypoint of Client
     async fn run(
         &mut self,
-        mut command_rx: broadcast::Receiver<Commands>,
+        command_rx: broadcast::Receiver<Commands>,
         result_tx: broadcast::Sender<CommandResult>,
     ) -> Result<()> {
         let result_tx = result_tx.clone();
@@ -78,10 +88,12 @@ impl<T: 'static + Transport> Client<T> {
         let config = self.config.clone();
         let services = self.services.clone();
 
-        let mut retry_backoff = run_control_chan_backoff(config.read().retry_interval);
+        let mut retry_backoff = run_control_chan_backoff(DEFAULT_CLIENT_RETRY_INTERVAL_SECS);
 
         let mut start = Instant::now();
-        result_tx.send(CommandResult::Connecting)?;
+        result_tx
+            .send(CommandResult::Connecting)
+            .context("Can't send Connecting event")?;
         while let Err(err) = self
             .run_control_channel(
                 config.clone(),
@@ -95,12 +107,18 @@ impl<T: 'static + Transport> Client<T> {
             let is_disconnected = !services.read().is_empty();
 
             if is_disconnected {
-                result_tx.send(CommandResult::Error(
-                    ErrorKind::HandshakeFailed,
-                    "Ошибка сети, пробуем еще раз.".to_string(),
-                ))?;
-                result_tx.send(CommandResult::Disconnected)?;
-                result_tx.send(CommandResult::Connecting)?;
+                result_tx
+                    .send(CommandResult::Error(
+                        ErrorKind::HandshakeFailed,
+                        "Ошибка сети, пробуем еще раз.".to_string(),
+                    ))
+                    .context("Can't send Error event")?;
+                result_tx
+                    .send(CommandResult::Disconnected)
+                    .context("Can't send Disconnected event")?;
+                result_tx
+                    .send(CommandResult::Connecting)
+                    .context("Can't send Connecting event")?;
             }
 
             services.write().clear();
@@ -112,14 +130,7 @@ impl<T: 'static + Transport> Client<T> {
 
             if let Some(duration) = retry_backoff.next_backoff() {
                 warn!("{:#}. Retry in {:?}...", err, duration);
-                tokio::select! {
-                    _ = time::sleep(duration) => {},
-                    command = command_rx.recv() => {
-                        if matches!(command, Ok(Commands::Stop)) {
-                            break;
-                        }
-                    }
-                }
+                time::sleep(duration).await;
             }
 
             start = Instant::now();
@@ -171,13 +182,20 @@ impl<T: 'static + Transport> Client<T> {
 
         let hello_send = Message::AgentHello(agent_info);
 
-        write_message(&mut conn, &hello_send).await?;
+        write_message(&mut conn, &hello_send)
+            .await
+            .context("Failed to send hello message")?;
 
         debug!("Reading ack");
-        match read_message(&mut conn).await? {
+        match read_message(&mut conn)
+            .await
+            .context("Failed to read ack message")?
+        {
             Message::AgentAck => {}
             Message::Error(kind, msg) => {
-                result_tx.send(CommandResult::Error(kind.clone(), msg.clone()))?;
+                result_tx
+                    .send(CommandResult::Error(kind.clone(), msg.clone()))
+                    .context("Can't send server error event")?;
                 bail!("Error: {:?} {}", kind, msg);
             }
             v => bail!("Unexpected ack message: {:?}", v),
@@ -185,7 +203,9 @@ impl<T: 'static + Transport> Client<T> {
 
         debug!("Control channel established");
 
-        result_tx.send(CommandResult::Connected)?;
+        result_tx
+            .send(CommandResult::Connected)
+            .context("Can't send Connected event")?;
 
         loop {
             let remote_addr = remote_addr.clone();
@@ -206,7 +226,7 @@ impl<T: 'static + Transport> Client<T> {
                                     id: None,
                                 };
 
-                                result_tx.send(CommandResult::Published(server_endpoint))?;
+                                result_tx.send(CommandResult::Published(server_endpoint)).context("Can't send Published event")?;
 
                                 let err = match service.protocol {
                                     Protocol::WebDav => {
@@ -224,12 +244,11 @@ impl<T: 'static + Transport> Client<T> {
 
                                 };
 
-                                    if let Err(err) = err
-                                     {
-                                        error!("{:?}", err);
-                                        result_tx.send(CommandResult::Error(ErrorKind::Fatal, err.to_string()))?;
-                                        continue;
-                                    }
+                                if let Err(err) = err {
+                                    error!("{:?}", err);
+                                    result_tx.send(CommandResult::Error(ErrorKind::Fatal, err.to_string())).context("Can't send Error event")?;
+                                    continue;
+                                }
                                 info!("Publishing service: {:?}", service);
                                 let msg = Message::EndpointStart(service.into());
                                 write_message(&mut conn, &msg).await.context("Failed to send message")?;
@@ -245,9 +264,9 @@ impl<T: 'static + Transport> Client<T> {
                                 }
 
                                 if service.remove {
-                                    result_tx.send(CommandResult::Removed(service.guid))?;
+                                    result_tx.send(CommandResult::Removed(service.guid)).context("Can't send Removed event")?;
                                 } else {
-                                    result_tx.send(CommandResult::Unpublished(service.guid))?;
+                                    result_tx.send(CommandResult::Unpublished(service.guid)).context("Can't send Unpublished event")?;
                                 }
                             }
                             Commands::Stop => {
@@ -283,15 +302,15 @@ impl<T: 'static + Transport> Client<T> {
                             if maybe_port.is_none() {
                                 let res = match endpoint.client.local_proto {
                                     Protocol::OneC => {
-                                        endpoint.client.local_port = find_free_tcp_port().await?;
+                                        endpoint.client.local_port = find_free_tcp_port().await.context("Failed to find free port")?;
                                         Some(crate::onec::publish(&endpoint, config.clone(),result_tx.clone()).await)
                                     },
                                     Protocol::Minecraft => {
-                                        endpoint.client.local_port = find_free_tcp_port().await?;
+                                        endpoint.client.local_port = find_free_tcp_port().await.context("Failed to find free port")?;
                                         Some(crate::minecraft::publish(&endpoint, config.clone(),result_tx.clone()).await)
                                     },
                                     Protocol::WebDav => {
-                                        endpoint.client.local_port = find_free_tcp_port().await?;
+                                        endpoint.client.local_port = find_free_tcp_port().await.context("Failed to find free port")?;
                                         Some(crate::webdav::publish(&endpoint, config.clone(),result_tx.clone()).await)
                                     },
                                     _ => {
@@ -305,7 +324,7 @@ impl<T: 'static + Transport> Client<T> {
                                     }
                                     Some(Err(err)) => {
                                         error!("{:?}", err);
-                                        result_tx.send(CommandResult::Error(ErrorKind::Fatal, err.to_string()))?;
+                                        result_tx.send(CommandResult::Error(ErrorKind::Fatal, err.to_string())).context("Can't send Error event")?;
                                         continue;
                                     }
                                     None => {}
@@ -329,16 +348,16 @@ impl<T: 'static + Transport> Client<T> {
                             });
                         },
                         Message::EndpointAck(endpoint) => {
-                            result_tx.send(CommandResult::Published(endpoint))?;
+                            result_tx.send(CommandResult::Published(endpoint)).context("Can't send Published event")?;
                         },
                         Message::HeartBeat => (),
                         Message::Error(kind, msg) => {
                             info!("Server error: {:?} {}", kind, msg);
-                            result_tx.send(CommandResult::Error(kind.clone(), msg.clone()))?;
+                            result_tx.send(CommandResult::Error(kind.clone(), msg.clone())).context("Can't send Error event")?;
                         },
                         Message::UpgradeAvailable(info) => {
                             info!("Upgrade available: {:?}", info);
-                            result_tx.send(CommandResult::UpgradeAvailable(info))?;
+                            result_tx.send(CommandResult::UpgradeAvailable(info)).context("Can't send UpgradeAvailable event")?;
                         },
                         v => {
                             warn!("Unexpected message: {:?}", v);
@@ -352,7 +371,9 @@ impl<T: 'static + Transport> Client<T> {
         }
 
         info!("Control channel shutdown");
-        result_tx.send(CommandResult::Disconnected)?;
+        result_tx
+            .send(CommandResult::Disconnected)
+            .context("Can't send Disconnected event")?;
         Ok(())
     }
 }
@@ -385,7 +406,8 @@ async fn do_data_channel_handshake<T: Transport>(service: Service<T>) -> Result<
             warn!("{:#}. Retry in {:?}", e, duration);
         },
     )
-    .await?;
+    .await
+    .context("Failed to connect to the data remote address")?;
 
     T::hint(&conn, service.socket_opts);
 
@@ -393,13 +415,18 @@ async fn do_data_channel_handshake<T: Transport>(service: Service<T>) -> Result<
         agent_id: service.agent_id.clone(),
         guid: service.endpoint.guid.clone(),
     });
-    write_message(&mut conn, &hello).await?;
+    write_message(&mut conn, &hello)
+        .await
+        .context("Failed to send data hello message")?;
     Ok(conn)
 }
 
+#[instrument]
 async fn run_data_channel<T: Transport>(service: Service<T>) -> Result<()> {
     // Do the handshake
-    let mut conn = do_data_channel_handshake(service.clone()).await?;
+    let mut conn = do_data_channel_handshake(service.clone())
+        .await
+        .context("Failed to handshake data channel")?;
 
     let (local_addr, local_port) = (
         service.endpoint.client.local_addr.clone(),
@@ -411,10 +438,10 @@ async fn run_data_channel<T: Transport>(service: Service<T>) -> Result<()> {
         msg = read_message(&mut conn) => {
             match msg {
                 Ok(Message::StartForwardTcp) => {
-                    run_data_channel_for_tcp::<T>(conn,  &local_addr, local_port).await?;
+                    run_data_channel_for_tcp::<T>(conn,  &local_addr, local_port).await.context("Failed to run TCP data channel")?;
                 }
                 Ok(Message::StartForwardUdp) => {
-                    run_data_channel_for_udp::<T>(conn, &local_addr, local_port).await?;
+                    run_data_channel_for_udp::<T>(conn, &local_addr, local_port).await.context("Failed to run UDP data channel")?;
                 }
                 Ok(msg) => {
                     warn!("Unexpected data channel message: {:?}", msg);
@@ -429,7 +456,6 @@ async fn run_data_channel<T: Transport>(service: Service<T>) -> Result<()> {
 }
 
 // Simply copying back and forth for TCP
-#[instrument(skip(conn))]
 async fn run_data_channel_for_tcp<T: Transport>(
     mut conn: T::Stream,
     local_addr: &str,
@@ -456,7 +482,6 @@ async fn run_data_channel_for_tcp<T: Transport>(
 // to the socket will work fine for the map's value.
 type UdpPortMap = Arc<tokio::sync::RwLock<HashMap<SocketAddr, mpsc::Sender<Bytes>>>>;
 
-#[instrument(skip(conn))]
 async fn run_data_channel_for_udp<T: Transport>(
     conn: T::Stream,
     local_addr: &str,
@@ -555,7 +580,7 @@ async fn run_udp_forwarder(
             // Receive from the server
             data = inbound_rx.recv() => {
                 if let Some(data) = data {
-                    s.send(&data).await?;
+                    s.send(&data).await.with_context(|| "Failed to send UDP traffic to the service")?;
                 } else {
                     break;
                 }
@@ -573,7 +598,7 @@ async fn run_udp_forwarder(
                     data: Bytes::copy_from_slice(&buf[..len])
                 };
 
-                outbount_tx.send(t).await?;
+                outbount_tx.send(t).await.with_context(|| "Failed to send UDP traffic to the server")?;
             },
 
             // No traffic for the duration of UDP_TIMEOUT, clean up the state
@@ -599,15 +624,21 @@ pub async fn run_client(
     let transport_type = config.read().transport.transport_type;
     match transport_type {
         TransportType::Tcp => {
-            let mut client = Client::<TcpTransport>::from(config).await?;
+            let mut client = Client::<TcpTransport>::from(config)
+                .await
+                .context("Failed to create TCP client")?;
             client.run(command_rx, result_tx).await
         }
         TransportType::Tls => {
-            let mut client = Client::<TlsTransport>::from(config).await?;
+            let mut client = Client::<TlsTransport>::from(config)
+                .await
+                .context("Failed to create TLS client")?;
             client.run(command_rx, result_tx).await
         }
         TransportType::Websocket => {
-            let mut client = Client::<WebsocketTransport>::from(config).await?;
+            let mut client = Client::<WebsocketTransport>::from(config)
+                .await
+                .context("Failed to create Websocket client")?;
             client.run(command_rx, result_tx).await
         }
     }

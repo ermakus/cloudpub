@@ -24,9 +24,6 @@ const JDK_URL: &str =
 #[cfg(target_os = "macos")]
 const JDK_URL: &str = "https://download.java.net/java/GA/jdk23/3c5b90190c68498b986a97f276efd28a/37/GPL/openjdk-23_macos-x64_bin.tar.gz";
 
-const MINECRAFT_JAR: &str =
-    "https://piston-data.mojang.com/v1/objects/59353fb40c36d304f2035d51e7d6e6baa98dc05c/server.jar";
-
 const MINECRAFT_SERVER_CFG: &str = include_str!("server.properties");
 
 pub const JDK_SUBDIR: &str = "jdk";
@@ -56,7 +53,8 @@ pub async fn setup(
     let jdk_dir = get_cache_dir(JDK_SUBDIR)?;
     let jdk_filename = JDK_URL.split('/').last().unwrap();
     let jdk_file = download_dir.join(jdk_filename);
-    let minecraft_file = download_dir.join(MINECRAFT_JAR.split('/').last().unwrap());
+
+    let minecraft_file = download_dir.join("server.jar");
 
     let mut touch = jdk_dir.clone();
     touch.push("installed.txt");
@@ -100,10 +98,12 @@ pub async fn setup(
     unzip("Распаковка JDK", &jdk_file, &jdk_dir, 1, result_tx.clone())
         .context("Ошибка распаковки JDK")?;
 
+    let minecraft_jar = config.read().minecraft_jar.clone();
+
     download(
         "Загрузка сервера Minecraft",
         config.clone(),
-        MINECRAFT_JAR,
+        &minecraft_jar,
         &minecraft_file,
         command_rx.resubscribe(),
         result_tx.clone(),
@@ -117,14 +117,14 @@ pub async fn setup(
 
 pub async fn publish(
     endpoint: &ServerEndpoint,
-    _config: Arc<RwLock<ClientConfig>>,
+    config: Arc<RwLock<ClientConfig>>,
     result_tx: broadcast::Sender<CommandResult>,
 ) -> Result<SubProcess> {
     let minecraft_dir: PathBuf = endpoint.client.local_addr.clone().into();
     std::fs::create_dir_all(&minecraft_dir).context("Ошибка создания директории сервера")?;
 
     let download_dir = get_cache_dir(DOWNLOAD_SUBDIR)?;
-    let minecraft_file = download_dir.join(MINECRAFT_JAR.split('/').last().unwrap());
+    let minecraft_file = download_dir.join("server.jar");
 
     let mut server_cfg = minecraft_dir.clone();
     server_cfg.push("server.properties");
@@ -140,10 +140,11 @@ pub async fn publish(
 
     let re = Regex::new(r"server\-port\s*=\s*\d+").unwrap();
 
-    let config = std::fs::read_to_string(&server_cfg).context("Ошибка чтения server.properties")?;
+    let server_config =
+        std::fs::read_to_string(&server_cfg).context("Ошибка чтения server.properties")?;
 
     // Read the server config file and replace 'server-port=XXXX' with the new port
-    let server_config = re.replace_all(&config, |_caps: &regex::Captures| {
+    let server_config = re.replace_all(&server_config, |_caps: &regex::Captures| {
         let new_port = endpoint.client.local_port.to_string();
         format!("server-port={}", new_port)
     });
@@ -158,7 +159,9 @@ pub async fn publish(
         minecraft_file.to_str().unwrap().to_string(),
     ];
 
-    args.push("nogui".to_string());
+    if !config.read().gui {
+        args.push("nogui".to_string());
+    }
 
     let server = SubProcess::new(
         get_java().context("Ошибка получения пути к java")?,

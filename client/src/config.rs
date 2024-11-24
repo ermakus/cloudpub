@@ -1,7 +1,5 @@
 use anyhow::{bail, Context, Result};
-use common::constants::{
-    DEFAULT_CLIENT_RETRY_INTERVAL_SECS, DEFAULT_HEARTBEAT_TIMEOUT_SECS, DEFAULT_SERVER,
-};
+use common::constants::{DEFAULT_HEARTBEAT_TIMEOUT_SECS, DEFAULT_SERVER};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
 
@@ -109,7 +107,6 @@ impl std::str::FromStr for Platform {
 
 /// All Option are optional in configuration but must be Some value in runtime
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
-#[serde(deny_unknown_fields)]
 pub struct ClientServiceConfig {
     pub local_proto: Protocol,
     pub local_port: u16,
@@ -141,6 +138,12 @@ impl Into<ClientEndpoint> for ClientServiceConfig {
     }
 }
 
+// Version 1.21.3 of the Minecraft server
+fn get_minecraft_jar() -> String {
+    "https://piston-data.mojang.com/v1/objects/45810d238246d90e811d896f87b14695b7fb6839/server.jar"
+        .to_string()
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct ClientConfig {
     // This fields are not persistent
@@ -155,9 +158,11 @@ pub struct ClientConfig {
     pub server: Url,
     pub token: Option<MaskedString>,
     pub heartbeat_timeout: u64,
-    pub retry_interval: u64,
     pub one_c_home: Option<String>,
     pub one_c_platform: Option<Platform>,
+    pub one_c_publish_dir: Option<String>,
+    #[serde(default = "get_minecraft_jar")]
+    pub minecraft_jar: String,
     pub transport: TransportConfig,
     #[serde(skip_serializing_if = "Vec::is_empty", default = "Vec::new")]
     pub services: Vec<ServerEndpoint>,
@@ -233,9 +238,6 @@ impl ClientConfig {
             "heartbeat_timeout" => {
                 self.heartbeat_timeout = value.parse().context("Invalid heartbeat_timeout")?
             }
-            "retry_interval" => {
-                self.retry_interval = value.parse().context("Invalid retry_interval")?
-            }
             "1c_home" => {
                 if value.is_empty() {
                     self.one_c_home = None
@@ -250,6 +252,14 @@ impl ClientConfig {
                     self.one_c_platform = Some(value.parse().context("Invalid platform")?)
                 }
             }
+            "1c_publish_dir" => {
+                if value.is_empty() {
+                    self.one_c_publish_dir = None
+                } else {
+                    self.one_c_publish_dir = Some(value.to_string())
+                }
+            }
+            "minecraft_jar" => self.minecraft_jar = value.to_string(),
             _ => bail!("Unknown key: {}", key),
         }
         self.save()?;
@@ -264,13 +274,14 @@ impl ClientConfig {
                 .as_ref()
                 .map_or("".to_string(), |t| t.to_string())),
             "heartbeat_timeout" => Ok(self.heartbeat_timeout.to_string()),
-            "retry_interval" => Ok(self.retry_interval.to_string()),
             "1c_home" => Ok(self.one_c_home.clone().unwrap_or_default()),
             "1c_platform" => Ok(self
                 .one_c_platform
                 .as_ref()
                 .map(|p| p.to_string())
                 .unwrap_or_default()),
+            "1c_publish_dir" => Ok(self.one_c_publish_dir.clone().unwrap_or_default()),
+            "minecraft_jar" => Ok(self.minecraft_jar.clone()),
             _ => bail!("Unknown key: {}", key),
         }
     }
@@ -292,13 +303,14 @@ impl Default for ClientConfig {
             server: DEFAULT_SERVER.parse().unwrap(),
             token: None,
             heartbeat_timeout: DEFAULT_HEARTBEAT_TIMEOUT_SECS,
-            retry_interval: DEFAULT_CLIENT_RETRY_INTERVAL_SECS,
             one_c_home: None,
             one_c_platform: None,
+            one_c_publish_dir: None,
             transport: TransportConfig::default(),
             services: Vec::new(),
             readonly: false,
             gui: false,
+            minecraft_jar: get_minecraft_jar(),
         }
     }
 }
