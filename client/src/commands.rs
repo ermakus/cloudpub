@@ -1,12 +1,14 @@
 use anyhow::{bail, Result};
+use clap::builder::TypedValueParser;
 use clap::{Args, Subcommand};
 use common::protocol::{
-    Access, ClientEndpoint, ErrorKind, Permission, Protocol, ServerEndpoint, UpgradeInfo,
+    Auth, ClientEndpoint, ErrorKind, Protocol, Role, ServerEndpoint, UpgradeInfo, ACL,
 };
 use serde::{Deserialize, Serialize};
 use std::net::ToSocketAddrs;
+use std::str::FromStr;
 
-const ACCESS_SEP: &str = ":";
+const ROLE_SEP: &str = ":";
 
 #[derive(Subcommand, Debug, Serialize, Deserialize, Clone)]
 pub enum Commands {
@@ -42,8 +44,10 @@ pub struct PublishArgs {
     pub address: String,
     #[clap(short, long, help = "Optional name of the service to publish")]
     pub name: Option<String>,
-    #[clap(short, long)]
-    pub access: Option<Vec<String>>,
+    #[clap(short, long, help = "Authentification type", default_value = "none")]
+    pub auth: Option<Auth>,
+    #[clap(short='A', long="acl", help = "Access list", value_parser = ACLParser)]
+    pub acl: Vec<ACL>,
 }
 
 #[derive(Args, Debug, Serialize, Deserialize, Clone)]
@@ -77,7 +81,6 @@ impl PublishArgs {
     }
 
     pub fn populate(&mut self) -> Result<()> {
-        parse_accesses(self.access.clone())?;
         match self.protocol {
             Protocol::OneC | Protocol::Minecraft | Protocol::WebDav => Ok(()),
 
@@ -115,7 +118,12 @@ impl Into<ClientEndpoint> for PublishArgs {
             local_addr: self.address(),
             local_port: self.port(),
             nodelay: Some(true),
-            access: parse_accesses(self.access).unwrap_or_default(),
+            auth: self.auth.unwrap_or(if self.protocol == Protocol::WebDav {
+                Auth::BASIC
+            } else {
+                Auth::NONE
+            }),
+            acl: self.acl,
         }
     }
 }
@@ -131,44 +139,12 @@ impl Into<PublishArgs> for ClientEndpoint {
                 }
             },
             name: self.description,
-            access: Some(
-                self.access
-                    .iter()
-                    .map(|p| format!("{}{}{}", p.user, ACCESS_SEP, p.access))
-                    .collect(),
-            ),
+            auth: Some(self.auth),
+            acl: self.acl,
         }
     }
 }
 
-fn parse_access(s: &str) -> Result<Permission> {
-    let sv: Vec<&str> = s.split(ACCESS_SEP).collect();
-    if sv.len() != 2 {
-        bail!(format!(
-            "Неверный парамер доступа ({}). Ожидается формат [email|guest|owner]:[read|write]",
-            s
-        ));
-    }
-
-    if let Ok(access) = sv[1].parse::<Access>() {
-        return Ok(Permission {
-            user: sv[0].to_string(),
-            access,
-        });
-    } else {
-        bail!(format!(
-            "Неверное значение доступа: {}. Ожидается read или write",
-            sv[1]
-        ));
-    }
-}
-
-fn parse_accesses(s: Option<Vec<String>>) -> Result<Vec<Permission>> {
-    match s {
-        Some(s) => s.into_iter().map(|s| parse_access(&s)).collect(),
-        None => Ok(vec![]),
-    }
-}
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ProgressInfo {
     pub message: String,
@@ -195,5 +171,38 @@ pub enum CommandResult {
 impl From<anyhow::Error> for CommandResult {
     fn from(err: anyhow::Error) -> Self {
         CommandResult::Error(ErrorKind::Fatal, format!("{:?}", err))
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct ACLParser;
+
+impl TypedValueParser for ACLParser {
+    type Value = ACL;
+
+    fn parse_ref(
+        &self,
+        _cmd: &clap::Command,
+        _arg: Option<&clap::Arg>,
+        value: &std::ffi::OsStr,
+    ) -> Result<Self::Value, clap::Error> {
+        let value = value.to_string_lossy();
+        let parts: Vec<&str> = value.split(ROLE_SEP).collect();
+        if parts.len() != 2 {
+            return Err(clap::Error::raw(
+                clap::error::ErrorKind::ValueValidation,
+                format!("Invalid ACL: {}", value),
+            ));
+        }
+        let role = Role::from_str(parts[1]).map_err(|_err| {
+            clap::Error::raw(
+                clap::error::ErrorKind::ValueValidation,
+                format!("Invalid role: {}", parts[1]),
+            )
+        })?;
+        Ok(ACL {
+            user: parts[0].to_string(),
+            role,
+        })
     }
 }

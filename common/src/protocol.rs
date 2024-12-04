@@ -64,40 +64,71 @@ impl FromStr for Protocol {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
-pub enum Access {
+pub enum Auth {
     #[default]
     NONE,
-    READ,
-    WRITE,
+    BASIC,
 }
 
-impl FromStr for Access {
+impl FromStr for Auth {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self> {
         match s {
-            "none" => Ok(Access::NONE),
-            "read" => Ok(Access::READ),
-            "write" => Ok(Access::WRITE),
-            _ => bail!("Invalid access: {}", s),
+            "none" => Ok(Auth::NONE),
+            "basic" => Ok(Auth::BASIC),
+            _ => bail!("Invalid auth: {}", s),
         }
     }
 }
 
-impl Display for Access {
+impl Display for Auth {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Access::NONE => write!(f, "none"),
-            Access::READ => write!(f, "read"),
-            Access::WRITE => write!(f, "write"),
+            Auth::NONE => write!(f, "none"),
+            Auth::BASIC => write!(f, "basic"),
         }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
-pub struct Permission {
+pub enum Role {
+    #[default]
+    NONE,
+    ADMIN,
+    READER,
+    WRITER,
+}
+
+impl FromStr for Role {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        match s {
+            "none" => Ok(Role::NONE),
+            "admin" => Ok(Role::ADMIN),
+            "reader" => Ok(Role::READER),
+            "writer" => Ok(Role::WRITER),
+            _ => bail!("Invalid access: {}", s),
+        }
+    }
+}
+
+impl Display for Role {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Role::NONE => write!(f, "none"),
+            Role::ADMIN => write!(f, "admin"),
+            Role::READER => write!(f, "reader"),
+            Role::WRITER => write!(f, "writer"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
+pub struct ACL {
     pub user: String,
-    pub access: Access,
+    pub role: Role,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, Default)]
@@ -108,7 +139,9 @@ pub struct ClientEndpoint {
     pub nodelay: Option<bool>,
     pub description: Option<String>,
     #[serde(default)]
-    pub access: Vec<Permission>,
+    pub auth: Auth,
+    #[serde(default)]
+    pub acl: Vec<ACL>,
 }
 
 impl PartialEq for ClientEndpoint {

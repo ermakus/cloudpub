@@ -54,8 +54,40 @@ pub fn init(args: &Cli, gui: bool) -> Result<(WorkerGuard, Arc<RwLock<ClientConf
 }
 
 #[tokio::main]
-pub async fn cli_main(mut cli: Cli, config: Arc<RwLock<ClientConfig>>) -> Result<()> {
+pub async fn cli_main(cli: Cli, config: Arc<RwLock<ClientConfig>>) -> Result<()> {
+    ctrlc::set_handler(move || {
+        std::process::exit(1);
+    })
+    .context("Error setting Ctrl-C handler")?;
+
     let (command_tx, command_rx) = broadcast::channel(1024);
+    main_loop(cli, config, command_tx, command_rx, None, None).await
+}
+
+pub async fn main_loop(
+    mut cli: Cli,
+    config: Arc<RwLock<ClientConfig>>,
+    command_tx: broadcast::Sender<Commands>,
+    command_rx: broadcast::Receiver<Commands>,
+    stdout: Option<broadcast::Sender<String>>,
+    stderr: Option<broadcast::Sender<String>>,
+) -> Result<()> {
+    let write_stdout = |res: String| {
+        if let Some(tx) = stdout.as_ref() {
+            tx.send(res).ok();
+        } else {
+            println!("{}", res);
+        }
+    };
+
+    let write_stderr = |res: String| {
+        if let Some(tx) = stderr.as_ref() {
+            tx.send(res).ok();
+        } else {
+            eprintln!("{}", res);
+        }
+    };
+
     let (result_tx, mut result_rx) = broadcast::channel(1024);
 
     let mut exit_on_published = false;
@@ -67,12 +99,12 @@ pub async fn cli_main(mut cli: Cli, config: Arc<RwLock<ClientConfig>>) -> Result
         }
         Commands::Get(get_args) => {
             let value = config.read().get(&get_args.key)?;
-            println!("{}", value);
+            write_stdout(value);
             return Ok(());
         }
         Commands::Ls => {
             for endpoint in config.read().services.iter() {
-                println!("{}: {}", endpoint.guid, endpoint);
+                write_stdout(format!("{}: {}", endpoint.guid, endpoint));
             }
             return Ok(());
         }
@@ -106,35 +138,30 @@ pub async fn cli_main(mut cli: Cli, config: Arc<RwLock<ClientConfig>>) -> Result
 
     tokio::spawn(run_client(config.clone(), command_rx, result_tx));
 
-    ctrlc::set_handler(move || {
-        std::process::exit(1);
-    })
-    .context("Error setting Ctrl-C handler")?;
-
     let mut current_spinner = None;
     let mut progress_bar = None;
 
     loop {
         match result_rx.recv().await? {
             CommandResult::Ok(res) => {
-                println!("{}", res);
+                write_stdout(res);
                 break;
             }
 
             CommandResult::Error(kind, res) => {
-                eprintln!("{}", res);
+                write_stderr(res);
                 if kind == ErrorKind::Fatal || kind == ErrorKind::AuthFailed {
                     break;
                 }
             }
 
             CommandResult::UpgradeAvailable(info) => {
-                println!("Доступна новая версия: {}", info.version);
+                write_stdout(format!("Доступна новая версия: {}", info.version));
             }
 
             CommandResult::Published(endpoint) => {
                 if endpoint.status == Some("online".to_string()) {
-                    println!("Cервис опубликован: {}", endpoint);
+                    write_stdout(format!("Сервис опубликован: {}", endpoint));
                 }
                 let mut guard = config.write();
                 guard.services.retain(|service| *service != endpoint);
@@ -146,7 +173,7 @@ pub async fn cli_main(mut cli: Cli, config: Arc<RwLock<ClientConfig>>) -> Result
             }
 
             CommandResult::Unpublished(guid) => {
-                println!("Сервис остановлен: {}", guid);
+                write_stdout(format!("Сервис остановлен: {}", guid));
                 let mut guard = config.write();
                 for service in guard.services.iter_mut() {
                     if service.guid == guid {
@@ -158,7 +185,7 @@ pub async fn cli_main(mut cli: Cli, config: Arc<RwLock<ClientConfig>>) -> Result
             }
 
             CommandResult::Removed(guid) => {
-                println!("Сервис удален: {}", guid);
+                write_stdout(format!("Сервис удален: {}", guid));
                 let mut guard = config.write();
                 guard.services.retain(|service| service.guid != guid);
                 guard.save().context("Failed to save config")?;

@@ -1,9 +1,8 @@
 [package]
 name = "client"
-version = "1.0.0"
+version = "1.2.102"
 edition = "2021"
 authors = ["Anton Ermak <anton@ermak.dev>"]
-build = "build.rs"
 
 [package.metadata.winres]
 OriginalFilename = "clo.exe"
@@ -26,7 +25,6 @@ tokio = { version = "1", features = ["full"] }
 futures = "0.3"
 bytes = { version = "1", features = ["serde"] }
 clap = { version = "4.5.7", features = ["derive"] }
-atty = "0.2"
 fdlimit = "0.2"
 serde = { version = "1.0", features = ["derive"] }
 anyhow = { version = "1.0" }
@@ -43,13 +41,5 @@ parking_lot = "0.12.3"
 hostname = "0.4.0"
 url = "2.5.2"
 xml-rs = "0.8.22"
-runas = "1.2.0"
 ctrlc = "3.4.5"
 regex = "1.11.0"
-
-# Dependencies for windows config
-[target.'cfg(windows)'.dependencies]
-is_elevated = "0.1.2"
-
-[build-dependencies]
-winresource = "0.1.17"

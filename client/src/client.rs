@@ -4,7 +4,6 @@ use backoff::future::retry_notify;
 use backoff::ExponentialBackoff;
 use bytes::{Bytes, BytesMut};
 use common::config::TransportType;
-use common::helper::udp_connect;
 use common::protocol::{
     read_message, write_message, AgentInfo, DataChannelInfo, ErrorKind, Message, Protocol,
     ServerEndpoint, UdpTraffic,
@@ -12,7 +11,7 @@ use common::protocol::{
 use common::transport::{
     AddrMaybeCached, SocketOpts, TcpTransport, TlsTransport, Transport, WebsocketTransport,
 };
-use common::utils::get_platform;
+use common::utils::{get_platform, udp_connect};
 use common::version::VERSION;
 use parking_lot::RwLock;
 use std::collections::HashMap;

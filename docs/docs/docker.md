@@ -71,4 +71,4 @@ docker run -v cloudpub-config:/home/cloudpub --net=host -it\
 
 ## Версия для ARM процессоров
 
-Для ARM процессоров доступен образ `cloudpub/cloudpub:latest-arm64` (`--platform linux/arm64`).
+Для ARM процессоров доступен образ `cloudpub/cloudpub:latest` (`--platform linux/arm64`).

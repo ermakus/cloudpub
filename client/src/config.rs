@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
 
 pub use common::config::{MaskedString, Protocol, TransportConfig};
-use common::protocol::{Access, ClientEndpoint, ServerEndpoint};
+use common::protocol::{Auth, ClientEndpoint, ServerEndpoint, ACL};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::fs::{self, create_dir_all};
@@ -112,7 +112,10 @@ pub struct ClientServiceConfig {
     pub local_port: u16,
     pub local_addr: String,
     pub nodelay: Option<bool>,
-    pub access: Vec<Access>,
+    #[serde(default)]
+    pub auth: Auth,
+    #[serde(default)]
+    pub acl: Vec<ACL>,
 }
 
 impl Display for ClientServiceConfig {
@@ -133,7 +136,8 @@ impl Into<ClientEndpoint> for ClientServiceConfig {
             local_port: self.local_port,
             nodelay: self.nodelay,
             description: None,
-            access: Vec::new(),
+            auth: self.auth.clone(),
+            acl: self.acl.clone(),
         }
     }
 }

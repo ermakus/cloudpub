@@ -1,6 +1,7 @@
 use crate::config::{TcpConfig, TransportConfig};
 
 use super::{AddrMaybeCached, SocketOpts, Transport};
+use crate::utils::host_port_pair;
 use anyhow::Result;
 use async_http_proxy::{http_connect_tokio, http_connect_tokio_with_basic_auth};
 use async_trait::async_trait;
@@ -76,11 +77,6 @@ pub fn try_set_tcp_keepalive(
     );
 
     Ok(s.set_tcp_keepalive(&keepalive)?)
-}
-
-pub fn host_port_pair(s: &str) -> Result<(&str, u16)> {
-    let semi = s.rfind(':').expect("missing semicolon");
-    Ok((&s[..semi], s[semi + 1..].parse()?))
 }
 
 /// Create a TcpStream using a proxy

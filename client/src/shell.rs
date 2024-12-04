@@ -12,7 +12,6 @@ use dirs::cache_dir;
 use futures::stream::StreamExt;
 use parking_lot::RwLock;
 use reqwest::{Certificate, ClientBuilder};
-use runas::Command as ElevatedCommand;
 use std::collections::HashMap;
 use std::io;
 use std::path::Path;
@@ -67,31 +66,6 @@ impl Drop for SubProcess {
     fn drop(&mut self) {
         self.stop();
     }
-}
-
-#[allow(dead_code)]
-pub fn elevated_execute(command: &Path, args: &[&str]) -> Result<()> {
-    info!("Executing evelated command: {:?} {:?}", command, args);
-
-    ElevatedCommand::new(command)
-        .args(args)
-        .status()
-        .context(format!(
-            "Failed to execute command: {:?} {:?}",
-            command, args
-        ))?;
-    Ok(())
-}
-
-#[allow(dead_code)]
-pub fn pause() {
-    dbg!("Pausing! Press enter to continue...");
-
-    let mut buffer = String::new();
-
-    std::io::stdin()
-        .read_line(&mut buffer)
-        .expect("Failed to read line");
 }
 
 pub async fn send_progress(
@@ -320,6 +294,9 @@ pub async fn download(
         let roots = load_roots(tls).context("Failed to load client config")?;
         for cert in roots {
             client = client.add_root_certificate(Certificate::from_der(&cert)?);
+        }
+        if tls.danger_ignore_certificate_verification.unwrap_or(false) {
+            client = client.danger_accept_invalid_certs(true);
         }
     }
 

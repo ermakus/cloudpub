@@ -19,7 +19,7 @@ pub fn init_log(level: &str, log_file: &Path, stderr: bool) -> Result<WorkerGuar
     let (file_writer, guard) = tracing_appender::non_blocking(file_appender);
 
     let trace_cfg = format!(
-        "{},hyper=info,tokio_postgres=info,pingora=info,{}",
+        "{},hyper=info,tokio_postgres=info,pingora_core=info,pingora_prox=info,{}",
         level,
         std::env::var("RUST_LOG").unwrap_or_default()
     );
@@ -38,7 +38,6 @@ pub fn init_log(level: &str, log_file: &Path, stderr: bool) -> Result<WorkerGuar
         tracing::subscriber::set_global_default(
             fmt::Subscriber::builder()
                 .with_ansi(ansi)
-                .with_ansi(false)
                 .with_timer(timer.clone())
                 .with_max_level(tracing::Level::from_str(level).unwrap())
                 .with_writer(std::io::stderr)

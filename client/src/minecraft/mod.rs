@@ -1,6 +1,6 @@
 use crate::commands::{CommandResult, Commands};
 use crate::config::ClientConfig;
-use crate::shell::{download, execute, get_cache_dir, SubProcess};
+use crate::shell::{download, get_cache_dir, SubProcess};
 use anyhow::{Context, Result};
 use common::protocol::ServerEndpoint;
 use parking_lot::RwLock;
@@ -9,6 +9,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tracing::info;
+
+#[cfg(unix)]
+use crate::shell::execute;
 
 #[cfg(target_os = "windows")]
 use crate::shell::unzip;
