@@ -123,7 +123,7 @@ pub async fn tcp_connect_with_proxy(addr: &AddrMaybeCached, proxy: Option<&Url>)
         Ok(Stream::Tcp(s))
     } else {
         Ok(match addr.socket_addr.as_ref() {
-            Some(s) => Stream::connect(&s).await?,
+            Some(s) => Stream::connect(s).await?,
             None => Stream::connect(&NamedSocketAddr::from_str(&addr.addr)?).await?,
         })
     }

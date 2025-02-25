@@ -1,7 +1,7 @@
 use crate::commands::{CommandResult, Commands};
 use crate::config::ClientConfig;
 use crate::shell::{download, get_cache_dir, SubProcess};
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use common::protocol::ServerEndpoint;
 use parking_lot::RwLock;
 use regex::Regex;
@@ -26,6 +26,10 @@ const JDK_URL: &str =
 
 #[cfg(target_os = "macos")]
 const JDK_URL: &str = "https://download.java.net/java/GA/jdk23/3c5b90190c68498b986a97f276efd28a/37/GPL/openjdk-23_macos-x64_bin.tar.gz";
+
+// Minecraft server 1.21.4
+const MINECRAFT_SERVER_URL: &str =
+    "https://piston-data.mojang.com/v1/objects/4707d00eb834b446575d89a61a11b5d548d8c001/server.jar";
 
 const MINECRAFT_SERVER_CFG: &str = include_str!("server.properties");
 
@@ -101,18 +105,39 @@ pub async fn setup(
     unzip("Распаковка JDK", &jdk_file, &jdk_dir, 1, result_tx.clone())
         .context("Ошибка распаковки JDK")?;
 
-    let minecraft_jar = config.read().minecraft_jar.clone();
+    let minecraft_jar = config
+        .read()
+        .minecraft_server
+        .clone()
+        .unwrap_or(MINECRAFT_SERVER_URL.to_string());
 
-    download(
-        "Загрузка сервера Minecraft",
-        config.clone(),
-        &minecraft_jar,
-        &minecraft_file,
-        command_rx.resubscribe(),
-        result_tx.clone(),
-    )
-    .await
-    .context("Ошибка загрузки веб сервера")?;
+    let maybe_path = PathBuf::from(&minecraft_jar);
+
+    if maybe_path.is_file() {
+        std::fs::copy(&minecraft_jar, &minecraft_file)
+            .with_context(|| format!("Ошибка копирования сервера Minecraft: {}", minecraft_jar))?;
+    } else if maybe_path.is_dir() {
+        bail!(
+            "Неверный путь к JAR файлу сервера Minecraft: {} (директория)",
+            minecraft_jar
+        );
+    } else if minecraft_jar.starts_with("http") {
+        download(
+            "Загрузка сервера Minecraft",
+            config.clone(),
+            &minecraft_jar,
+            &minecraft_file,
+            command_rx.resubscribe(),
+            result_tx.clone(),
+        )
+        .await
+        .with_context(|| format!("Ошибка загрузки сервера Minecraft: {}", minecraft_jar))?;
+    } else {
+        bail!(
+            "Неверный путь или URL к серверу Minecraft: {}",
+            minecraft_jar
+        );
+    }
     std::fs::write(touch, "Delete to reinstall").context("Ошибка создания файла метки")?;
 
     Ok(())
@@ -152,7 +177,7 @@ pub async fn publish(
         format!("server-port={}", new_port)
     });
 
-    std::fs::write(&server_cfg, &server_config.to_string())
+    std::fs::write(&server_cfg, server_config.to_string())
         .context("Ошибка записи server.properties")?;
 
     let mut args = vec![

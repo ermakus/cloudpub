@@ -4,8 +4,6 @@ pub mod base;
 pub mod client;
 pub mod commands;
 pub mod config;
-pub mod httpd;
-pub mod minecraft;
-pub mod onec;
+#[cfg(feature = "plugins")]
+pub mod plugins;
 pub mod shell;
-pub mod webdav;

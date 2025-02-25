@@ -24,8 +24,7 @@ const config: Config = {
   onBrokenLinks: "throw",
   onBrokenMarkdownLinks: "warn",
 
-  staticDirectories: ['public', 'static'],
-
+  staticDirectories: ["public", "static"],
 
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
@@ -61,9 +60,11 @@ const config: Config = {
         },
         blog: {
           blogTitle: "Блог",
+          blogSidebarTitle: "Последние записи",
+          blogSidebarCount: 10,
           showReadingTime: true,
           feedOptions: {
-            type: ['rss', 'atom'],
+            type: ["rss", "atom"],
             xslt: true,
           },
         },
@@ -86,12 +87,12 @@ const config: Config = {
       },
       items: [
         {
-          type: 'docSidebar',
-          sidebarId: 'tutorialSidebar',
-          position: 'left',
-          label: 'Документация',
+          type: "docSidebar",
+          sidebarId: "tutorialSidebar",
+          position: "left",
+          label: "Документация",
         },
-        {to: '/blog', label: 'Блог', position: 'left'},
+        { to: "/blog", label: "Блог", position: "left" },
       ],
     },
     footer: {

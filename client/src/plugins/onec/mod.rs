@@ -1,6 +1,6 @@
 use crate::commands::{CommandResult, Commands};
 use crate::config::{ClientConfig, EnvConfig, ENV_CONFIG};
-use crate::httpd::{setup_httpd, start_httpd};
+use crate::plugins::httpd::{setup_httpd, start_httpd};
 use crate::shell::{find, get_cache_dir, SubProcess};
 use anyhow::{bail, Context, Result};
 use common::protocol::ServerEndpoint;
@@ -34,7 +34,7 @@ fn detect_platform() -> Option<EnvConfig> {
 
 fn check_enviroment(config: Arc<RwLock<ClientConfig>>) -> Result<EnvConfig> {
     let env = if let Some(platform) = config.read().one_c_platform.as_ref() {
-        ENV_CONFIG.get(&platform).cloned()
+        ENV_CONFIG.get(platform).cloned()
     } else {
         detect_platform()
     };
@@ -78,10 +78,10 @@ pub async fn publish(
         .read()
         .one_c_publish_dir
         .as_ref()
-        .map(|x| PathBuf::from(x))
+        .map(PathBuf::from)
         .unwrap_or_else(|| get_cache_dir(ONEC_SUBDIR).unwrap());
 
-    let publish_dir = one_c_publish_dir.join(endpoint.guid.to_string());
+    let publish_dir = one_c_publish_dir.join(&endpoint.guid);
 
     std::fs::create_dir_all(publish_dir.clone()).context("Can't create publish dir")?;
 
@@ -106,13 +106,13 @@ pub async fn publish(
         endpoint.client.local_addr.clone()
     };
 
-    let vrd_config = DEFAULT_VRD.replace("[[IB]]", &escape_str_attribute(&ib).into_owned());
+    let vrd_config = DEFAULT_VRD.replace("[[IB]]", &escape_str_attribute(&ib));
 
     if !default_vrd.exists() {
         std::fs::write(&default_vrd, vrd_config).context("Ошибка записи default.vrd")?;
     }
 
-    let httpd_config = ONEC_CONFIG.replace("[[WSAP_MODULE]]", &wsap.to_str().unwrap());
+    let httpd_config = ONEC_CONFIG.replace("[[WSAP_MODULE]]", wsap.to_str().unwrap());
     start_httpd(
         endpoint,
         &httpd_config,

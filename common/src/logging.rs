@@ -29,8 +29,7 @@ pub fn init_log(level: &str, log_file: &Path, stderr: bool) -> Result<WorkerGuar
     )
     .context("Failed to parse time format")?;
 
-    let time_offset =
-        time::UtcOffset::current_local_offset().unwrap_or_else(|_| time::UtcOffset::UTC);
+    let time_offset = time::UtcOffset::current_local_offset().unwrap_or(time::UtcOffset::UTC);
     let timer = fmt::time::OffsetTime::new(time_offset, timer);
 
     if stderr {

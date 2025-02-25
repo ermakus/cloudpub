@@ -2,11 +2,10 @@ mod base;
 mod client;
 mod commands;
 mod config;
-mod httpd;
-mod minecraft;
-mod onec;
 mod shell;
-mod webdav;
+
+#[cfg(feature = "plugins")]
+mod plugins;
 
 use anyhow::{Context, Result};
 use base::{cli_main, init, Cli};

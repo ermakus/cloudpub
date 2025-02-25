@@ -236,5 +236,5 @@ impl Transport for TlsTransport {
 }
 
 pub(crate) fn get_stream(s: &TlsStream<Stream>) -> &Stream {
-    &s.get_ref().0
+    s.get_ref().0
 }

@@ -69,7 +69,7 @@ pub async fn setup_httpd(
         .await
         .context("Ошибка загрузки компонентов VC++")?;
 
-        execute(
+        if let Err(err) = execute(
             redist,
             vec![
                 "/install".to_string(),
@@ -86,7 +86,10 @@ pub async fn setup_httpd(
             command_rx.resubscribe(),
         )
         .await
-        .context("Ошибка установки компонентов VC++")?;
+        {
+            // Non fatal error, probably components already installed
+            tracing::warn!("Ошибка установки компонентов VC++: {:?}", err);
+        }
     }
     // Set exec mode for httpd_exe
     #[cfg(unix)]
@@ -123,11 +126,11 @@ pub async fn start_httpd(
     let mut lock_file = configs_dir.clone();
     lock_file.push(format!("{}.lock", endpoint.guid));
 
-    let httpd_config = config_template.replace("[[PUBLISH_DIR]]", &publish_dir);
-    let httpd_config = httpd_config.replace("[[SRVROOT]]", &httpd_dir.to_str().unwrap());
+    let httpd_config = config_template.replace("[[PUBLISH_DIR]]", publish_dir);
+    let httpd_config = httpd_config.replace("[[SRVROOT]]", httpd_dir.to_str().unwrap());
     let httpd_config = httpd_config.replace("[[PORT]]", &endpoint.client.local_port.to_string());
-    let httpd_config = httpd_config.replace("[[PID_FILE]]", &pid_file.to_str().unwrap());
-    let httpd_config = httpd_config.replace("[[LOCK_FILE]]", &lock_file.to_str().unwrap());
+    let httpd_config = httpd_config.replace("[[PID_FILE]]", pid_file.to_str().unwrap());
+    let httpd_config = httpd_config.replace("[[LOCK_FILE]]", lock_file.to_str().unwrap());
 
     #[cfg(unix)]
     let httpd_config = httpd_config.replace("[[IS_LINUX]]", "");

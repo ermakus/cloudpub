@@ -1,5 +1,5 @@
 ---
-sidebar_position: 8
+sidebar_position: 98
 description: Использование CloudPub с Docker
 slug: /docker
 ---
@@ -8,7 +8,7 @@ slug: /docker
 
 ## Использование CloudPub с Docker
 
-Вы можете использовать готовый образ Docker для агента CloudPub.
+Вы можете использовать готовый [образ Docker](https://hub.docker.com/repository/docker/cloudpub/cloudpub/general) для агента CloudPub.
 
 Пример команды для запуска туннеля на порт 8080 на хост-машине выглядит следующим образом:
 
@@ -25,14 +25,15 @@ Docker-версия использует те же параметры коман
 Вам нужно будет использовать специальный URL host.docker.internal, как описано в [документации](https://docs.docker.com/desktop/mac/networking/#use-cases-and-workarounds) Docker.
 
 ```bash
-docker run --net=host -it -e TOKEN=xyz cloudpub/cloudpub:latest host.docker.internal:8080
+docker run --net=host -it -e TOKEN=xyz cloudpub/cloudpub:latest \
+       publish http host.docker.internal:8080
 ```
 
 ## Сохранение настроек при перезапуске контейнера
 
 При запуске контейнера, CloudPub создает новый агент и новый уникальный URL для доступа к туннелю.
 
-Что бы сохранить настройки при перезапуске контейнера, следует создать том для хранения данных (конфигурации и кеша):
+Что бы сохранить настройки при перезапуске контейнера, следует создать том для хранения конфигурации и кеша:
 
 
 ```bash
@@ -71,4 +72,4 @@ docker run -v cloudpub-config:/home/cloudpub --net=host -it\
 
 ## Версия для ARM процессоров
 
-Для ARM процессоров доступен образ `cloudpub/cloudpub:latest` (`--platform linux/arm64`).
+Для ARM процессоров доступен образ `cloudpub/cloudpub:latest-arm64`

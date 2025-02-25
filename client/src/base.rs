@@ -122,12 +122,12 @@ pub async fn main_loop(
         }
         Commands::Register(publish_args) => {
             config.read().validate()?;
-            publish_args.populate()?;
+            publish_args.parse()?;
             exit_on_published = true;
         }
         Commands::Publish(publish_args) => {
             config.read().validate()?;
-            publish_args.populate()?;
+            publish_args.parse()?;
         }
         Commands::Unpublish(_) | Commands::Run | Commands::Stop | Commands::Break => {
             config.read().validate()?;

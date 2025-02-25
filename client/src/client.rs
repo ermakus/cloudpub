@@ -32,6 +32,7 @@ use common::utils::find_free_tcp_port;
 use crate::commands::{CommandResult, Commands};
 use crate::config::ClientConfig;
 use crate::shell::SubProcess;
+use machineid_rs::{Encryption, HWIDComponent, IdBuilder};
 use std::fmt::{self, Debug, Formatter};
 
 struct DataChannel<T: Transport> {
@@ -148,56 +149,72 @@ impl<T: 'static + Transport> Client<T> {
         result_tx: broadcast::Sender<CommandResult>,
     ) -> Result<()> {
         config.read().validate().context("Invalid configuration")?;
-
         let url = config.read().server.clone();
         let port = url.port().unwrap_or(443);
         let host = url.host_str().context("Failed to get host")?;
-        let host_and_port = format!("{}:{}", host, port);
+        let mut host_and_port = format!("{}:{}", host, port);
 
-        let mut remote_addr = AddrMaybeCached::new(&host_and_port);
-        remote_addr
-            .resolve()
-            .await
-            .context("Failed to resolve server address")?;
+        let (mut conn, remote_addr) = loop {
+            let mut remote_addr = AddrMaybeCached::new(&host_and_port);
+            remote_addr
+                .resolve()
+                .await
+                .context("Failed to resolve server address")?;
 
-        let mut conn = transport.connect(&remote_addr).await.context(format!(
-            "Failed to connect control channel to {}",
-            &host_and_port
-        ))?;
+            let mut conn = transport.connect(&remote_addr).await.context(format!(
+                "Failed to connect control channel to {}",
+                &host_and_port
+            ))?;
 
-        T::hint(&conn, SocketOpts::for_control_channel());
+            T::hint(&conn, SocketOpts::for_control_channel());
 
-        // Send hello
-        debug!("Sending hello");
+            // Send hello
+            let hwid = IdBuilder::new(Encryption::SHA256)
+                .add_component(HWIDComponent::OSName)
+                .add_component(HWIDComponent::SystemID)
+                .add_component(HWIDComponent::MachineName)
+                .add_component(HWIDComponent::CPUID)
+                .build("cloudpub")
+                .unwrap_or_default();
 
-        let agent_info = AgentInfo {
-            agent_id: config.read().agent_id.clone(),
-            token: config.read().token.clone().unwrap(),
-            hostname: hostname::get()?.into_string().unwrap(),
-            version: VERSION.to_string(),
-            gui: config.read().gui,
-            platform: get_platform(),
-        };
+            let agent_info = AgentInfo {
+                agent_id: config.read().agent_id.clone(),
+                token: config.read().token.clone().unwrap(),
+                hostname: hostname::get()?.into_string().unwrap(),
+                version: VERSION.to_string(),
+                gui: config.read().gui,
+                platform: get_platform(),
+                hwid,
+                server_host_and_port: remote_addr.to_string(),
+            };
 
-        let hello_send = Message::AgentHello(agent_info);
+            debug!("Sending hello: {:?}", agent_info);
 
-        write_message(&mut conn, &hello_send)
-            .await
-            .context("Failed to send hello message")?;
+            let hello_send = Message::AgentHello(agent_info);
 
-        debug!("Reading ack");
-        match read_message(&mut conn)
-            .await
-            .context("Failed to read ack message")?
-        {
-            Message::AgentAck => {}
-            Message::Error(kind, msg) => {
-                result_tx
-                    .send(CommandResult::Error(kind.clone(), msg.clone()))
-                    .context("Can't send server error event")?;
-                bail!("Error: {:?} {}", kind, msg);
-            }
-            v => bail!("Unexpected ack message: {:?}", v),
+            write_message(&mut conn, &hello_send)
+                .await
+                .context("Failed to send hello message")?;
+
+            debug!("Reading ack");
+            match read_message(&mut conn)
+                .await
+                .context("Failed to read ack message")?
+            {
+                Message::AgentAck => break (conn, remote_addr),
+                Message::Redirect(new_host_and_port) => {
+                    host_and_port = new_host_and_port;
+                    debug!("Redirecting to {}", host_and_port);
+                    continue;
+                }
+                Message::Error(kind, msg) => {
+                    result_tx
+                        .send(CommandResult::Error(kind.clone(), msg.clone()))
+                        .context("Can't send server error event")?;
+                    bail!("Error: {:?} {}", kind, msg);
+                }
+                v => bail!("Unexpected ack message: {:?}", v),
+            };
         };
 
         debug!("Control channel established");
@@ -213,12 +230,12 @@ impl<T: 'static + Transport> Client<T> {
                 cmd = command_rx.recv() => {
                     if let Ok(cmd) = cmd {
                         match cmd {
-                            Commands::Publish(service) | Commands::Register(service) => {
+                            Commands::Publish(args) | Commands::Register(args) => {
                                 let server_endpoint = ServerEndpoint {
                                     guid: String::new(),
-                                    client: service.clone().into(),
+                                    client: args.parse()?,
                                     status: Some("offline".to_string()),
-                                    remote_proto: service.protocol,
+                                    remote_proto: args.protocol,
                                     remote_addr: String::new(),
                                     remote_port: 0,
                                     bind_addr: String::new(),
@@ -227,17 +244,25 @@ impl<T: 'static + Transport> Client<T> {
 
                                 result_tx.send(CommandResult::Published(server_endpoint)).context("Can't send Published event")?;
 
-                                let err = match service.protocol {
+                                let err: anyhow::Result<()> = match args.protocol {
+                                    #[cfg(feature = "plugins")]
                                     Protocol::WebDav => {
-                                        crate::webdav::setup(config.clone(), command_rx.resubscribe(), result_tx.clone()).await
+                                        crate::plugins::webdav::setup(config.clone(), command_rx.resubscribe(), result_tx.clone()).await
                                     }
+                                    #[cfg(feature = "plugins")]
                                     Protocol::OneC => {
-                                        crate::onec::setup(config.clone(), command_rx.resubscribe(), result_tx.clone()).await
+                                        crate::plugins::onec::setup(config.clone(), command_rx.resubscribe(), result_tx.clone()).await
                                     }
+                                    #[cfg(feature = "plugins")]
                                     Protocol::Minecraft => {
-                                        crate::minecraft::setup(config.clone(), command_rx.resubscribe(), result_tx.clone()).await
+                                        crate::plugins::minecraft::setup(config.clone(), command_rx.resubscribe(), result_tx.clone()).await
                                     }
-                                    Protocol::Tcp | Protocol::Udp | Protocol::Http | Protocol::Https => {
+                                    #[cfg(not(feature = "plugins"))]
+                                    Protocol::WebDav | Protocol::OneC | Protocol::Minecraft => {
+                                        Err(anyhow!("Unsupported protocol: plugins support is not enabled"))
+                                    }
+                                    Protocol::Tcp | Protocol::Udp | Protocol::Http |
+                                    Protocol::Https | Protocol::Rtsp => {
                                         Ok(())
                                     }
 
@@ -248,8 +273,8 @@ impl<T: 'static + Transport> Client<T> {
                                     result_tx.send(CommandResult::Error(ErrorKind::Fatal, err.to_string())).context("Can't send Error event")?;
                                     continue;
                                 }
-                                info!("Publishing service: {:?}", service);
-                                let msg = Message::EndpointStart(service.into());
+                                info!("Publishing service: {:?}", args);
+                                let msg = Message::EndpointStart(args.parse()?);
                                 write_message(&mut conn, &msg).await.context("Failed to send message")?;
                             }
                             Commands::Unpublish(service) => {
@@ -288,7 +313,7 @@ impl<T: 'static + Transport> Client<T> {
                     match val {
                         Message::CreateDataChannel(mut endpoint) => {
 
-                            let socket_opts = SocketOpts::nodelay(endpoint.client.nodelay.clone());
+                            let socket_opts = SocketOpts::nodelay(endpoint.client.nodelay);
 
                             let maybe_port = if let Some(s) = self.servers.get(&endpoint.guid) {
                                 endpoint.client.local_port = s.1;
@@ -299,18 +324,21 @@ impl<T: 'static + Transport> Client<T> {
                             };
 
                             if maybe_port.is_none() {
-                                let res = match endpoint.client.local_proto {
+                                let res: Option<anyhow::Result<SubProcess>> = match endpoint.client.local_proto {
+                                    #[cfg(feature = "plugins")]
                                     Protocol::OneC => {
                                         endpoint.client.local_port = find_free_tcp_port().await.context("Failed to find free port")?;
-                                        Some(crate::onec::publish(&endpoint, config.clone(),result_tx.clone()).await)
+                                        Some(crate::plugins::onec::publish(&endpoint, config.clone(),result_tx.clone()).await)
                                     },
+                                    #[cfg(feature = "plugins")]
                                     Protocol::Minecraft => {
                                         endpoint.client.local_port = find_free_tcp_port().await.context("Failed to find free port")?;
-                                        Some(crate::minecraft::publish(&endpoint, config.clone(),result_tx.clone()).await)
+                                        Some(crate::plugins::minecraft::publish(&endpoint, config.clone(),result_tx.clone()).await)
                                     },
+                                    #[cfg(feature = "plugins")]
                                     Protocol::WebDav => {
                                         endpoint.client.local_port = find_free_tcp_port().await.context("Failed to find free port")?;
-                                        Some(crate::webdav::publish(&endpoint, config.clone(),result_tx.clone()).await)
+                                        Some(crate::plugins::webdav::publish(&endpoint, config.clone(),result_tx.clone()).await)
                                     },
                                     _ => {
                                         None
@@ -349,7 +377,9 @@ impl<T: 'static + Transport> Client<T> {
                         Message::EndpointAck(endpoint) => {
                             result_tx.send(CommandResult::Published(endpoint)).context("Can't send Published event")?;
                         },
-                        Message::HeartBeat => (),
+                        Message::HeartBeat => {
+                            write_message(&mut conn, &Message::HeartBeat).await.context("Failed to send heartbeat")?;
+                        },
                         Message::Error(kind, msg) => {
                             info!("Server error: {:?} {}", kind, msg);
                             result_tx.send(CommandResult::Error(kind.clone(), msg.clone())).context("Can't send Error event")?;

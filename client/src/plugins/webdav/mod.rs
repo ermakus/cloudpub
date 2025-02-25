@@ -1,6 +1,6 @@
 use crate::commands::{CommandResult, Commands};
 use crate::config::ClientConfig;
-use crate::httpd::{setup_httpd, start_httpd};
+use crate::plugins::httpd::{setup_httpd, start_httpd};
 use crate::shell::SubProcess;
 use anyhow::Result;
 use common::protocol::ServerEndpoint;
@@ -28,7 +28,7 @@ pub async fn publish(
     let env = Default::default();
     start_httpd(
         endpoint,
-        &WEBDAV_CONFIG,
+        WEBDAV_CONFIG,
         WEBDAV_SUBDIR,
         &publish_dir,
         env,

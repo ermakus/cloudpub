@@ -10,7 +10,7 @@ use super::{
 use crate::config::TransportConfig;
 use anyhow::{anyhow, Context as _};
 use async_trait::async_trait;
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use futures_core::stream::Stream as AsyncStream;
 use futures_sink::Sink;
 use tokio::io::{AsyncBufRead, AsyncRead, AsyncWrite, ReadBuf};
@@ -22,7 +22,7 @@ use tokio_tungstenite::tungstenite::handshake::server::{Request, Response};
 use tokio_tungstenite::tungstenite::protocol::{Message, WebSocketConfig};
 use tokio_tungstenite::{accept_hdr_async_with_config, client_async_with_config, WebSocketStream};
 use tokio_util::io::StreamReader;
-use tracing::{debug, trace};
+use tracing::{debug, error, trace};
 use url::Url;
 
 #[cfg(feature = "rustls")]
@@ -109,7 +109,7 @@ impl AsyncStream for StreamWrapper {
             }
             Poll::Ready(Some(Ok(res))) => {
                 if let Message::Binary(b) = res {
-                    Poll::Ready(Some(Ok(Bytes::from(b))))
+                    Poll::Ready(Some(Ok(b.into())))
                 } else {
                     Poll::Ready(Some(Err(Error::new(
                         ErrorKind::InvalidData,
@@ -161,7 +161,9 @@ impl AsyncWrite for WebsocketTunnel {
             .poll_ready(cx)
             .map_err(|err| Error::new(ErrorKind::Other, err)))?;
 
-        match Pin::new(&mut sw.inner).start_send(Message::Binary(buf.to_vec())) {
+        let bbuf = BytesMut::from(buf);
+
+        match Pin::new(&mut sw.inner).start_send(Message::Binary(bbuf.into())) {
             Ok(()) => Poll::Ready(Ok(buf.len())),
             Err(e) => Poll::Ready(Err(Error::new(ErrorKind::Other, e))),
         }
@@ -208,8 +210,9 @@ impl Transport for WebsocketTransport {
 
         let conf = WebSocketConfig {
             write_buffer_size: 0,
-            ..WebSocketConfig::default()
+            ..Default::default()
         };
+
         let sub = match wsconfig.tls {
             #[cfg(feature = "rustls")]
             true => SubTransport::Secure(TlsTransport::new(config)?),
@@ -269,7 +272,13 @@ impl Transport for WebsocketTransport {
 
     async fn connect(&self, addr: &AddrMaybeCached) -> anyhow::Result<Self::Stream> {
         let u = format!("wss://{}/endpoint", &addr.addr.as_str());
-        let url = Url::parse(&u).unwrap();
+        let url = match Url::parse(&u) {
+            Ok(parsed_url) => parsed_url,
+            Err(e) => {
+                error!("Failed to parse URL: {:?}", e);
+                return Err(e.into());
+            }
+        };
         let tstream = match &self.sub {
             SubTransport::Insecure(t) => TransportStream::Insecure(t.connect(addr).await?),
             #[cfg(feature = "rustls")]
@@ -278,7 +287,7 @@ impl Transport for WebsocketTransport {
         debug!("Connecting to {}", &url);
         let (wsstream, _) = client_async_with_config(url, tstream, Some(self.conf))
             .await
-            .context("Failed to connect to websocket")?;
+            .with_context(|| format!("Failed to connect to {}", u))?;
 
         debug!("Connected");
 

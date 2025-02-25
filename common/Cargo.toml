@@ -1,6 +1,6 @@
 [package]
 name = "common"
-version = "1.2.102"
+version = "1.4.79"
 edition = "2021"
 authors = ["Anton Ermak <anton@ermak.dev>"]
 description = "Common code for the client, server, and GUI"
@@ -12,6 +12,8 @@ default = []
 # TLS support
 rustls = [
     "tokio-rustls",
+    "tokio-tungstenite/rustls",
+    "tokio-tungstenite/rustls-tls-native-roots",
     "rustls-pemfile",
     "rustls-native-certs",
     "p12",
@@ -47,16 +49,19 @@ async-http-proxy = { version = "1.2", features = [
     "basic-auth",
 ] }
 async-socks5 = "0.5"
-url = { version = "2.2", features = ["serde"] }
-tokio-tungstenite = { version = "0.20.1" }
+url = { version = "2.5.4", features = ["serde"] }
+tokio-tungstenite = { version = "0.21.0", features = ["connect"] }
 tokio-util = { version = "0.7.9", features = ["io", "net"] }
 futures-core = { version = "0.3.28" }
 futures-sink = { version = "0.3.28" }
 serde_json = "1.0.117"
 
-tokio-rustls = { version = "0.25", optional = true }
+tokio-rustls = { version = "0.25.0", optional = true }
 rustls-native-certs = { version = "0.7", optional = true }
 rustls-pemfile = { version = "2.0", optional = true }
 p12 = { version = "0.6.3", optional = true }
 libc = "0.2.158"
 parking_lot = "0.12.3"
+
+dirs = "3.0.2"
+urlencoding = "2.1.3"

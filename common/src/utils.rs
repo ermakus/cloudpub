@@ -71,7 +71,7 @@ pub async fn find_free_udp_port() -> Result<u16> {
 
 pub async fn is_udp_port_available(bind_addr: &str, port: u16) -> Result<bool> {
     match UdpSocket::bind((bind_addr, port)).await {
-        Ok(_) => return Ok(true),
+        Ok(_) => Ok(true),
         Err(ref e) if e.kind() == io::ErrorKind::AddrInUse => Ok(false),
         Err(e) => Err(e).context("Failed to check UDP port")?,
     }
@@ -81,7 +81,7 @@ pub async fn is_tcp_port_available(bind_addr: &str, port: u16) -> Result<bool> {
     let tcp_socket = TcpSocket::new_v4()?;
     let bind_addr: SocketAddr = format!("{}:{}", bind_addr, port).parse().unwrap();
     match tcp_socket.bind(bind_addr) {
-        Ok(_) => return Ok(true),
+        Ok(_) => Ok(true),
         Err(ref e) if e.kind() == io::ErrorKind::AddrInUse => Ok(false),
         Err(e) => Err(e).context("Failed to check UDP port")?,
     }
@@ -100,6 +100,8 @@ pub fn get_platform() -> String {
     let platform = "linux-x86_64".to_string();
     #[cfg(all(target_os = "linux", target_arch = "arm"))]
     let platform = "linux-armv7".to_string();
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    let platform = "linux-aarch64".to_string();
     #[cfg(all(target_os = "linux", target_arch = "x86"))]
     let platform = "linux-i686".to_string();
     #[cfg(all(target_os = "windows", target_arch = "x86_64"))]

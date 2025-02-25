@@ -1,4 +1,5 @@
 use crate::config::MaskedString;
+use crate::utils::get_version_number;
 use anyhow::{bail, Context, Result};
 use bytes::{Bytes, BytesMut};
 use clap::ValueEnum;
@@ -9,6 +10,7 @@ use std::net::SocketAddr;
 use std::str::FromStr;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tracing::trace;
+use urlencoding::encode;
 
 #[derive(ValueEnum, Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Protocol {
@@ -30,6 +32,24 @@ pub enum Protocol {
     #[serde(rename = "webdav")]
     #[clap(name = "webdav")]
     WebDav,
+    #[serde(rename = "rtsp")]
+    #[clap(name = "rtsp")]
+    Rtsp,
+}
+
+impl Protocol {
+    pub fn default_port(&self) -> Option<u16> {
+        match self {
+            Protocol::Http => Some(80),
+            Protocol::Https => Some(443),
+            Protocol::Tcp => None,
+            Protocol::Udp => None,
+            Protocol::OneC => None,
+            Protocol::Minecraft => Some(25565),
+            Protocol::WebDav => None,
+            Protocol::Rtsp => Some(554),
+        }
+    }
 }
 
 impl Display for Protocol {
@@ -42,6 +62,7 @@ impl Display for Protocol {
             Protocol::OneC => write!(f, "1c"),
             Protocol::Minecraft => write!(f, "minecraft"),
             Protocol::WebDav => write!(f, "webdav"),
+            Protocol::Rtsp => write!(f, "rtsp"),
         }
     }
 }
@@ -58,6 +79,7 @@ impl FromStr for Protocol {
             "1c" => Ok(Protocol::OneC),
             "minecraft" => Ok(Protocol::Minecraft),
             "webdav" => Ok(Protocol::WebDav),
+            "rtsp" => Ok(Protocol::Rtsp),
             _ => bail!("Invalid protocol: {}", s),
         }
     }
@@ -68,6 +90,7 @@ pub enum Auth {
     #[default]
     NONE,
     BASIC,
+    FORM,
 }
 
 impl FromStr for Auth {
@@ -77,6 +100,7 @@ impl FromStr for Auth {
         match s {
             "none" => Ok(Auth::NONE),
             "basic" => Ok(Auth::BASIC),
+            "form" => Ok(Auth::FORM),
             _ => bail!("Invalid auth: {}", s),
         }
     }
@@ -87,6 +111,7 @@ impl Display for Auth {
         match self {
             Auth::NONE => write!(f, "none"),
             Auth::BASIC => write!(f, "basic"),
+            Auth::FORM => write!(f, "form"),
         }
     }
 }
@@ -136,12 +161,18 @@ pub struct ClientEndpoint {
     pub local_proto: Protocol,
     pub local_addr: String,
     pub local_port: u16,
+    #[serde(default)]
+    pub local_path: String,
     pub nodelay: Option<bool>,
     pub description: Option<String>,
     #[serde(default)]
     pub auth: Auth,
     #[serde(default)]
     pub acl: Vec<ACL>,
+    #[serde(default)]
+    pub username: String,
+    #[serde(default)]
+    pub password: MaskedString,
 }
 
 impl PartialEq for ClientEndpoint {
@@ -157,17 +188,43 @@ impl Display for ClientEndpoint {
         if let Some(name) = self.description.as_ref() {
             write!(f, "[{}] ", name)?;
         }
-        if self.local_proto == Protocol::OneC
-            || self.local_proto == Protocol::Minecraft
-            || self.local_proto == Protocol::WebDav
-        {
-            write!(f, "{}://{}", self.local_proto, self.local_addr)
-        } else {
-            write!(
-                f,
-                "{}://{}:{}",
-                self.local_proto, self.local_addr, self.local_port
-            )
+        write!(f, "{}", self.as_url())
+    }
+}
+
+impl ClientEndpoint {
+    pub fn credentials(&self) -> String {
+        let mut s = String::new();
+        if !self.username.is_empty() {
+            s.push_str(&encode(&self.username));
+        }
+        if !self.password.is_empty() {
+            s.push(':');
+            s.push_str(&encode(&self.password.0));
+        }
+        if !s.is_empty() {
+            s.push('@');
+        }
+        s
+    }
+
+    pub fn as_url(&self) -> String {
+        match self.local_proto {
+            Protocol::OneC | Protocol::Minecraft | Protocol::WebDav => {
+                let credentials = self.credentials();
+                format!("{}://{}{}", self.local_proto, credentials, &self.local_addr)
+            }
+            Protocol::Http | Protocol::Https | Protocol::Tcp | Protocol::Udp | Protocol::Rtsp => {
+                let credentials = self.credentials();
+                format!(
+                    "{}://{}{}:{}{}",
+                    self.local_proto,
+                    credentials,
+                    self.local_addr,
+                    self.local_port,
+                    self.local_path
+                )
+            }
         }
     }
 }
@@ -190,8 +247,13 @@ impl Display for ServerEndpoint {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(
             f,
-            "{} -> {}://{}:{}",
-            self.client, self.remote_proto, self.remote_addr, self.remote_port
+            "{} -> {}://{}{}:{}{}",
+            self.client,
+            self.remote_proto,
+            self.client.credentials(),
+            self.remote_addr,
+            self.remote_port,
+            self.client.local_path
         )
     }
 }
@@ -228,6 +290,30 @@ pub struct AgentInfo {
     pub gui: bool,
     #[serde(default)]
     pub platform: String,
+    #[serde(default)]
+    pub hwid: String,
+    #[serde(default)]
+    pub server_host_and_port: String,
+}
+
+impl AgentInfo {
+    pub fn is_support_upgrade(&self) -> bool {
+        get_version_number(&self.version) >= get_version_number("1.1.0")
+    }
+
+    pub fn is_support_pong(&self) -> bool {
+        get_version_number(&self.version) >= get_version_number("1.2.104")
+    }
+
+    pub fn is_support_redirect(&self) -> bool {
+        get_version_number(&self.version) >= get_version_number("1.3.2")
+    }
+}
+
+impl Display for AgentInfo {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.hostname)
+    }
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -256,6 +342,7 @@ pub enum Message {
     StartForwardUdp,
     Error(ErrorKind, String),
     UpgradeAvailable(UpgradeInfo),
+    Redirect(String),
 }
 
 type UdpPacketLen = u16; // `u16` should be enough for any practical UDP traffic on the Internet
@@ -336,9 +423,12 @@ impl UdpTraffic {
 }
 
 pub async fn read_message<T: AsyncRead + Unpin, M: DeserializeOwned>(conn: &mut T) -> Result<M> {
-    let mut buf = [0u8; std::mem::size_of::<usize>()];
+    let mut buf = [0u8; std::mem::size_of::<u64>()];
     conn.read_exact(&mut buf).await?;
-    let len = usize::from_le_bytes(buf);
+    let len = u64::from_le_bytes(buf) as usize;
+    if !(1..=1024 * 1024 * 10).contains(&len) {
+        bail!("Invalid message length: {}", len);
+    }
     let mut buf = vec![0u8; len];
     conn.read_exact(&mut buf).await?;
     Ok(serde_json::from_slice::<M>(&buf)?)
@@ -349,7 +439,7 @@ pub async fn write_message<T: AsyncWrite + Unpin, M: Serialize>(
     msg: &M,
 ) -> Result<()> {
     let json_msg = serde_json::to_string(msg)?;
-    let mut buf = json_msg.len().to_le_bytes().to_vec();
+    let mut buf = (json_msg.len() as u64).to_le_bytes().to_vec();
     buf.append(&mut json_msg.as_bytes().to_vec());
     conn.write_all(&buf).await?;
     conn.flush().await?;

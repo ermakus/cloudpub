@@ -20,8 +20,9 @@ use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::broadcast;
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 use walkdir::WalkDir;
+#[cfg(feature = "zip")]
 use zip::read::ZipArchive;
 
 pub const DOWNLOAD_SUBDIR: &str = "download";
@@ -125,7 +126,7 @@ pub async fn execute(
     let mut child = Command::new(command.clone())
         .args(args.clone())
         .kill_on_drop(true)
-        .current_dir(&chdir)
+        .current_dir(chdir)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .envs(envs)
@@ -218,6 +219,7 @@ pub async fn execute(
     Ok(())
 }
 
+#[cfg(feature = "zip")]
 pub fn unzip(
     message: &str,
     zip_file_path: &Path,
@@ -257,7 +259,7 @@ pub fn unzip(
         if target_path == extract_dir {
             continue;
         }
-        debug!("Extracting {:?}", target_path);
+        info!("Extracting {:?}", target_path);
         if file.is_dir() {
             std::fs::create_dir_all(target_path.clone())
                 .context(format!("unzip failed to create dir '{:?}'", target_path))?;
@@ -313,7 +315,7 @@ pub async fn download(
         .content_length()
         .context(format!("Failed to get content length from '{}'", &url))?;
 
-    if let Ok(file) = File::open(&path) {
+    if let Ok(file) = File::open(path) {
         if file
             .metadata()
             .context(format!("Failed to get metadata from '{:?}'", path))?
@@ -383,7 +385,7 @@ pub async fn download(
     result_tx
         .send(CommandResult::Progress(progress.clone()))
         .ok();
-    return Ok(());
+    Ok(())
 }
 
 pub fn compare_filenames(path1: &Path, path2: &Path) -> bool {
@@ -413,7 +415,7 @@ pub fn get_cache_dir(subdir: &str) -> Result<PathBuf> {
     let mut cache_dir = cache_dir().context("Can't get cache dir")?;
     cache_dir.push("cloudpub");
     if !subdir.is_empty() {
-        cache_dir.push(&subdir);
+        cache_dir.push(subdir);
     }
     std::fs::create_dir_all(cache_dir.clone()).context("Can't create cache dir")?;
     Ok(cache_dir)

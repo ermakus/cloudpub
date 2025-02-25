@@ -16,7 +16,7 @@ mod tcp;
 pub use tcp::{Listener, NamedSocketAddr, SocketAddr, Stream, TcpTransport};
 
 mod websocket;
-pub use websocket::WebsocketTransport;
+pub use websocket::{WebsocketTransport, WebsocketTunnel};
 
 #[cfg(feature = "rustls")]
 pub mod rustls;
@@ -180,7 +180,7 @@ impl SocketOpts {
             }
 
             #[cfg(target_os = "linux")]
-            if let Err(e) = set_reuse(&conn) {
+            if let Err(e) = set_reuse(conn) {
                 error!("{:#}", e);
             }
         }

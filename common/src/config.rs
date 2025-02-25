@@ -16,9 +16,13 @@ pub struct MaskedString(pub String);
 impl Debug for MaskedString {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
         if self.0.is_empty() {
-            return f.write_str("EMPTY");
+            f.write_str("EMPTY")
         } else {
-            f.write_str("MASKED")
+            #[cfg(debug_assertions)]
+            f.write_str(&self.0)?;
+            #[cfg(not(debug_assertions))]
+            f.write_str("MASKED")?;
+            Ok(())
         }
     }
 }
@@ -50,24 +54,13 @@ pub enum TransportType {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
+#[derive(Default)]
 pub struct TlsConfig {
     pub hostname: Option<String>,
     pub trusted_root: Option<String>,
     pub pkcs12: Option<String>,
     pub pkcs12_password: Option<MaskedString>,
     pub danger_ignore_certificate_verification: Option<bool>,
-}
-
-impl Default for TlsConfig {
-    fn default() -> Self {
-        Self {
-            hostname: None,
-            trusted_root: None,
-            pkcs12: None,
-            pkcs12_password: None,
-            danger_ignore_certificate_verification: None,
-        }
-    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -152,6 +145,15 @@ impl TransportConfig {
                 Ok(())
             }
             TransportType::Websocket => Ok(()),
+        }
+    }
+
+    pub fn notls() -> Self {
+        Self {
+            transport_type: TransportType::Websocket,
+            tcp: TcpConfig::default(),
+            tls: None,
+            websocket: WebsocketConfig { tls: false }.into(),
         }
     }
 }
