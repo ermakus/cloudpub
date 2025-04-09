@@ -271,7 +271,7 @@ impl Transport for WebsocketTransport {
     }
 
     async fn connect(&self, addr: &AddrMaybeCached) -> anyhow::Result<Self::Stream> {
-        let u = format!("wss://{}/endpoint", &addr.addr.as_str());
+        let u = format!("wss://{}/endpoint/v2", &addr.addr.as_str());
         let url = match Url::parse(&u) {
             Ok(parsed_url) => parsed_url,
             Err(e) => {

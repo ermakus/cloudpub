@@ -2,16 +2,14 @@ use anyhow::{bail, Context, Result};
 use clap::builder::TypedValueParser;
 use clap::{Args, Subcommand};
 use common::config::MaskedString;
-use common::protocol::{
-    Auth, ClientEndpoint, ErrorKind, Protocol, Role, ServerEndpoint, UpgradeInfo, ACL,
-};
+use common::protocol::{Acl, Auth, ClientEndpoint, DefaultPort, Header, Protocol, Role};
 use serde::{Deserialize, Serialize};
 use std::net::ToSocketAddrs;
 use std::str::FromStr;
 
 const ROLE_SEP: &str = ":";
 
-#[derive(Subcommand, Debug, Serialize, Deserialize, Clone)]
+#[derive(Subcommand, Debug, Clone)]
 pub enum Commands {
     #[clap(about = "Set value in the config")]
     Set(SetArgs),
@@ -35,6 +33,31 @@ pub enum Commands {
     Clean,
     #[clap(about = "Purge cache")]
     Purge,
+    #[clap(about = "Run ping test with TCP and UDP")]
+    Ping(PingArg),
+    #[clap(about = "Manage system service")]
+    Service {
+        #[clap(subcommand)]
+        action: ServiceAction,
+    },
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum ServiceAction {
+    #[clap(about = "Install as a system service")]
+    Install,
+
+    #[clap(about = "Uninstall the system service")]
+    Uninstall,
+
+    #[clap(about = "Start the service")]
+    Start,
+
+    #[clap(about = "Stop the service")]
+    Stop,
+
+    #[clap(about = "Get service status")]
+    Status,
 }
 
 #[derive(Args, Debug, Serialize, Deserialize, Clone)]
@@ -44,11 +67,19 @@ pub struct SetArgs {
 }
 
 #[derive(Args, Debug, Serialize, Deserialize, Clone)]
+pub struct PingArg {
+    #[clap(short = 'N', long = "num", help = "Number of parallel pings")]
+    pub num: Option<i32>,
+    #[clap(short = 'B', long = "bare", help = "Output time in µs")]
+    pub bare: bool,
+}
+
+#[derive(Args, Debug, Serialize, Deserialize, Clone)]
 pub struct GetArgs {
     pub key: String,
 }
 
-#[derive(Args, Debug, Serialize, Deserialize, Clone, Eq)]
+#[derive(Args, Debug, Clone)]
 pub struct PublishArgs {
     #[clap(help = "Protocol to use")]
     pub protocol: Protocol,
@@ -60,10 +91,12 @@ pub struct PublishArgs {
     pub password: Option<MaskedString>,
     #[clap(short, long, help = "Optional name of the service to publish")]
     pub name: Option<String>,
-    #[clap(short, long, help = "Authentification type", default_value = "none")]
+    #[clap(short, long, help = "Authentification type")]
     pub auth: Option<Auth>,
-    #[clap(short='A', long="acl", help = "Access list", value_parser = ACLParser)]
-    pub acl: Vec<ACL>,
+    #[clap(short='A', long="acl", help = "Access list", value_parser = AclParser)]
+    pub acl: Vec<Acl>,
+    #[clap(short='H', long="header", help = "HTTP headers", value_parser = HeaderParser)]
+    pub headers: Vec<Header>,
 }
 
 #[derive(Args, Debug, Serialize, Deserialize, Clone)]
@@ -80,14 +113,11 @@ pub struct UnpublishArgs {
 
 impl PublishArgs {
     pub fn parse(&self) -> Result<ClientEndpoint> {
-        let auth = self
-            .auth
-            .clone()
-            .unwrap_or(if self.protocol == Protocol::WebDav {
-                Auth::BASIC
-            } else {
-                Auth::NONE
-            });
+        let auth = self.auth.unwrap_or(if self.protocol == Protocol::Webdav {
+            Auth::Basic
+        } else {
+            Auth::None
+        });
         if self.address.contains("://") {
             let url = url::Url::parse(&self.address).context("Неверный URL")?;
             let local_proto = Protocol::from_str(url.scheme()).context("Неверный протокол")?;
@@ -111,19 +141,20 @@ impl PublishArgs {
             }
             Ok(ClientEndpoint {
                 description: self.name.clone(),
-                local_proto,
+                local_proto: local_proto.into(),
                 local_addr,
-                local_port,
+                local_port: local_port as u32,
                 local_path,
                 nodelay: Some(true),
-                auth,
+                auth: auth.into(),
                 acl: self.acl.clone(),
+                headers: self.headers.clone(),
                 username,
-                password,
+                password: password.0,
             })
         } else {
             let (local_addr, local_port, local_path) = match self.protocol {
-                Protocol::OneC | Protocol::Minecraft | Protocol::WebDav => {
+                Protocol::OneC | Protocol::Minecraft | Protocol::Webdav => {
                     (self.address.clone(), 0, String::new())
                 }
 
@@ -163,18 +194,20 @@ impl PublishArgs {
 
             Ok(ClientEndpoint {
                 description: self.name.clone(),
-                local_proto: self.protocol,
+                local_proto: self.protocol.into(),
                 local_addr,
-                local_port,
+                local_port: local_port as u32,
                 local_path,
                 nodelay: Some(true),
-                auth,
+                auth: auth.into(),
                 acl: self.acl.clone(),
+                headers: self.headers.clone(),
                 username: self.username.clone().unwrap_or("".to_string()),
                 password: self
                     .password
                     .clone()
-                    .unwrap_or(MaskedString("".to_string())),
+                    .unwrap_or(MaskedString("".to_string()))
+                    .to_string(),
             })
         }
     }
@@ -186,72 +219,40 @@ impl PartialEq for PublishArgs {
     }
 }
 
-impl From<ClientEndpoint> for PublishArgs {
-    fn from(val: ClientEndpoint) -> Self {
-        PublishArgs {
-            protocol: val.local_proto,
-            address: match val.local_proto {
-                Protocol::OneC | Protocol::Minecraft | Protocol::WebDav => val.local_addr.clone(),
-                Protocol::Http
-                | Protocol::Https
-                | Protocol::Tcp
-                | Protocol::Udp
-                | Protocol::Rtsp => {
-                    format!("{}:{}{}", val.local_addr, val.local_port, val.local_path)
-                }
-            },
-            name: val.description,
-            auth: Some(val.auth),
-            acl: val.acl,
-            username: if val.username.is_empty() {
-                None
-            } else {
-                Some(val.username.clone())
-            },
-            password: if val.password.is_empty() {
-                None
-            } else {
-                Some(val.password.clone())
-            },
+const HEADER_SEP: &str = ":";
+
+#[derive(Debug, Clone)]
+struct HeaderParser;
+
+impl TypedValueParser for HeaderParser {
+    type Value = Header;
+
+    fn parse_ref(
+        &self,
+        _cmd: &clap::Command,
+        _arg: Option<&clap::Arg>,
+        value: &std::ffi::OsStr,
+    ) -> Result<Self::Value, clap::Error> {
+        let value = value.to_string_lossy();
+        let parts: Vec<&str> = value.splitn(2, HEADER_SEP).collect();
+        if parts.len() != 2 {
+            return Err(clap::Error::raw(
+                clap::error::ErrorKind::ValueValidation,
+                format!("Invalid Header format (should be 'name:value'): {}", value),
+            ));
         }
+        Ok(Header {
+            name: parts[0].trim().to_string(),
+            value: parts[1].trim().to_string(),
+        })
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ProgressInfo {
-    pub message: String,
-    pub template: String,
-    pub current: u64,
-    pub total: u64,
-}
+#[derive(Debug, Clone)]
+struct AclParser;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[allow(clippy::large_enum_variant)]
-pub enum CommandResult {
-    Ok(String),
-    Connecting,
-    Connected,
-    Disconnected,
-    Progress(ProgressInfo),
-    Published(ServerEndpoint),
-    Unpublished(String),
-    Removed(String),
-    Error(ErrorKind, String),
-    UpgradeAvailable(UpgradeInfo),
-    Exit,
-}
-
-impl From<anyhow::Error> for CommandResult {
-    fn from(err: anyhow::Error) -> Self {
-        CommandResult::Error(ErrorKind::Fatal, format!("{:?}", err))
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct ACLParser;
-
-impl TypedValueParser for ACLParser {
-    type Value = ACL;
+impl TypedValueParser for AclParser {
+    type Value = Acl;
 
     fn parse_ref(
         &self,
@@ -264,7 +265,7 @@ impl TypedValueParser for ACLParser {
         if parts.len() != 2 {
             return Err(clap::Error::raw(
                 clap::error::ErrorKind::ValueValidation,
-                format!("Invalid ACL: {}", value),
+                format!("Invalid Acl: {}", value),
             ));
         }
         let role = Role::from_str(parts[1]).map_err(|_err| {
@@ -273,9 +274,9 @@ impl TypedValueParser for ACLParser {
                 format!("Invalid role: {}", parts[1]),
             )
         })?;
-        Ok(ACL {
+        Ok(Acl {
             user: parts[0].to_string(),
-            role,
+            role: role.into(),
         })
     }
 }

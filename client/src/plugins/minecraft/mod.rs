@@ -1,8 +1,9 @@
-use crate::commands::{CommandResult, Commands};
 use crate::config::ClientConfig;
 use crate::shell::{download, get_cache_dir, SubProcess};
 use anyhow::{bail, Context, Result};
+use common::protocol::message::Message;
 use common::protocol::ServerEndpoint;
+use common::utils::free_port_for_bind;
 use parking_lot::RwLock;
 use regex::Regex;
 use std::path::PathBuf;
@@ -51,8 +52,8 @@ fn get_java() -> Result<PathBuf> {
 
 pub async fn setup(
     config: Arc<RwLock<ClientConfig>>,
-    command_rx: broadcast::Receiver<Commands>,
-    result_tx: broadcast::Sender<CommandResult>,
+    command_rx: broadcast::Receiver<Message>,
+    result_tx: broadcast::Sender<Message>,
 ) -> Result<()> {
     info!("Setup minecraft server");
 
@@ -144,11 +145,12 @@ pub async fn setup(
 }
 
 pub async fn publish(
-    endpoint: &ServerEndpoint,
+    endpoint: &mut ServerEndpoint,
     config: Arc<RwLock<ClientConfig>>,
-    result_tx: broadcast::Sender<CommandResult>,
+    result_tx: broadcast::Sender<Message>,
 ) -> Result<SubProcess> {
-    let minecraft_dir: PathBuf = endpoint.client.local_addr.clone().into();
+    free_port_for_bind(endpoint).await?;
+    let minecraft_dir: PathBuf = endpoint.client.as_ref().unwrap().local_addr.clone().into();
     std::fs::create_dir_all(&minecraft_dir).context("Ошибка создания директории сервера")?;
 
     let download_dir = get_cache_dir(DOWNLOAD_SUBDIR)?;
@@ -173,19 +175,29 @@ pub async fn publish(
 
     // Read the server config file and replace 'server-port=XXXX' with the new port
     let server_config = re.replace_all(&server_config, |_caps: &regex::Captures| {
-        let new_port = endpoint.client.local_port.to_string();
+        let new_port = endpoint.client.as_ref().unwrap().local_port.to_string();
         format!("server-port={}", new_port)
     });
 
     std::fs::write(&server_cfg, server_config.to_string())
         .context("Ошибка записи server.properties")?;
 
-    let mut args = vec![
-        "-Xmx1024M".to_string(),
-        "-Xms1024M".to_string(),
-        "-jar".to_string(),
-        minecraft_file.to_str().unwrap().to_string(),
-    ];
+    // Use custom Java options if provided, otherwise use defaults
+    let java_opts = config
+        .read()
+        .minecraft_java_opts
+        .clone()
+        .unwrap_or("-Xmx2048M -Xms2048M".to_string());
+
+    // Split the Java options string into individual arguments
+    let mut args: Vec<String> = java_opts
+        .split_whitespace()
+        .map(|s| s.to_string())
+        .collect();
+
+    // Add the jar file argument
+    args.push("-jar".to_string());
+    args.push(minecraft_file.to_str().unwrap().to_string());
 
     if !config.read().gui {
         args.push("nogui".to_string());

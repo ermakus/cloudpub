@@ -4,9 +4,10 @@ use backoff::future::retry_notify;
 use backoff::ExponentialBackoff;
 use bytes::{Bytes, BytesMut};
 use common::config::TransportType;
+use common::protocol::message::Message;
 use common::protocol::{
-    read_message, write_message, AgentInfo, DataChannelInfo, ErrorKind, Message, Protocol,
-    ServerEndpoint, UdpTraffic,
+    read_message, write_message, AgentInfo, ConnectState, DataChannelInfo, EndpointRemove,
+    EndpointStop, ErrorInfo, ErrorKind, HeartBeat, Protocol, ServerEndpoint, UdpTraffic,
 };
 use common::transport::{
     AddrMaybeCached, SocketOpts, TcpTransport, TlsTransport, Transport, WebsocketTransport,
@@ -27,9 +28,7 @@ use common::constants::{
     run_control_chan_backoff, DEFAULT_CLIENT_RETRY_INTERVAL_SECS, UDP_BUFFER_SIZE, UDP_SENDQ_SIZE,
     UDP_TIMEOUT,
 };
-use common::utils::find_free_tcp_port;
 
-use crate::commands::{CommandResult, Commands};
 use crate::config::ClientConfig;
 use crate::shell::SubProcess;
 use machineid_rs::{Encryption, HWIDComponent, IdBuilder};
@@ -49,7 +48,7 @@ type Services<T> = Arc<RwLock<HashMap<String, Service<T>>>>;
 
 impl<T: Transport> Debug for DataChannel<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.endpoint.client.to_string())
+        f.write_str(&self.endpoint.client.as_ref().unwrap().to_string())
     }
 }
 
@@ -79,8 +78,8 @@ impl<T: 'static + Transport> Client<T> {
     // The entrypoint of Client
     async fn run(
         &mut self,
-        command_rx: broadcast::Receiver<Commands>,
-        result_tx: broadcast::Sender<CommandResult>,
+        command_rx: broadcast::Receiver<Message>,
+        result_tx: broadcast::Sender<Message>,
     ) -> Result<()> {
         let result_tx = result_tx.clone();
         let transport = self.transport.clone();
@@ -92,7 +91,7 @@ impl<T: 'static + Transport> Client<T> {
 
         let mut start = Instant::now();
         result_tx
-            .send(CommandResult::Connecting)
+            .send(Message::ConnectState(ConnectState::Connecting.into()))
             .context("Can't send Connecting event")?;
         while let Err(err) = self
             .run_control_channel(
@@ -106,18 +105,23 @@ impl<T: 'static + Transport> Client<T> {
             error!("Control channel error: {:?}", err);
             let is_disconnected = !services.read().is_empty();
 
+            if result_tx.receiver_count() == 0 {
+                // The client is shutting down
+                break;
+            }
+
             if is_disconnected {
                 result_tx
-                    .send(CommandResult::Error(
-                        ErrorKind::HandshakeFailed,
-                        "Ошибка сети, пробуем еще раз.".to_string(),
-                    ))
+                    .send(Message::Error(ErrorInfo {
+                        kind: ErrorKind::HandshakeFailed.into(),
+                        message: "Ошибка сети, пробуем еще раз.".to_string(),
+                    }))
                     .context("Can't send Error event")?;
                 result_tx
-                    .send(CommandResult::Disconnected)
+                    .send(Message::ConnectState(ConnectState::Disconnected.into()))
                     .context("Can't send Disconnected event")?;
                 result_tx
-                    .send(CommandResult::Connecting)
+                    .send(Message::ConnectState(ConnectState::Connecting.into()))
                     .context("Can't send Connecting event")?;
             }
 
@@ -145,8 +149,8 @@ impl<T: 'static + Transport> Client<T> {
         &mut self,
         config: Arc<RwLock<ClientConfig>>,
         transport: Arc<T>,
-        mut command_rx: broadcast::Receiver<Commands>,
-        result_tx: broadcast::Sender<CommandResult>,
+        mut command_rx: broadcast::Receiver<Message>,
+        result_tx: broadcast::Sender<Message>,
     ) -> Result<()> {
         config.read().validate().context("Invalid configuration")?;
         let url = config.read().server.clone();
@@ -179,7 +183,7 @@ impl<T: 'static + Transport> Client<T> {
 
             let agent_info = AgentInfo {
                 agent_id: config.read().agent_id.clone(),
-                token: config.read().token.clone().unwrap(),
+                token: config.read().token.clone().unwrap().to_string(),
                 hostname: hostname::get()?.into_string().unwrap(),
                 version: VERSION.to_string(),
                 gui: config.read().gui,
@@ -201,17 +205,17 @@ impl<T: 'static + Transport> Client<T> {
                 .await
                 .context("Failed to read ack message")?
             {
-                Message::AgentAck => break (conn, remote_addr),
-                Message::Redirect(new_host_and_port) => {
-                    host_and_port = new_host_and_port;
+                Message::AgentAck(_) => break (conn, remote_addr),
+                Message::Redirect(r) => {
+                    host_and_port = r.host_and_port;
                     debug!("Redirecting to {}", host_and_port);
                     continue;
                 }
-                Message::Error(kind, msg) => {
+                Message::Error(err) => {
                     result_tx
-                        .send(CommandResult::Error(kind.clone(), msg.clone()))
+                        .send(Message::Error(err.clone()))
                         .context("Can't send server error event")?;
-                    bail!("Error: {:?} {}", kind, msg);
+                    bail!("Error: {:?}", err.kind);
                 }
                 v => bail!("Unexpected ack message: {:?}", v),
             };
@@ -220,7 +224,7 @@ impl<T: 'static + Transport> Client<T> {
         debug!("Control channel established");
 
         result_tx
-            .send(CommandResult::Connected)
+            .send(Message::ConnectState(ConnectState::Connected.into()))
             .context("Can't send Connected event")?;
 
         loop {
@@ -230,23 +234,25 @@ impl<T: 'static + Transport> Client<T> {
                 cmd = command_rx.recv() => {
                     if let Ok(cmd) = cmd {
                         match cmd {
-                            Commands::Publish(args) | Commands::Register(args) => {
+                            Message::EndpointStart(client) => {
+                                info!("Publishing service: {:?}", client);
+                                let protocol: Protocol = client.local_proto.try_into().unwrap();
                                 let server_endpoint = ServerEndpoint {
                                     guid: String::new(),
-                                    client: args.parse()?,
+                                    client: Some(client.clone()),
                                     status: Some("offline".to_string()),
-                                    remote_proto: args.protocol,
+                                    remote_proto: protocol.into(),
                                     remote_addr: String::new(),
                                     remote_port: 0,
+                                    id: 0,
                                     bind_addr: String::new(),
-                                    id: None,
                                 };
 
-                                result_tx.send(CommandResult::Published(server_endpoint)).context("Can't send Published event")?;
+                                result_tx.send(Message::EndpointAck(server_endpoint.clone())).context("Can't send Published event")?;
 
-                                let err: anyhow::Result<()> = match args.protocol {
+                                let err: anyhow::Result<()> = match protocol {
                                     #[cfg(feature = "plugins")]
-                                    Protocol::WebDav => {
+                                    Protocol::Webdav => {
                                         crate::plugins::webdav::setup(config.clone(), command_rx.resubscribe(), result_tx.clone()).await
                                     }
                                     #[cfg(feature = "plugins")]
@@ -258,7 +264,7 @@ impl<T: 'static + Transport> Client<T> {
                                         crate::plugins::minecraft::setup(config.clone(), command_rx.resubscribe(), result_tx.clone()).await
                                     }
                                     #[cfg(not(feature = "plugins"))]
-                                    Protocol::WebDav | Protocol::OneC | Protocol::Minecraft => {
+                                    Protocol::Webdav | Protocol::OneC | Protocol::Minecraft => {
                                         Err(anyhow!("Unsupported protocol: plugins support is not enabled"))
                                     }
                                     Protocol::Tcp | Protocol::Udp | Protocol::Http |
@@ -270,37 +276,47 @@ impl<T: 'static + Transport> Client<T> {
 
                                 if let Err(err) = err {
                                     error!("{:?}", err);
-                                    result_tx.send(CommandResult::Error(ErrorKind::Fatal, err.to_string())).context("Can't send Error event")?;
+                                    result_tx.send(Message::Error(
+                                        ErrorInfo {
+                                            kind: ErrorKind::Fatal.into(),
+                                            message: err.to_string()
+                                        })
+                                    ).context("Can't send Error event")?;
                                     continue;
                                 }
-                                info!("Publishing service: {:?}", args);
-                                let msg = Message::EndpointStart(args.parse()?);
+                                let msg = Message::EndpointStart(client);
                                 write_message(&mut conn, &msg).await.context("Failed to send message")?;
                             }
-                            Commands::Unpublish(service) => {
-                                info!("Unpublishing service: {:?}", service);
-                                let msg = Message::EndpointStop(service.guid.clone());
-                                write_message(&mut conn, &msg).await.context("Failed to send message")?;
 
+                            Message::EndpointStop(ep) => {
+                                info!("Unpublishing service: {:?}", ep.guid);
                                 // Stop server process if needed
-                                if let Some(mut srv) = self.servers.remove(&service.guid) {
+                                if let Some(mut srv) = self.servers.remove(&ep.guid) {
                                     srv.0.stop();
                                 }
+                                let msg = Message::EndpointStop(EndpointStop { guid: ep.guid });
+                                write_message(&mut conn, &msg).await.context("Failed to send message")?;
 
-                                if service.remove {
-                                    result_tx.send(CommandResult::Removed(service.guid)).context("Can't send Removed event")?;
-                                } else {
-                                    result_tx.send(CommandResult::Unpublished(service.guid)).context("Can't send Unpublished event")?;
-                                }
                             }
-                            Commands::Stop => {
-                                debug!("Shutting down gracefully...");
+
+                            Message::EndpointRemove(ep) => {
+                                info!("Remove service: {:?}", ep.guid);
+                                // Stop server process if needed
+                                if let Some(mut srv) = self.servers.remove(&ep.guid) {
+                                    srv.0.stop();
+                                }
+                                let msg = Message::EndpointRemove(EndpointRemove { guid: ep.guid });
+                                write_message(&mut conn, &msg).await.context("Failed to send message")?;
+                            }
+
+
+                            Message::Stop(_) => {
+                                info!("Stopping the client");
                                 break;
                             }
-                            Commands::Break => {
-                                debug!("Break signal");
+                            cmd => {
+                                write_message(&mut conn, &cmd).await.context("Failed to send message")?;
                             }
-                            _ => unreachable!(),
                         };
                     } else {
                         debug!("No more commands, shutting down...");
@@ -313,32 +329,27 @@ impl<T: 'static + Transport> Client<T> {
                     match val {
                         Message::CreateDataChannel(mut endpoint) => {
 
-                            let socket_opts = SocketOpts::nodelay(endpoint.client.nodelay);
+                            let socket_opts = SocketOpts::nodelay(endpoint.client.as_ref().unwrap().nodelay);
 
-                            let maybe_port = if let Some(s) = self.servers.get(&endpoint.guid) {
-                                endpoint.client.local_port = s.1;
-                                endpoint.client.local_addr = "localhost".to_string();
+                            if let Some(s) = self.servers.get(&endpoint.guid) {
+                                let client = endpoint.client.as_mut().unwrap();
+                                client.local_port = s.1 as u32;
+                                client.local_addr = "localhost".to_string();
                                 Some(s.1)
                             } else {
-                                None
-                            };
-
-                            if maybe_port.is_none() {
-                                let res: Option<anyhow::Result<SubProcess>> = match endpoint.client.local_proto {
+                                let protocol: Protocol = endpoint.client.as_ref().unwrap().local_proto.try_into().context("Unsupported protocol")?;
+                                let res: Option<anyhow::Result<SubProcess>> = match protocol {
                                     #[cfg(feature = "plugins")]
                                     Protocol::OneC => {
-                                        endpoint.client.local_port = find_free_tcp_port().await.context("Failed to find free port")?;
-                                        Some(crate::plugins::onec::publish(&endpoint, config.clone(),result_tx.clone()).await)
+                                        Some(crate::plugins::onec::publish(&mut endpoint, config.clone(),result_tx.clone()).await)
                                     },
                                     #[cfg(feature = "plugins")]
                                     Protocol::Minecraft => {
-                                        endpoint.client.local_port = find_free_tcp_port().await.context("Failed to find free port")?;
-                                        Some(crate::plugins::minecraft::publish(&endpoint, config.clone(),result_tx.clone()).await)
+                                        Some(crate::plugins::minecraft::publish(&mut endpoint, config.clone(),result_tx.clone()).await)
                                     },
                                     #[cfg(feature = "plugins")]
-                                    Protocol::WebDav => {
-                                        endpoint.client.local_port = find_free_tcp_port().await.context("Failed to find free port")?;
-                                        Some(crate::plugins::webdav::publish(&endpoint, config.clone(),result_tx.clone()).await)
+                                    Protocol::Webdav => {
+                                        Some(crate::plugins::webdav::publish(&mut endpoint, config.clone(),result_tx.clone()).await)
                                     },
                                     _ => {
                                         None
@@ -346,17 +357,22 @@ impl<T: 'static + Transport> Client<T> {
                                 };
                                 match res {
                                     Some(Ok(p)) => {
-                                        endpoint.client.local_addr = "localhost".to_string();
-                                        self.servers.insert(endpoint.guid.clone(), (p, endpoint.client.local_port));
+                                        self.servers.insert(endpoint.guid.clone(), (p, endpoint.client.as_ref().unwrap().local_port as u16));
                                     }
                                     Some(Err(err)) => {
                                         error!("{:?}", err);
-                                        result_tx.send(CommandResult::Error(ErrorKind::Fatal, err.to_string())).context("Can't send Error event")?;
+                                        result_tx.send(Message::Error(
+                                            ErrorInfo {
+                                                kind: ErrorKind::Fatal.into(),
+                                                message: err.to_string()
+                                            })
+                                        ).context("Can't send Error event")?;
                                         continue;
                                     }
                                     None => {}
                                 }
-                            }
+                                None
+                            };
 
 
                             let service = Arc::new(DataChannel {
@@ -371,25 +387,14 @@ impl<T: 'static + Transport> Client<T> {
                                 if let Err(e) = run_data_channel(service).await.context("Failed to run the data channel") {
                                     error!("{:?}", e);
                                 }
-                                info!("Data channel shutdown");
+                                debug!("Data channel shutdown");
                             });
                         },
-                        Message::EndpointAck(endpoint) => {
-                            result_tx.send(CommandResult::Published(endpoint)).context("Can't send Published event")?;
-                        },
-                        Message::HeartBeat => {
-                            write_message(&mut conn, &Message::HeartBeat).await.context("Failed to send heartbeat")?;
-                        },
-                        Message::Error(kind, msg) => {
-                            info!("Server error: {:?} {}", kind, msg);
-                            result_tx.send(CommandResult::Error(kind.clone(), msg.clone())).context("Can't send Error event")?;
-                        },
-                        Message::UpgradeAvailable(info) => {
-                            info!("Upgrade available: {:?}", info);
-                            result_tx.send(CommandResult::UpgradeAvailable(info)).context("Can't send UpgradeAvailable event")?;
+                        Message::HeartBeat(_) => {
+                            write_message(&mut conn, &Message::HeartBeat(HeartBeat{})).await.context("Failed to send heartbeat")?;
                         },
                         v => {
-                            warn!("Unexpected message: {:?}", v);
+                            result_tx.send(v).context("Can't send server message")?;
                         }
                     }
                 },
@@ -401,7 +406,7 @@ impl<T: 'static + Transport> Client<T> {
 
         info!("Control channel shutdown");
         result_tx
-            .send(CommandResult::Disconnected)
+            .send(Message::ConnectState(ConnectState::Disconnected.into()))
             .context("Can't send Disconnected event")?;
         Ok(())
     }
@@ -457,19 +462,17 @@ async fn run_data_channel<T: Transport>(service: Service<T>) -> Result<()> {
         .await
         .context("Failed to handshake data channel")?;
 
-    let (local_addr, local_port) = (
-        service.endpoint.client.local_addr.clone(),
-        service.endpoint.client.local_port,
-    );
+    let client = service.endpoint.client.as_ref().unwrap();
+    let (local_addr, local_port) = (client.local_addr.clone(), client.local_port as u16);
 
     tokio::select! {
     // Forward
         msg = read_message(&mut conn) => {
             match msg {
-                Ok(Message::StartForwardTcp) => {
+                Ok(Message::StartForwardTcp(_)) => {
                     run_data_channel_for_tcp::<T>(conn,  &local_addr, local_port).await.context("Failed to run TCP data channel")?;
                 }
-                Ok(Message::StartForwardUdp) => {
+                Ok(Message::StartForwardUdp(_)) => {
                     run_data_channel_for_udp::<T>(conn, &local_addr, local_port).await.context("Failed to run UDP data channel")?;
                 }
                 Ok(msg) => {
@@ -647,8 +650,8 @@ async fn run_udp_forwarder(
 // The entrypoint of running a client
 pub async fn run_client(
     config: Arc<RwLock<ClientConfig>>,
-    command_rx: broadcast::Receiver<Commands>,
-    result_tx: broadcast::Sender<CommandResult>,
+    command_rx: broadcast::Receiver<Message>,
+    result_tx: broadcast::Sender<Message>,
 ) -> Result<()> {
     let transport_type = config.read().transport.transport_type;
     match transport_type {

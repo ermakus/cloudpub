@@ -1,7 +1,7 @@
-use crate::commands::{CommandResult, Commands};
 use crate::config::{ClientConfig, EnvConfig};
 use crate::shell::{download, get_cache_dir, unzip, SubProcess, DOWNLOAD_SUBDIR};
 use anyhow::{Context, Result};
+use common::protocol::message::Message;
 use common::protocol::ServerEndpoint;
 use parking_lot::RwLock;
 use std::collections::HashMap;
@@ -15,8 +15,8 @@ pub const HTTPD_EXE: &str = "httpd";
 
 pub async fn setup_httpd(
     config: Arc<RwLock<ClientConfig>>,
-    command_rx: broadcast::Receiver<Commands>,
-    result_tx: broadcast::Sender<CommandResult>,
+    command_rx: broadcast::Receiver<Message>,
+    result_tx: broadcast::Sender<Message>,
     env: EnvConfig,
 ) -> Result<()> {
     let cache_dir = get_cache_dir(DOWNLOAD_SUBDIR)?;
@@ -112,7 +112,7 @@ pub async fn start_httpd(
     config_subdir: &str,
     publish_dir: &str,
     env: EnvConfig,
-    result_tx: broadcast::Sender<CommandResult>,
+    result_tx: broadcast::Sender<Message>,
 ) -> Result<SubProcess> {
     let httpd_dir = get_cache_dir(&env.httpd_dir)?;
     let configs_dir = get_cache_dir(config_subdir)?;
@@ -128,7 +128,10 @@ pub async fn start_httpd(
 
     let httpd_config = config_template.replace("[[PUBLISH_DIR]]", publish_dir);
     let httpd_config = httpd_config.replace("[[SRVROOT]]", httpd_dir.to_str().unwrap());
-    let httpd_config = httpd_config.replace("[[PORT]]", &endpoint.client.local_port.to_string());
+    let httpd_config = httpd_config.replace(
+        "[[PORT]]",
+        &endpoint.client.as_ref().unwrap().local_port.to_string(),
+    );
     let httpd_config = httpd_config.replace("[[PID_FILE]]", pid_file.to_str().unwrap());
     let httpd_config = httpd_config.replace("[[LOCK_FILE]]", lock_file.to_str().unwrap());
 

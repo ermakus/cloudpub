@@ -10,7 +10,7 @@ pub const DEFAULT_CLIENT_RETRY_INTERVAL_SECS: u64 = 60;
 pub const DEFAULT_SERVER: &str = "https://cloudpub.ru/";
 
 /// Server
-pub const CHAN_SIZE: usize = 2048; // The capacity of various chans
+pub const CHAN_SIZE: usize = 1; // The capacity of various chans
 pub const HANDSHAKE_TIMEOUT: u64 = 5; // Timeout for transport handshake
 
 /// TCP
@@ -23,6 +23,9 @@ pub const DEFAULT_KEEPALIVE_INTERVAL: u64 = 8;
 pub const UDP_BUFFER_SIZE: usize = 2048;
 pub const UDP_SENDQ_SIZE: usize = 1024;
 pub const UDP_TIMEOUT: u64 = 60;
+
+// Pingora service param
+pub const LISTENERS_PER_FD: usize = 1;
 
 pub fn listen_backoff() -> ExponentialBackoff {
     ExponentialBackoff {

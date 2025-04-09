@@ -1,6 +1,6 @@
 [package]
 name = "common"
-version = "1.4.79"
+version = "1.5.190"
 edition = "2021"
 authors = ["Anton Ermak <anton@ermak.dev>"]
 description = "Common code for the client, server, and GUI"
@@ -19,9 +19,12 @@ rustls = [
     "p12",
 ]
 
+[build-dependencies]
+prost-build = "0.12.3"
+
 [dependencies]
 tokio = { version = "1", features = ["full"] }
-tokio-unix-tcp = "0.2.0"
+tokio-unix-tcp = { git="https://github.com/ermakus/tokio-unix-tcp.git", branch="master" }
 bytes = { version = "1", features = ["serde"] }
 clap = { version = "4.5.7", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -30,6 +33,7 @@ bincode = "1"
 lazy_static = "1.4"
 backoff = { version = "0.4", features = ["tokio"] }
 rand = "0.8"
+prost = "0.13.5"
 
 # Server tracing
 tracing = "0.1"

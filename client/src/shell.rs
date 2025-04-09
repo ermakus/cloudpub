@@ -5,8 +5,8 @@ use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 
-use crate::commands::{CommandResult, Commands, ProgressInfo};
-use common::protocol::ErrorKind;
+use common::protocol::message::Message;
+use common::protocol::{Break, ErrorInfo, ErrorKind, ProgressInfo};
 use common::transport::rustls::load_roots;
 use dirs::cache_dir;
 use futures::stream::StreamExt;
@@ -28,7 +28,7 @@ use zip::read::ZipArchive;
 pub const DOWNLOAD_SUBDIR: &str = "download";
 
 pub struct SubProcess {
-    shutdown_tx: broadcast::Sender<Commands>,
+    shutdown_tx: broadcast::Sender<Message>,
 }
 
 impl SubProcess {
@@ -37,21 +37,24 @@ impl SubProcess {
         args: Vec<String>,
         chdir: Option<PathBuf>,
         envs: HashMap<String, String>,
-        result_tx: broadcast::Sender<CommandResult>,
+        result_tx: broadcast::Sender<Message>,
     ) -> Self {
         let (shutdown_tx, shutdown_rx) = broadcast::channel(1);
         tokio::spawn(async move {
             if let Err(err) = execute(command, args, chdir, envs, None, shutdown_rx).await {
                 error!("Failed to execute command: {:?}", err);
                 result_tx
-                    .send(CommandResult::Error(ErrorKind::Fatal, err.to_string()))
+                    .send(Message::Error(ErrorInfo {
+                        kind: ErrorKind::Fatal.into(),
+                        message: err.to_string(),
+                    }))
                     .ok();
             } else {
                 result_tx
-                    .send(CommandResult::Error(
-                        ErrorKind::Fatal,
-                        "Процесс сервера был неожиданно завершен".to_string(),
-                    ))
+                    .send(Message::Error(ErrorInfo {
+                        kind: ErrorKind::Fatal.into(),
+                        message: "Процесс сервера был неожиданно завершен".to_string(),
+                    }))
                     .ok();
             }
         });
@@ -59,7 +62,7 @@ impl SubProcess {
     }
 
     pub fn stop(&mut self) {
-        self.shutdown_tx.send(Commands::Break).ok();
+        self.shutdown_tx.send(Message::Break(Break {})).ok();
     }
 }
 
@@ -74,15 +77,15 @@ pub async fn send_progress(
     template: &str,
     total: u64,
     current: u64,
-    progress_tx: broadcast::Sender<CommandResult>,
+    progress_tx: broadcast::Sender<Message>,
 ) {
     let progress = ProgressInfo {
         message: message.to_string(),
         template: template.to_string(),
-        total,
-        current,
+        total: total as u32,
+        current: current as u32,
     };
-    progress_tx.send(CommandResult::Progress(progress)).ok();
+    progress_tx.send(Message::Progress(progress)).ok();
 }
 
 pub async fn execute(
@@ -90,8 +93,8 @@ pub async fn execute(
     args: Vec<String>,
     chdir: Option<PathBuf>,
     envs: HashMap<String, String>,
-    progress: Option<(String, broadcast::Sender<CommandResult>, u64)>,
-    mut shutdown_rx: broadcast::Receiver<Commands>,
+    progress: Option<(String, broadcast::Sender<Message>, u64)>,
+    mut shutdown_rx: broadcast::Receiver<Message>,
 ) -> Result<()> {
     info!(
         "Executing command: {} {}",
@@ -199,7 +202,7 @@ pub async fn execute(
         }
 
         cmd = shutdown_rx.recv() => match cmd {
-            Ok(Commands::Stop) | Ok(Commands::Break) => {
+            Ok(Message::Stop(_)) | Ok(Message::Break(_)) => {
                 info!("Received break command, killing child process");
                 child.kill().await.ok();
             }
@@ -225,7 +228,7 @@ pub fn unzip(
     zip_file_path: &Path,
     extract_dir: &Path,
     skip: usize,
-    result_tx: broadcast::Sender<CommandResult>,
+    result_tx: broadcast::Sender<Message>,
 ) -> Result<()> {
     info!("Unzipping {:?} to {:?}", zip_file_path, extract_dir);
     let file = File::open(zip_file_path)?;
@@ -239,13 +242,11 @@ pub fn unzip(
     let mut progress = ProgressInfo {
         message: message.to_string(),
         template: TEMPLATE.to_string(),
-        total: archive.len() as u64,
+        total: archive.len() as u32,
         current: 0,
     };
 
-    result_tx
-        .send(CommandResult::Progress(progress.clone()))
-        .ok();
+    result_tx.send(Message::Progress(progress.clone())).ok();
 
     for i in 0..archive.len() {
         let mut file = archive
@@ -269,11 +270,9 @@ pub fn unzip(
             io::copy(&mut file, &mut output_file).context("unzip failed to copy file")?;
         }
 
-        progress.current = (i + 1) as u64;
+        progress.current = (i + 1) as u32;
         if progress.current % 100 == 0 || progress.current == progress.total {
-            result_tx
-                .send(CommandResult::Progress(progress.clone()))
-                .ok();
+            result_tx.send(Message::Progress(progress.clone())).ok();
         }
     }
 
@@ -285,8 +284,8 @@ pub async fn download(
     config: Arc<RwLock<ClientConfig>>,
     url: &str,
     path: &Path,
-    mut command_rx: broadcast::Receiver<Commands>,
-    result_tx: broadcast::Sender<CommandResult>,
+    mut command_rx: broadcast::Receiver<Message>,
+    result_tx: broadcast::Sender<Message>,
 ) -> Result<()> {
     info!("Downloading {} to {:?}", url, path);
 
@@ -331,13 +330,11 @@ pub async fn download(
     let mut progress = ProgressInfo {
         message: message.to_string(),
         template: TEMPLATE.to_string(),
-        total: total_size,
+        total: total_size as u32,
         current: 0,
     };
 
-    result_tx
-        .send(CommandResult::Progress(progress.clone()))
-        .ok();
+    result_tx.send(Message::Progress(progress.clone())).ok();
 
     // download chunks
     let mut file = File::create(path).context(format!("Failed to create file '{:?}'", path))?;
@@ -347,16 +344,16 @@ pub async fn download(
         tokio::select! {
             cmd = command_rx.recv() => {
                 match cmd {
-                    Ok(Commands::Stop) | Ok(Commands::Break) => {
+                    Ok(Message::Stop(_)) | Ok(Message::Break(_)) => {
                         info!("Download cancelled");
-                        progress.total = total_size;
-                        result_tx.send(CommandResult::Progress(progress.clone())).ok();
+                        progress.total = total_size as u32;
+                        result_tx.send(Message::Progress(progress.clone())).ok();
                         bail!("Download cancelled");
                     }
                     Err(err) => {
                         error!("Command channel error: {:?}", err);
-                        progress.total = total_size;
-                        result_tx.send(CommandResult::Progress(progress.clone())).ok();
+                        progress.total = total_size as u32;
+                        result_tx.send(Message::Progress(progress.clone())).ok();
                         bail!(err);
                     }
                     _ => {}
@@ -368,11 +365,11 @@ pub async fn download(
                 let chunk = item.context("Failed to get chunk")?;
                     file.write_all(&chunk).context("Error while writing to file")?;
                     let kb_current = progress.current / 1024;
-                    progress.current = min(progress.current + (chunk.len() as u64), total_size);
+                    progress.current = min(progress.current + (chunk.len() as u32), total_size as u32);
                     let kb_new = progress.current / 1024;
                     // Throttle download progress
                     if kb_new > kb_current {
-                        result_tx.send(CommandResult::Progress(progress.clone())).ok();
+                        result_tx.send(Message::Progress(progress.clone())).ok();
                     }
                 } else {
                     break;
@@ -381,10 +378,8 @@ pub async fn download(
         }
     }
 
-    progress.current = total_size;
-    result_tx
-        .send(CommandResult::Progress(progress.clone()))
-        .ok();
+    progress.current = total_size as u32;
+    result_tx.send(Message::Progress(progress.clone())).ok();
     Ok(())
 }
 

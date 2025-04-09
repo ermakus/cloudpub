@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use std::fmt::{Debug, Display};
 use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncWrite};
-use tracing::{debug, error};
+use tracing::error;
 
 #[cfg(target_os = "linux")]
 use anyhow::bail;
@@ -170,7 +170,6 @@ impl SocketOpts {
             }
 
             if let Some(nodelay) = self.nodelay {
-                debug!("Set nodelay {}", nodelay);
                 if let Err(e) = conn
                     .set_nodelay(nodelay)
                     .with_context(|| "Failed to set nodelay")

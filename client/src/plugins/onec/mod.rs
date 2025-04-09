@@ -1,9 +1,10 @@
-use crate::commands::{CommandResult, Commands};
 use crate::config::{ClientConfig, EnvConfig, ENV_CONFIG};
 use crate::plugins::httpd::{setup_httpd, start_httpd};
 use crate::shell::{find, get_cache_dir, SubProcess};
 use anyhow::{bail, Context, Result};
+use common::protocol::message::Message;
 use common::protocol::ServerEndpoint;
+use common::utils::free_port_for_bind;
 use parking_lot::RwLock;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -60,19 +61,21 @@ fn check_enviroment(config: Arc<RwLock<ClientConfig>>) -> Result<EnvConfig> {
 
 pub async fn setup(
     config: Arc<RwLock<ClientConfig>>,
-    command_rx: broadcast::Receiver<Commands>,
-    result_tx: broadcast::Sender<CommandResult>,
+    command_rx: broadcast::Receiver<Message>,
+    result_tx: broadcast::Sender<Message>,
 ) -> Result<()> {
     let env = check_enviroment(config.clone())?;
     setup_httpd(config, command_rx, result_tx, env).await
 }
 
 pub async fn publish(
-    endpoint: &ServerEndpoint,
+    endpoint: &mut ServerEndpoint,
     config: Arc<RwLock<ClientConfig>>,
-    result_tx: broadcast::Sender<CommandResult>,
+    result_tx: broadcast::Sender<Message>,
 ) -> Result<SubProcess> {
     let env = check_enviroment(config.clone())?;
+
+    free_port_for_bind(endpoint).await?;
 
     let one_c_publish_dir = config
         .read()
@@ -99,11 +102,12 @@ pub async fn publish(
         bail!(wsap_error);
     };
 
+    let local_addr = endpoint.client.as_ref().unwrap().local_addr.clone();
     // if local_addr is existing path and folder, append File= else use as is
-    let ib = if std::path::Path::new(&endpoint.client.local_addr).exists() {
-        format!("File=\"{}\"", endpoint.client.local_addr)
+    let ib = if std::path::Path::new(&local_addr).exists() {
+        format!("File=\"{}\"", local_addr)
     } else {
-        endpoint.client.local_addr.clone()
+        local_addr.clone()
     };
 
     let vrd_config = DEFAULT_VRD.replace("[[IB]]", &escape_str_attribute(&ib));

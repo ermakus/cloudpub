@@ -1,0 +1,196 @@
+syntax = "proto3";
+
+package protocol;
+
+enum Protocol {
+  HTTP = 0;
+  HTTPS = 1;
+  TCP = 2;
+  UDP = 3;
+  ONE_C = 4;
+  MINECRAFT = 5;
+  WEBDAV = 6;
+  RTSP = 7;
+}
+
+enum Auth {
+  NONE = 0;
+  BASIC = 1;
+  FORM = 2;
+}
+
+enum Role {
+  NOBODY = 0;
+  ADMIN = 1;
+  READER = 2;
+  WRITER = 3;
+}
+
+enum ErrorKind {
+  AUTH_FAILED = 0;
+  FATAL = 1;
+  HANDSHAKE_FAILED = 2;
+  PERMISSION_DENIED = 3;
+  PUBLISH_FAILED = 4;
+  EXECUTE_FAILED = 5;
+}
+
+enum ConnectState {
+  CONNECTING = 0;
+  CONNECTED = 1;
+  DISCONNECTED = 2;
+}
+
+message Acl {
+  string user = 1;
+  Role role = 2;
+}
+
+message Header {
+  string name = 1;
+  string value = 2;
+}
+
+message ClientEndpoint {
+  Protocol local_proto = 1;
+  string local_addr = 2;
+  uint32 local_port = 3;
+  string local_path = 4;
+  optional bool nodelay = 5;
+  optional string description = 6;
+  Auth auth = 7;
+  repeated Acl acl = 8;
+  string username = 9;
+  string password = 10;
+  repeated Header headers = 11;
+}
+
+message ServerEndpoint {
+  optional string status = 1;
+  string guid = 2;
+  Protocol remote_proto = 3;
+  string remote_addr = 4;
+  uint32 remote_port = 5;
+  ClientEndpoint client = 6;
+  int64 id = 7;
+  string bind_addr = 8;
+}
+
+message AgentInfo {
+  string agent_id = 1;
+  string token = 2;
+  string hostname = 3;
+  string version = 4;
+  bool gui = 5;
+  string platform = 6;
+  string hwid = 7;
+  string server_host_and_port = 8;
+}
+
+message DataChannelInfo {
+  string agent_id = 1;
+  string guid = 2;
+}
+
+message UpgradeInfo {
+  string version = 1;
+  string url = 2;
+}
+
+message ErrorInfo {
+  ErrorKind kind = 1;
+  string message = 2;
+}
+
+message ProgressInfo {
+    string message = 1;
+    string template = 2;
+    uint32 current = 3;
+    uint32 total = 4;
+}
+
+message AgentAck {
+}
+
+message HeartBeat {
+}
+
+message StartForwardTcp {
+}
+
+message StartForwardUdp {
+}
+
+message Break {
+}
+
+message Stop {
+}
+
+message EndpointList {
+}
+
+message EndpointClear {
+}
+
+message EndpointClearAck {
+}
+
+message EndpointListAck {
+    repeated ServerEndpoint endpoints = 1;
+}
+
+message Redirect {
+    string host_and_port = 1;
+}
+
+message EndpointStop {
+    string guid = 1;
+}
+
+message EndpointStopAck {
+    string guid = 1;
+}
+
+message EndpointRemove {
+    string guid = 1;
+}
+
+
+message EndpointRemoveAck {
+    string guid = 1;
+}
+
+message EndpointStartAll {
+}
+
+// Message wrapper
+message Message {
+  oneof message {
+    AgentInfo agent_hello = 1;
+    AgentAck agent_ack = 2;
+    ClientEndpoint endpoint_start = 3;
+    ServerEndpoint endpoint_ack = 4;
+    EndpointStop endpoint_stop = 5;
+    DataChannelInfo data_channel_hello = 6;
+    ServerEndpoint create_data_channel = 7;
+    HeartBeat heart_beat = 8;
+    StartForwardTcp start_forward_tcp = 9;
+    StartForwardUdp start_forward_udp = 10;
+    ErrorInfo error = 11;
+    UpgradeInfo upgrade_available = 12;
+    Redirect redirect = 13;
+    EndpointRemove endpoint_remove = 14;
+    Break break = 15;
+    Stop stop = 16;
+    ConnectState connect_state = 17;
+    ProgressInfo progress = 18;
+    EndpointList endpoint_list = 19;
+    EndpointListAck endpoint_list_ack = 20;
+    EndpointClear endpoint_clear = 21;
+    EndpointClearAck endpoint_clear_ack = 22;
+    EndpointStartAll endpoint_start_all = 23;
+    EndpointStopAck endpoint_stop_ack = 24;
+    EndpointRemoveAck endpoint_remove_ack = 25;
+  }
+}

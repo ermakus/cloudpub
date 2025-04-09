@@ -3,8 +3,7 @@ use common::constants::{DEFAULT_HEARTBEAT_TIMEOUT_SECS, DEFAULT_SERVER};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
 
-pub use common::config::{MaskedString, Protocol, TransportConfig};
-use common::protocol::{Auth, ClientEndpoint, ServerEndpoint, ACL};
+pub use common::config::{MaskedString, TransportConfig};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::fs::{self, create_dir_all};
@@ -104,52 +103,6 @@ impl std::str::FromStr for Platform {
     }
 }
 
-/// All Option are optional in configuration but must be Some value in runtime
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
-pub struct ClientServiceConfig {
-    pub local_proto: Protocol,
-    pub local_port: u16,
-    pub local_addr: String,
-    #[serde(default)]
-    pub local_path: String,
-    pub nodelay: Option<bool>,
-    #[serde(default)]
-    pub auth: Auth,
-    #[serde(default)]
-    pub acl: Vec<ACL>,
-    #[serde(default)]
-    pub username: String,
-    #[serde(default)]
-    pub password: MaskedString,
-}
-
-impl Display for ClientServiceConfig {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{}://{}:{}",
-            self.local_proto, self.local_addr, self.local_port
-        )
-    }
-}
-
-impl From<ClientServiceConfig> for ClientEndpoint {
-    fn from(val: ClientServiceConfig) -> Self {
-        ClientEndpoint {
-            local_proto: val.local_proto,
-            local_addr: val.local_addr,
-            local_port: val.local_port,
-            local_path: val.local_path,
-            nodelay: val.nodelay,
-            description: None,
-            auth: val.auth.clone(),
-            acl: val.acl.clone(),
-            username: val.username.clone(),
-            password: val.password.clone(),
-        }
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct ClientConfig {
     // This fields are not persistent
@@ -168,12 +121,15 @@ pub struct ClientConfig {
     pub one_c_platform: Option<Platform>,
     pub one_c_publish_dir: Option<String>,
     pub minecraft_server: Option<String>,
+    pub minecraft_java_opts: Option<String>,
     pub transport: TransportConfig,
-    #[serde(skip_serializing_if = "Vec::is_empty", default = "Vec::new")]
-    pub services: Vec<ServerEndpoint>,
 }
 
 impl ClientConfig {
+    pub fn get_config_path(&self) -> &PathBuf {
+        &self.config_path
+    }
+
     pub fn from_file(path: &PathBuf, readonly: bool, gui: bool) -> Result<Self> {
         if !path.exists() {
             let default_config = Self::default();
@@ -273,6 +229,13 @@ impl ClientConfig {
                     self.minecraft_server = Some(value.to_string())
                 }
             }
+            "minecraft_java_opts" => {
+                if value.is_empty() {
+                    self.minecraft_java_opts = None
+                } else {
+                    self.minecraft_java_opts = Some(value.to_string())
+                }
+            }
             _ => bail!("Unknown key: {}", key),
         }
         self.save()?;
@@ -295,6 +258,7 @@ impl ClientConfig {
                 .unwrap_or_default()),
             "1c_publish_dir" => Ok(self.one_c_publish_dir.clone().unwrap_or_default()),
             "minecraft_server" => Ok(self.minecraft_server.clone().unwrap_or_default()),
+            "minecraft_java_opts" => Ok(self.minecraft_java_opts.clone().unwrap_or_default()),
             "unsafe_tls" => Ok(self.transport.tls.as_ref().map_or("".to_string(), |tls| {
                 tls.danger_ignore_certificate_verification
                     .map_or("".to_string(), |v| v.to_string())
@@ -324,8 +288,8 @@ impl Default for ClientConfig {
             one_c_platform: None,
             one_c_publish_dir: None,
             minecraft_server: None,
+            minecraft_java_opts: None,
             transport: TransportConfig::default(),
-            services: Vec::new(),
             readonly: false,
             gui: false,
         }

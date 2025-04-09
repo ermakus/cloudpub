@@ -8,11 +8,16 @@ use tracing_log::LogTracer;
 use tracing_subscriber::fmt;
 use tracing_subscriber::prelude::*;
 
-pub fn init_log(level: &str, log_file: &Path, stderr: bool) -> Result<WorkerGuard> {
+pub fn init_log(
+    level: &str,
+    log_file: &Path,
+    stderr: bool,
+    max_files: usize,
+) -> Result<WorkerGuard> {
     let file_appender = BasicRollingFileAppender::new(
         log_file,
         RollingConditionBasic::new().max_size(10 * 1024 * 1024), // 10 MB
-        10,
+        max_files,
     )
     .context("Failed to create rolling file appender")?;
 

@@ -6,6 +6,9 @@ use std::io;
 use std::net::SocketAddr;
 use tokio::net::{lookup_host, TcpListener, TcpSocket, ToSocketAddrs, UdpSocket};
 use tokio::sync::watch;
+use tracing::debug;
+
+use crate::protocol::ServerEndpoint;
 
 pub async fn to_socket_addr<A: ToSocketAddrs>(addr: A) -> Result<std::net::SocketAddr> {
     lookup_host(addr)
@@ -69,6 +72,13 @@ pub async fn find_free_udp_port() -> Result<u16> {
     Ok(port)
 }
 
+pub async fn free_port_for_bind(endpoint: &mut ServerEndpoint) -> Result<()> {
+    let client = endpoint.client.as_mut().unwrap();
+    client.local_port = find_free_tcp_port().await? as u32;
+    client.local_addr = "localhost".to_string();
+    Ok(())
+}
+
 pub async fn is_udp_port_available(bind_addr: &str, port: u16) -> Result<bool> {
     match UdpSocket::bind((bind_addr, port)).await {
         Ok(_) => Ok(true),
@@ -79,11 +89,13 @@ pub async fn is_udp_port_available(bind_addr: &str, port: u16) -> Result<bool> {
 
 pub async fn is_tcp_port_available(bind_addr: &str, port: u16) -> Result<bool> {
     let tcp_socket = TcpSocket::new_v4()?;
+    tcp_socket.set_reuseaddr(true).unwrap();
     let bind_addr: SocketAddr = format!("{}:{}", bind_addr, port).parse().unwrap();
+    debug!("Check port: {}", bind_addr);
     match tcp_socket.bind(bind_addr) {
         Ok(_) => Ok(true),
         Err(ref e) if e.kind() == io::ErrorKind::AddrInUse => Ok(false),
-        Err(e) => Err(e).context("Failed to check UDP port")?,
+        Err(e) => Err(e).context("Failed to check TCP port")?,
     }
 }
 

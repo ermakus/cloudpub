@@ -10,4 +10,4 @@ pub mod version;
 pub use rustls_pemfile;
 #[cfg(feature = "rustls")]
 pub use tokio_rustls;
-pub use tokio_tungstenite;
+pub use {prost, serde_json, tokio_tungstenite};
