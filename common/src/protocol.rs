@@ -635,6 +635,8 @@ pub mod v1 {
                 platform: ai.platform,
                 hwid: ai.hwid,
                 server_host_and_port: ai.server_host_and_port,
+                email: String::new(),
+                password: String::new(),
             }
         }
     }
@@ -750,7 +752,9 @@ pub mod v1 {
 
             let message = match msg {
                 Message::AgentHello(info) => ProtoMessage::AgentHello(info.into()),
-                Message::AgentAck => ProtoMessage::AgentAck(v2::AgentAck {}),
+                Message::AgentAck => ProtoMessage::AgentAck(v2::AgentAck {
+                    token: String::new(),
+                }),
                 Message::EndpointStart(endpoint) => ProtoMessage::EndpointStart(endpoint.into()),
                 Message::EndpointAck(endpoint) => ProtoMessage::EndpointAck(endpoint.into()),
                 Message::EndpointStop(guid) => {

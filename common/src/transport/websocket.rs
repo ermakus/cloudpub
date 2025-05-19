@@ -17,6 +17,8 @@ use tokio::io::{AsyncBufRead, AsyncRead, AsyncWrite, ReadBuf};
 
 use parking_lot::RwLock;
 use std::collections::HashMap;
+#[cfg(unix)]
+use std::os::fd::RawFd;
 use std::sync::Arc;
 use tokio_tungstenite::tungstenite::handshake::server::{Request, Response};
 use tokio_tungstenite::tungstenite::protocol::{Message, WebSocketConfig};
@@ -226,6 +228,11 @@ impl Transport for WebsocketTransport {
 
     fn hint(conn: &Self::Stream, opt: SocketOpts) {
         opt.apply(conn.inner.get_ref().inner.get_ref().get_tcpstream())
+    }
+
+    #[cfg(unix)]
+    fn as_raw_fd(conn: &Self::Stream) -> RawFd {
+        TcpTransport::as_raw_fd(conn.inner.get_ref().inner.get_ref().get_tcpstream())
     }
 
     async fn bind(&self, addr: NamedSocketAddr) -> anyhow::Result<Self::Acceptor> {

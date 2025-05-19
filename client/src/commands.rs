@@ -21,7 +21,7 @@ pub enum Commands {
     Stop,
     #[clap(about = "Break current operation (used internally)", hide = true)]
     Break,
-    #[clap(about = "Register service in the config")]
+    #[clap(about = "Register service on server")]
     Register(PublishArgs),
     #[clap(about = "Register service and run it")]
     Publish(PublishArgs),
@@ -33,8 +33,12 @@ pub enum Commands {
     Clean,
     #[clap(about = "Purge cache")]
     Purge,
-    #[clap(about = "Run ping test with TCP and UDP")]
+    #[clap(about = "Ping server and measure roundtrip time")]
     Ping(PingArg),
+    #[clap(about = "Login to server and save token")]
+    Login(LoginArgs),
+    #[clap(about = "Logout and clear saved token")]
+    Logout,
     #[clap(about = "Manage system service")]
     Service {
         #[clap(subcommand)]
@@ -109,6 +113,22 @@ pub struct UnpublishArgs {
         default_value = "true"
     )]
     pub remove: bool,
+}
+
+#[derive(Args, Debug, Serialize, Deserialize, Clone)]
+pub struct LoginArgs {
+    #[clap(
+        help = "Email address (if not provided, will prompt)",
+        required = false
+    )]
+    pub email: Option<String>,
+    #[clap(
+        help = "Password (if not provided, will prompt or use CLO_PASSWORD env var)",
+        env = "CLO_PASSWORD",
+        hide_env_values = true,
+        required = false
+    )]
+    pub password: Option<String>,
 }
 
 impl PublishArgs {

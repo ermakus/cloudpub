@@ -85,6 +85,8 @@ message AgentInfo {
   string platform = 6;
   string hwid = 7;
   string server_host_and_port = 8;
+  string email = 9;
+  string password = 10;
 }
 
 message DataChannelInfo {
@@ -110,6 +112,7 @@ message ProgressInfo {
 }
 
 message AgentAck {
+    string token = 1;
 }
 
 message HeartBeat {

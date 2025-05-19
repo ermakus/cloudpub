@@ -6,6 +6,8 @@ use anyhow::Result;
 use async_http_proxy::{http_connect_tokio, http_connect_tokio_with_basic_auth};
 use async_trait::async_trait;
 use socket2::{SockRef, TcpKeepalive};
+#[cfg(unix)]
+use std::os::fd::{AsRawFd, RawFd};
 use std::str::FromStr;
 use std::time::Duration;
 use tokio::net::TcpStream;
@@ -30,6 +32,14 @@ impl Transport for TcpTransport {
             socket_opts: SocketOpts::from_cfg(&config.tcp),
             cfg: config.tcp.clone(),
         })
+    }
+
+    #[cfg(unix)]
+    fn as_raw_fd(conn: &Self::Stream) -> RawFd {
+        match conn {
+            Stream::Tcp(conn) => conn.as_raw_fd(),
+            Stream::Unix(conn) => conn.as_raw_fd(),
+        }
     }
 
     fn hint(conn: &Self::Stream, opt: SocketOpts) {

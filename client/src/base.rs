@@ -4,7 +4,7 @@ pub use crate::config::ClientConfig;
 use crate::ping;
 use crate::service::{create_service_manager, ServiceConfig, ServiceStatus};
 use crate::shell::get_cache_dir;
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use clap::Parser;
 use common::logging::{init_log, WorkerGuard};
 use common::protocol::message::Message;
@@ -17,6 +17,7 @@ use dirs::cache_dir;
 use indicatif::{ProgressBar, ProgressStyle};
 use parking_lot::RwLock;
 use std::env;
+use std::io::Write;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tracing::debug;
@@ -196,6 +197,52 @@ pub async fn main_loop(
             std::fs::remove_dir_all(&cache_dir).ok();
             return Ok(());
         }
+        Commands::Login(args) => {
+            let email = match &args.email {
+                Some(email) => email.clone(),
+                None => {
+                    // Prompt the user for email
+                    if let Some(tx) = stdout.as_ref() {
+                        tx.send("Введите email: ".to_string()).ok();
+                    } else {
+                        print!("Введите email: ");
+                        std::io::stdout().flush().ok();
+                    }
+                    let mut email = String::new();
+                    std::io::stdin().read_line(&mut email)?;
+                    email.trim().to_string()
+                }
+            };
+
+            let password = match &args.password {
+                Some(pwd) => pwd.clone(),
+                None => {
+                    // Try to read from environment first
+                    if let Ok(pwd) = std::env::var("PASSWORD") {
+                        pwd
+                    } else {
+                        // If not in environment, prompt the user
+                        if let Some(tx) = stdout.as_ref() {
+                            tx.send("Введите пароль: ".to_string()).ok();
+                        } else {
+                            print!("Введите пароль: ");
+                            std::io::stdout().flush().ok();
+                        }
+                        rpassword::read_password().unwrap_or_default()
+                    }
+                }
+            };
+            config.write().credentials = Some((email, password))
+        }
+        Commands::Logout => {
+            config.write().token = None;
+            config
+                .write()
+                .save()
+                .context("Failed to save config after logout")?;
+            write_stderr("Сессия завершена, токен авторизации сброшен".to_string());
+            return Ok(());
+        }
         Commands::Register(publish_args) => {
             config.read().validate()?;
             publish_args.parse()?;
@@ -228,7 +275,6 @@ pub async fn main_loop(
     loop {
         match result_rx.recv().await? {
             Message::Error(err) => {
-                write_stderr(err.message.clone());
                 let kind: ErrorKind = err.kind.try_into().unwrap_or(ErrorKind::Fatal);
                 if kind == ErrorKind::Fatal || kind == ErrorKind::AuthFailed {
                     command_tx.send(Message::Stop(Stop {})).ok();
@@ -238,7 +284,7 @@ pub async fn main_loop(
 
             Message::UpgradeAvailable(info) => match cli.command {
                 Commands::Publish(_) | Commands::Run => {
-                    write_stdout(format!("Доступна новая версия: {}", info.version));
+                    write_stderr(format!("Доступна новая версия: {}", info.version));
                 }
                 _ => {}
             },
@@ -325,6 +371,10 @@ pub async fn main_loop(
                             for _i in 0..pings {
                                 ping::publish(command_tx.clone()).await?;
                             }
+                        }
+                        Commands::Login(_) => {
+                            write_stdout("Клиент успешно авторизован".to_string());
+                            break;
                         }
                         _ => {}
                     }

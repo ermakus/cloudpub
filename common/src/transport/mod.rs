@@ -3,6 +3,8 @@ use crate::utils::to_socket_addr;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use std::fmt::{Debug, Display};
+#[cfg(unix)]
+use std::os::fd::RawFd;
 use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::error;
@@ -69,6 +71,9 @@ pub trait Transport: Debug + Send + Sync {
     fn new(config: &TransportConfig) -> Result<Self>
     where
         Self: Sized;
+    /// Get the stream id, which is used to identify the transport layer
+    #[cfg(unix)]
+    fn as_raw_fd(conn: &Self::Stream) -> RawFd;
     /// Provide the transport with socket options, which can be handled at the need of the transport
     fn hint(conn: &Self::Stream, opts: SocketOpts);
     async fn bind(&self, addr: NamedSocketAddr) -> Result<Self::Acceptor>;

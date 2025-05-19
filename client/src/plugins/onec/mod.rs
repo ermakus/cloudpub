@@ -1,7 +1,9 @@
 use crate::config::{ClientConfig, EnvConfig, ENV_CONFIG};
 use crate::plugins::httpd::{setup_httpd, start_httpd};
+use crate::plugins::Plugin;
 use crate::shell::{find, get_cache_dir, SubProcess};
 use anyhow::{bail, Context, Result};
+use async_trait::async_trait;
 use common::protocol::message::Message;
 use common::protocol::ServerEndpoint;
 use common::utils::free_port_for_bind;
@@ -59,71 +61,82 @@ fn check_enviroment(config: Arc<RwLock<ClientConfig>>) -> Result<EnvConfig> {
     Ok(env)
 }
 
-pub async fn setup(
-    config: Arc<RwLock<ClientConfig>>,
-    command_rx: broadcast::Receiver<Message>,
-    result_tx: broadcast::Sender<Message>,
-) -> Result<()> {
-    let env = check_enviroment(config.clone())?;
-    setup_httpd(config, command_rx, result_tx, env).await
-}
+pub struct OneCPlugin;
 
-pub async fn publish(
-    endpoint: &mut ServerEndpoint,
-    config: Arc<RwLock<ClientConfig>>,
-    result_tx: broadcast::Sender<Message>,
-) -> Result<SubProcess> {
-    let env = check_enviroment(config.clone())?;
-
-    free_port_for_bind(endpoint).await?;
-
-    let one_c_publish_dir = config
-        .read()
-        .one_c_publish_dir
-        .as_ref()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| get_cache_dir(ONEC_SUBDIR).unwrap());
-
-    let publish_dir = one_c_publish_dir.join(&endpoint.guid);
-
-    std::fs::create_dir_all(publish_dir.clone()).context("Can't create publish dir")?;
-
-    let mut default_vrd = publish_dir.clone();
-    default_vrd.push("default.vrd");
-
-    let wsap_error = format!(
-        "Модуль {} на найден в {}. Проверьте настройки и убедитесь что у вас установлены модули расширения веб-сервера для 1С", WSAP_MODULE, &env.home_1c.to_str().unwrap());
-
-    let wsap = if let Some(wsap) =
-        find(&env.home_1c, &PathBuf::from(WSAP_MODULE)).context(wsap_error.clone())?
-    {
-        wsap
-    } else {
-        bail!(wsap_error);
-    };
-
-    let local_addr = endpoint.client.as_ref().unwrap().local_addr.clone();
-    // if local_addr is existing path and folder, append File= else use as is
-    let ib = if std::path::Path::new(&local_addr).exists() {
-        format!("File=\"{}\"", local_addr)
-    } else {
-        local_addr.clone()
-    };
-
-    let vrd_config = DEFAULT_VRD.replace("[[IB]]", &escape_str_attribute(&ib));
-
-    if !default_vrd.exists() {
-        std::fs::write(&default_vrd, vrd_config).context("Ошибка записи default.vrd")?;
+#[async_trait]
+impl Plugin for OneCPlugin {
+    fn name(&self) -> &'static str {
+        "onec"
     }
 
-    let httpd_config = ONEC_CONFIG.replace("[[WSAP_MODULE]]", wsap.to_str().unwrap());
-    start_httpd(
-        endpoint,
-        &httpd_config,
-        ONEC_SUBDIR,
-        publish_dir.to_str().unwrap(),
-        env,
-        result_tx,
-    )
-    .await
+    async fn setup(
+        &self,
+        config: Arc<RwLock<ClientConfig>>,
+        command_rx: broadcast::Receiver<Message>,
+        result_tx: broadcast::Sender<Message>,
+    ) -> Result<()> {
+        let env = check_enviroment(config.clone())?;
+        setup_httpd(config, command_rx, result_tx, env).await
+    }
+
+    async fn publish(
+        &self,
+        endpoint: &mut ServerEndpoint,
+        config: Arc<RwLock<ClientConfig>>,
+        result_tx: broadcast::Sender<Message>,
+    ) -> Result<SubProcess> {
+        let env = check_enviroment(config.clone())?;
+
+        let one_c_publish_dir = config
+            .read()
+            .one_c_publish_dir
+            .as_ref()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| get_cache_dir(ONEC_SUBDIR).unwrap());
+
+        let publish_dir = one_c_publish_dir.join(&endpoint.guid);
+
+        std::fs::create_dir_all(publish_dir.clone()).context("Can't create publish dir")?;
+
+        let mut default_vrd = publish_dir.clone();
+        default_vrd.push("default.vrd");
+
+        let wsap_error = format!(
+            "Модуль {} на найден в {}. Проверьте настройки и убедитесь что у вас установлены модули расширения веб-сервера для 1С", WSAP_MODULE, &env.home_1c.to_str().unwrap());
+
+        let wsap = if let Some(wsap) =
+            find(&env.home_1c, &PathBuf::from(WSAP_MODULE)).context(wsap_error.clone())?
+        {
+            wsap
+        } else {
+            bail!(wsap_error);
+        };
+
+        let local_addr = endpoint.client.as_ref().unwrap().local_addr.clone();
+        // if local_addr is existing path and folder, append File= else use as is
+        let ib = if std::path::Path::new(&local_addr).exists() {
+            format!("File=\"{}\"", local_addr)
+        } else {
+            local_addr.clone()
+        };
+
+        let vrd_config = DEFAULT_VRD.replace("[[IB]]", &escape_str_attribute(&ib));
+
+        if !default_vrd.exists() {
+            std::fs::write(&default_vrd, vrd_config).context("Ошибка записи default.vrd")?;
+        }
+
+        let httpd_config = ONEC_CONFIG.replace("[[WSAP_MODULE]]", wsap.to_str().unwrap());
+        free_port_for_bind(endpoint).await?;
+
+        start_httpd(
+            endpoint,
+            &httpd_config,
+            ONEC_SUBDIR,
+            publish_dir.to_str().unwrap(),
+            env,
+            result_tx,
+        )
+        .await
+    }
 }

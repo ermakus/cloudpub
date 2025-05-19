@@ -112,6 +112,8 @@ pub struct ClientConfig {
     pub readonly: bool,
     #[serde(skip)]
     pub gui: bool,
+    #[serde(skip)]
+    pub credentials: Option<(String, String)>,
     // Next fields are persistent
     pub agent_id: String,
     pub server: Url,
@@ -122,6 +124,7 @@ pub struct ClientConfig {
     pub one_c_publish_dir: Option<String>,
     pub minecraft_server: Option<String>,
     pub minecraft_java_opts: Option<String>,
+    pub hwid: Option<String>,
     pub transport: TransportConfig,
 }
 
@@ -269,7 +272,7 @@ impl ClientConfig {
 
     pub fn validate(&self) -> Result<()> {
         if self.token.is_none() {
-            bail!("Token is not set");
+            bail!("Отсутствует токен авторизации");
         }
         TransportConfig::validate(&self.transport, false)?;
         Ok(())
@@ -292,6 +295,8 @@ impl Default for ClientConfig {
             transport: TransportConfig::default(),
             readonly: false,
             gui: false,
+            hwid: None,
+            credentials: None,
         }
     }
 }

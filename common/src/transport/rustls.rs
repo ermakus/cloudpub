@@ -11,6 +11,8 @@ use tokio_rustls::rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer, Server
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use p12::PFX;
+#[cfg(unix)]
+use std::os::fd::RawFd;
 use tokio_rustls::rustls::client::danger::{
     HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier,
 };
@@ -186,6 +188,11 @@ impl Transport for TlsTransport {
             connector,
             tls_acceptor,
         })
+    }
+
+    #[cfg(unix)]
+    fn as_raw_fd(conn: &Self::Stream) -> RawFd {
+        TcpTransport::as_raw_fd(conn.get_ref().0)
     }
 
     fn hint(conn: &Self::Stream, opt: SocketOpts) {

@@ -85,7 +85,12 @@ pub async fn ping_test(endpoint: ServerEndpoint, bare: bool) -> Result<String> {
     info!("Running ping test on {}", endpoint);
     let addr = format!("{}:{}", endpoint.remote_addr, endpoint.remote_port);
 
-    let _stop_tx = start(endpoint.client.as_ref().unwrap().local_port as u16).await?;
+    let _stop_tx = start(endpoint.client.as_ref().unwrap().local_port as u16)
+        .await
+        .context("Failed to start ping service")?;
+
+    // Wait for the server to start
+    sleep(Duration::from_millis(100)).await;
 
     let settings = Settings {
         warm_up_count: 10,
@@ -94,7 +99,9 @@ pub async fn ping_test(endpoint: ServerEndpoint, bare: bool) -> Result<String> {
         sleep_time: 0,
     };
 
-    let client = TcpStream::connect(&addr).await?;
+    let client = TcpStream::connect(&addr)
+        .await
+        .context(format!("Failed to connect to {}", addr))?;
     let mut times = ping_tcp(client, &settings).await;
 
     if times.is_empty() {
