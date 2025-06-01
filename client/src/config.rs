@@ -1,5 +1,5 @@
 use anyhow::{bail, Context, Result};
-use common::constants::{DEFAULT_HEARTBEAT_TIMEOUT_SECS, DEFAULT_SERVER};
+use common::constants::DEFAULT_HEARTBEAT_TIMEOUT_SECS;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
 
@@ -136,6 +136,7 @@ impl ClientConfig {
     pub fn from_file(path: &PathBuf, readonly: bool, gui: bool) -> Result<Self> {
         if !path.exists() {
             let default_config = Self::default();
+            debug!("Creating default config at {:?}", default_config);
             let s = toml::to_string_pretty(&default_config)
                 .context("Failed to serialize the default config")?;
             fs::write(path, s).context("Failed to write the default config")?;
@@ -272,7 +273,7 @@ impl ClientConfig {
 
     pub fn validate(&self) -> Result<()> {
         if self.token.is_none() {
-            bail!("Отсутствует токен авторизации");
+            bail!("{}", crate::t!("error-auth-missing"));
         }
         TransportConfig::validate(&self.transport, false)?;
         Ok(())
@@ -284,7 +285,7 @@ impl Default for ClientConfig {
         Self {
             agent_id: Uuid::new_v4().to_string(),
             config_path: PathBuf::new(),
-            server: DEFAULT_SERVER.parse().unwrap(),
+            server: crate::t!("server").parse().unwrap(),
             token: None,
             heartbeat_timeout: DEFAULT_HEARTBEAT_TIMEOUT_SECS,
             one_c_home: None,

@@ -1,7 +1,5 @@
 FROM            bitnami/minideb:latest-arm64
 
-LABEL           maintainer="CloudPub <support@cloudpub.ru>"
-
 COPY            artifacts/linux/aarch64/clo /clo
 COPY            client/entrypoint.sh /
 

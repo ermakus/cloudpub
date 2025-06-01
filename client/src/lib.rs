@@ -4,6 +4,7 @@ pub mod base;
 pub mod client;
 pub mod commands;
 pub mod config;
+pub mod i18n;
 pub mod ping;
 #[cfg(feature = "plugins")]
 pub mod plugins;

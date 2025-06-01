@@ -33,7 +33,7 @@ pub async fn setup_httpd(
     httpd.push(env.httpd.clone());
 
     download(
-        "Загрузка веб сервера",
+        &crate::t!("downloading-webserver"),
         config.clone(),
         format!("{}download/{}", config.read().server, env.httpd).as_str(),
         &httpd,
@@ -41,16 +41,16 @@ pub async fn setup_httpd(
         result_tx.clone(),
     )
     .await
-    .context("Ошибка загрузки веб сервера")?;
+    .context(crate::t!("error-downloading-webserver"))?;
 
     unzip(
-        "Распаковка веб-сервера",
+        &crate::t!("unpacking-webserver"),
         &httpd,
         &httpd_dir,
         1,
         result_tx.clone(),
     )
-    .context("Ошибка распаковки веб сервера")?;
+    .context(crate::t!("error-unpacking-webserver"))?;
 
     #[cfg(target_os = "windows")]
     {
@@ -59,7 +59,7 @@ pub async fn setup_httpd(
         redist.push(env.redist.clone());
 
         download(
-            "Загрузка компонентов VC++",
+            &crate::t!("downloading-vcpp"),
             config.clone(),
             format!("{}download/{}", config.read().server, env.redist).as_str(),
             &redist,
@@ -67,7 +67,7 @@ pub async fn setup_httpd(
             result_tx.clone(),
         )
         .await
-        .context("Ошибка загрузки компонентов VC++")?;
+        .context(crate::t!("error-downloading-vcpp"))?;
 
         if let Err(err) = execute(
             redist,
@@ -78,17 +78,13 @@ pub async fn setup_httpd(
             ],
             None,
             Default::default(),
-            Some((
-                "Установка компонентов VC++".to_string(),
-                result_tx.clone(),
-                2,
-            )),
+            Some((crate::t!("installing-vcpp"), result_tx.clone(), 2)),
             command_rx.resubscribe(),
         )
         .await
         {
             // Non fatal error, probably components already installed
-            tracing::warn!("Ошибка установки компонентов VC++: {:?}", err);
+            tracing::warn!("{}: {:?}", crate::t!("error-installing-vcpp"), err);
         }
     }
     // Set exec mode for httpd_exe
@@ -97,11 +93,11 @@ pub async fn setup_httpd(
         let httpd_exe = httpd_dir.join("bin").join(HTTPD_EXE);
         use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(&httpd_exe, std::fs::Permissions::from_mode(0o755))
-            .context("Ошибка установки прав на исполнение")?;
+            .context(crate::t!("error-setting-permissions"))?;
     }
 
     // Touch file to mark success
-    std::fs::write(touch, "Delete to reinstall").context("Ошибка создания файла метки")?;
+    std::fs::write(touch, "Delete to reinstall").context(crate::t!("error-creating-marker"))?;
 
     Ok(())
 }
@@ -141,7 +137,7 @@ pub async fn start_httpd(
     #[cfg(not(unix))]
     let httpd_config = httpd_config.replace("[[IS_LINUX]]", "#");
 
-    std::fs::write(&httpd_cfg, httpd_config).context("Ошибка записи httpd.conf")?;
+    std::fs::write(&httpd_cfg, httpd_config).context(crate::t!("error-writing-httpd-conf"))?;
 
     let httpd_cfg = httpd_cfg.to_str().unwrap().to_string();
     let httpd_exe = httpd_dir.join("bin").join(HTTPD_EXE);

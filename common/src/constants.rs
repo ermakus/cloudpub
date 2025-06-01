@@ -7,10 +7,9 @@ pub const DEFAULT_HEARTBEAT_TIMEOUT_SECS: u64 = 40;
 
 /// Client
 pub const DEFAULT_CLIENT_RETRY_INTERVAL_SECS: u64 = 60;
-pub const DEFAULT_SERVER: &str = "https://cloudpub.ru/";
 
 /// Server
-pub const CHAN_SIZE: usize = 1; // The capacity of various chans
+pub const BACKLOG_SIZE: usize = 1024; // The capacity TCP incoming conn backlog
 pub const HANDSHAKE_TIMEOUT: u64 = 5; // Timeout for transport handshake
 
 /// TCP

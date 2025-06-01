@@ -11,11 +11,12 @@ pub fn init_log(
     level: &str,
     log_file: &Path,
     stderr: bool,
+    max_size: usize,
     max_files: usize,
 ) -> Result<WorkerGuard> {
     let file_appender = BasicRollingFileAppender::new(
         log_file,
-        RollingConditionBasic::new().max_size(10 * 1024 * 1024), // 10 MB
+        RollingConditionBasic::new().max_size(max_size as u64), // 10 MB
         max_files,
     )
     .context("Failed to create rolling file appender")?;

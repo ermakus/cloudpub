@@ -116,8 +116,14 @@ pub fn init(args: &Cli, gui: bool) -> Result<(WorkerGuard, Arc<RwLock<ClientConf
 
     let log_file = log_dir.join("client.log");
 
-    let guard = init_log(&args.log_level, &log_file, args.verbose, 2)
-        .context("Failed to initialize logging")?;
+    let guard = init_log(
+        &args.log_level,
+        &log_file,
+        args.verbose,
+        10 * 1024 * 1024,
+        2,
+    )
+    .context("Failed to initialize logging")?;
 
     let config = if let Some(path) = args.conf.as_ref() {
         ClientConfig::from_file(&path.into(), args.readonly, gui)?
@@ -139,7 +145,7 @@ pub async fn cli_main(cli: Cli, config: Arc<RwLock<ClientConfig>>) -> Result<()>
     main_loop(cli, config, command_tx, command_rx, None, None).await
 }
 
-fn make_spinner(msg: &'static str) -> ProgressBar {
+fn make_spinner(msg: String) -> ProgressBar {
     let spinner = ProgressBar::new_spinner();
     let style = ProgressStyle::default_spinner()
         .template("{spinner} {msg}")
@@ -203,9 +209,9 @@ pub async fn main_loop(
                 None => {
                     // Prompt the user for email
                     if let Some(tx) = stdout.as_ref() {
-                        tx.send("Введите email: ".to_string()).ok();
+                        tx.send(crate::t!("enter-email")).ok();
                     } else {
-                        print!("Введите email: ");
+                        print!("{}", crate::t!("enter-email"));
                         std::io::stdout().flush().ok();
                     }
                     let mut email = String::new();
@@ -223,9 +229,9 @@ pub async fn main_loop(
                     } else {
                         // If not in environment, prompt the user
                         if let Some(tx) = stdout.as_ref() {
-                            tx.send("Введите пароль: ".to_string()).ok();
+                            tx.send(crate::t!("enter-password")).ok();
                         } else {
-                            print!("Введите пароль: ");
+                            print!("{}", crate::t!("enter-password"));
                             std::io::stdout().flush().ok();
                         }
                         rpassword::read_password().unwrap_or_default()
@@ -240,7 +246,7 @@ pub async fn main_loop(
                 .write()
                 .save()
                 .context("Failed to save config after logout")?;
-            write_stderr("Сессия завершена, токен авторизации сброшен".to_string());
+            write_stderr(crate::t!("session-terminated"));
             return Ok(());
         }
         Commands::Register(publish_args) => {
@@ -284,7 +290,7 @@ pub async fn main_loop(
 
             Message::UpgradeAvailable(info) => match cli.command {
                 Commands::Publish(_) | Commands::Run => {
-                    write_stderr(format!("Доступна новая версия: {}", info.version));
+                    write_stderr(crate::t!("upgrade-available", "version" => info.version));
                 }
                 _ => {}
             },
@@ -293,14 +299,13 @@ pub async fn main_loop(
                 if endpoint.status == Some("online".to_string()) {
                     match cli.command {
                         Commands::Ping(ref args) => {
-                            current_spinner =
-                                Some(make_spinner("Измеряем скорость подключения..."));
+                            current_spinner = Some(make_spinner(crate::t!("measuring-speed")));
                             let stats = ping::ping_test(endpoint, args.bare).await?;
                             current_spinner.take();
                             if args.bare {
                                 write_stdout(stats.to_string());
                             } else {
-                                write_stdout(format!("Время пинга (процентили):\n{}", stats));
+                                write_stdout(stats);
                             }
                             pings -= 1;
                             if pings == 0 {
@@ -308,11 +313,15 @@ pub async fn main_loop(
                             }
                         }
                         Commands::Register(_) => {
-                            write_stdout(format!("Сервис зарегистрирован: {}", endpoint));
+                            write_stdout(
+                                crate::t!("service-registered", "endpoint" => endpoint.to_string()),
+                            );
                             break;
                         }
                         Commands::Publish(_) | Commands::Run => {
-                            write_stdout(format!("Сервис опубликован: {}", endpoint));
+                            write_stdout(
+                                crate::t!("service-published", "endpoint" => endpoint.to_string()),
+                            );
                         }
                         _ => {}
                     }
@@ -320,18 +329,18 @@ pub async fn main_loop(
             }
 
             Message::EndpointStopAck(ep) => {
-                write_stdout(format!("Сервис остановлен: {}", ep.guid));
+                write_stdout(crate::t!("service-stopped", "guid" => ep.guid));
                 break;
             }
 
             Message::EndpointRemoveAck(ep) => {
-                write_stdout(format!("Сервис удален: {}", ep.guid));
+                write_stdout(crate::t!("service-removed", "guid" => ep.guid));
                 break;
             }
 
             Message::ConnectState(st) => match st.try_into().unwrap_or(ConnectState::Connecting) {
                 ConnectState::Connecting => {
-                    current_spinner = Some(make_spinner("Подключение к серверу..."));
+                    current_spinner = Some(make_spinner(crate::t!("connecting")));
                 }
 
                 ConnectState::Connected => {
@@ -373,7 +382,7 @@ pub async fn main_loop(
                             }
                         }
                         Commands::Login(_) => {
-                            write_stdout("Клиент успешно авторизован".to_string());
+                            write_stdout(crate::t!("client-authorized"));
                             break;
                         }
                         _ => {}
@@ -394,7 +403,7 @@ pub async fn main_loop(
                     progress_bar = Some(bar)
                 } else if info.current >= info.total {
                     if let Some(progress_bar) = progress_bar.take() {
-                        progress_bar.finish();
+                        progress_bar.finish_and_clear();
                     }
                 } else {
                     progress_bar
@@ -406,7 +415,7 @@ pub async fn main_loop(
 
             Message::EndpointListAck(list) => {
                 if list.endpoints.is_empty() {
-                    write_stdout("Нет зарегистрированных сервисов".to_string());
+                    write_stdout(crate::t!("no-registered-services"));
                 } else {
                     let mut output = String::new();
                     for ep in &list.endpoints {
@@ -418,7 +427,7 @@ pub async fn main_loop(
             }
 
             Message::EndpointClearAck(_) => {
-                write_stdout("Все сервисы удалены".to_string());
+                write_stdout(crate::t!("all-services-removed"));
                 break;
             }
 

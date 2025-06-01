@@ -1,5 +1,4 @@
 use crate::plugins::{minecraft::MinecraftPlugin, onec::OneCPlugin, webdav::WebdavPlugin, Plugin};
-use anyhow::{anyhow, Result};
 use common::protocol::Protocol;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -32,10 +31,7 @@ impl PluginRegistry {
         self.plugins.insert(protocol, plugin);
     }
 
-    pub fn get(&self, protocol: Protocol) -> Result<Arc<dyn Plugin>> {
-        self.plugins
-            .get(&protocol)
-            .cloned()
-            .ok_or_else(|| anyhow!("Unsupported protocol: no plugin found for {:?}", protocol))
+    pub fn get(&self, protocol: Protocol) -> Option<Arc<dyn Plugin>> {
+        self.plugins.get(&protocol).cloned()
     }
 }

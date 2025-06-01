@@ -53,7 +53,7 @@ impl SubProcess {
                 result_tx
                     .send(Message::Error(ErrorInfo {
                         kind: ErrorKind::Fatal.into(),
-                        message: "Процесс сервера был неожиданно завершен".to_string(),
+                        message: crate::t!("error-process-terminated"),
                     }))
                     .ok();
             }
@@ -102,12 +102,12 @@ pub async fn execute(
         args.join(" ")
     );
 
-    const TEMPLATE: &str = "[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} файлов";
+    let template = crate::t!("progress-files-eta");
     let chdir = chdir.as_deref().unwrap_or(Path::new("."));
 
     if let Some((message, tx, total)) = progress.as_ref() {
-        send_progress(message, TEMPLATE, *total, 0, tx.clone()).await;
-        send_progress(message, TEMPLATE, *total, 1, tx.clone()).await;
+        send_progress(message, &template, *total, 0, tx.clone()).await;
+        send_progress(message, &template, *total, 1, tx.clone()).await;
     }
 
     #[cfg(windows)]
@@ -146,6 +146,7 @@ pub async fn execute(
     let stderr_reader = BufReader::new(stderr).lines();
 
     let progress1 = progress.clone();
+    let template_clone = template.clone();
     tokio::spawn(async move {
         tokio::pin!(stdout_reader);
         tokio::pin!(stderr_reader);
@@ -158,7 +159,7 @@ pub async fn execute(
                         info!("STDOUT: {}", line);
                         current += 1;
                         if let Some((message, tx, total)) = progress.as_ref() {
-                            send_progress(message, TEMPLATE, *total, current, tx.clone()).await;
+                            send_progress(message, &template_clone, *total, current, tx.clone()).await;
                         }
                     }
                     Err(e) => {
@@ -174,7 +175,7 @@ pub async fn execute(
                         warn!("STDERR: {}", line);
                         current += 1;
                         if let Some((message, tx, total)) = progress.as_ref() {
-                            send_progress(message, TEMPLATE, *total, current, tx.clone()).await;
+                            send_progress(message, &template_clone, *total, current, tx.clone()).await;
                         }
                     },
                     Err(e) => {
@@ -195,7 +196,7 @@ pub async fn execute(
             let status = status.context("Failed to wait on child")?;
             if !status.success() {
                 if let Some((message, tx, total)) = progress.as_ref() {
-                    send_progress(message, TEMPLATE, *total, *total, tx.clone()).await;
+                    send_progress(message, &template, *total, *total, tx.clone()).await;
                 }
                 bail!("Command failed: {:?}", status);
             }
@@ -215,7 +216,7 @@ pub async fn execute(
     }
 
     if let Some((message, tx, total)) = progress.as_ref() {
-        send_progress(message, TEMPLATE, *total, *total, tx.clone()).await;
+        send_progress(message, &template, *total, *total, tx.clone()).await;
     }
     info!("Command executed successfully");
 
@@ -237,11 +238,11 @@ pub fn unzip(
     std::fs::create_dir_all(extract_dir)
         .context(format!("Failed to create dir '{:?}'", extract_dir))?;
 
-    const TEMPLATE: &str = "[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} файлов ({eta})";
+    let template = crate::t!("progress-files-eta");
 
     let mut progress = ProgressInfo {
         message: message.to_string(),
-        template: TEMPLATE.to_string(),
+        template,
         total: archive.len() as u32,
         current: 0,
     };
@@ -325,11 +326,11 @@ pub async fn download(
         }
     }
 
-    const TEMPLATE: &str = "[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} байт ({eta})";
+    let template = crate::t!("progress-bytes");
 
     let mut progress = ProgressInfo {
         message: message.to_string(),
-        template: TEMPLATE.to_string(),
+        template,
         total: total_size as u32,
         current: 0,
     };

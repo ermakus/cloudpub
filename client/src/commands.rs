@@ -139,13 +139,14 @@ impl PublishArgs {
             Auth::None
         });
         if self.address.contains("://") {
-            let url = url::Url::parse(&self.address).context("Неверный URL")?;
-            let local_proto = Protocol::from_str(url.scheme()).context("Неверный протокол")?;
+            let url = url::Url::parse(&self.address).context(crate::t!("invalid-url"))?;
+            let local_proto =
+                Protocol::from_str(url.scheme()).context(crate::t!("invalid-protocol"))?;
             let local_addr = url.host_str().unwrap().to_string();
             let local_port = url
                 .port()
                 .or_else(|| self.protocol.default_port())
-                .context("Для этого прокола нужно указать порт")?;
+                .context(crate::t!("port-required"))?;
             let mut local_path = url.path().to_string();
             if url.query().is_some() {
                 local_path.push('?');
@@ -203,10 +204,12 @@ impl PublishArgs {
                                     let parts = address.split(':').collect::<Vec<&str>>();
                                     (parts[0].to_string(), parts[1].parse::<u16>().unwrap(), path)
                                 } else {
-                                    bail!("Неправильно указан адрес: {}", address);
+                                    bail!(crate::t!("invalid-address", "address" => address));
                                 }
                             }
-                            Err(err) => bail!("Неправильно указан адрес ({}): {}", address, err),
+                            Err(err) => bail!(
+                                crate::t!("invalid-address-error", "error" => err.to_string(), "address" => address)
+                            ),
                         }
                     }
                 }

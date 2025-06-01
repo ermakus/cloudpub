@@ -116,7 +116,7 @@ impl<T: 'static + Transport> Client<T> {
                 result_tx
                     .send(Message::Error(ErrorInfo {
                         kind: ErrorKind::HandshakeFailed.into(),
-                        message: "Ошибка сети, пробуем еще раз.".to_string(),
+                        message: crate::t!("error-network"),
                     }))
                     .context("Can't send Error event")?;
                 result_tx
@@ -348,7 +348,7 @@ impl<T: 'static + Transport> Client<T> {
                                 let res: Option<anyhow::Result<SubProcess>> = match protocol {
                                     #[cfg(feature = "plugins")]
                                     Protocol::OneC | Protocol::Minecraft | Protocol::Webdav => {
-                                        if let Ok(plugin) = PluginRegistry::new().get(protocol) {
+                                        if let Some(plugin) = PluginRegistry::new().get(protocol) {
                                             Some(plugin.publish(&mut endpoint, config.clone(), result_tx.clone()).await)
                                         } else {
                                             None
@@ -660,7 +660,7 @@ async fn setup_plugin(
     match protocol {
         #[cfg(feature = "plugins")]
         Protocol::Webdav | Protocol::OneC | Protocol::Minecraft => {
-            if let Ok(plugin) = PluginRegistry::new().get(protocol) {
+            if let Some(plugin) = PluginRegistry::new().get(protocol) {
                 plugin.setup(config, command_rx, result_tx).await
             } else {
                 Err(anyhow!(

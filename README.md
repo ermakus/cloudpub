@@ -4,7 +4,7 @@
 
 https://cloudpub.ru
 
-[![Звезды на GitHub](https://img.shields.io/github/stars/ermakus/cloudpub)](https://github.com/ermakus/cloudpub/stargazers)
+[![Звезды на GitHub](https://img.shields.io/github/stars/ermak-dev/cloudpub)](https://github.com/ermak-dev/cloudpub/stargazers)
 [![Лицензия](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 Мощный, надежный и эффективный обратный прокси для преодоления NAT, разработанный на Rust

@@ -7,6 +7,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     config.protoc_arg("--experimental_allow_proto3_optional");
 
     // Compile the .proto file
+    config.type_attribute(".", "#[derive(serde::Serialize,serde::Deserialize)]");
     config.compile_protos(&["src/protocol.proto"], &["src/"])?;
 
     // Post process the generated code

@@ -83,7 +83,7 @@ impl Plugin for MinecraftPlugin {
         }
 
         download(
-            "Загрузка JDK",
+            &crate::t!("downloading-jdk"),
             config.clone(),
             JDK_URL,
             &jdk_file,
@@ -91,7 +91,7 @@ impl Plugin for MinecraftPlugin {
             result_tx.clone(),
         )
         .await
-        .context("Ошибка загрузки веб сервера")?;
+        .context(crate::t!("error-downloading-jdk"))?;
 
         #[cfg(unix)]
         execute(
@@ -108,14 +108,20 @@ impl Plugin for MinecraftPlugin {
             ],
             None,
             Default::default(),
-            Some(("Установка JDK".to_string(), result_tx.clone(), 450)),
+            Some((crate::t!("installing-jdk"), result_tx.clone(), 450)),
             command_rx.resubscribe(),
         )
         .await?;
 
         #[cfg(target_os = "windows")]
-        unzip("Распаковка JDK", &jdk_file, &jdk_dir, 1, result_tx.clone())
-            .context("Ошибка распаковки JDK")?;
+        unzip(
+            &crate::t!("installing-jdk"),
+            &jdk_file,
+            &jdk_dir,
+            1,
+            result_tx.clone(),
+        )
+        .context(crate::t!("error-unpacking-jdk"))?;
 
         let minecraft_jar = config
             .read()
@@ -126,17 +132,14 @@ impl Plugin for MinecraftPlugin {
         let maybe_path = PathBuf::from(&minecraft_jar);
 
         if maybe_path.is_file() {
-            std::fs::copy(&minecraft_jar, &minecraft_file).with_context(|| {
-                format!("Ошибка копирования сервера Minecraft: {}", minecraft_jar)
-            })?;
+            std::fs::copy(&minecraft_jar, &minecraft_file).with_context(
+                || crate::t!("error-copying-minecraft-server", "path" => minecraft_jar),
+            )?;
         } else if maybe_path.is_dir() {
-            bail!(
-                "Неверный путь к JAR файлу сервера Minecraft: {} (директория)",
-                minecraft_jar
-            );
+            bail!(crate::t!("error-invalid-minecraft-jar-directory", "path" => minecraft_jar));
         } else if minecraft_jar.starts_with("http") {
             download(
-                "Загрузка сервера Minecraft",
+                &crate::t!("downloading-minecraft-server"),
                 config.clone(),
                 &minecraft_jar,
                 &minecraft_file,
@@ -144,14 +147,13 @@ impl Plugin for MinecraftPlugin {
                 result_tx.clone(),
             )
             .await
-            .with_context(|| format!("Ошибка загрузки сервера Minecraft: {}", minecraft_jar))?;
+            .with_context(
+                || crate::t!("error-downloading-minecraft-server", "url" => minecraft_jar),
+            )?;
         } else {
-            bail!(
-                "Неверный путь или URL к серверу Minecraft: {}",
-                minecraft_jar
-            );
+            bail!(crate::t!("error-invalid-minecraft-path", "path" => minecraft_jar));
         }
-        std::fs::write(touch, "Delete to reinstall").context("Ошибка создания файла метки")?;
+        std::fs::write(touch, "Delete to reinstall").context(crate::t!("error-creating-marker"))?;
 
         Ok(())
     }
@@ -163,7 +165,8 @@ impl Plugin for MinecraftPlugin {
         result_tx: broadcast::Sender<Message>,
     ) -> Result<SubProcess> {
         let minecraft_dir: PathBuf = endpoint.client.as_ref().unwrap().local_addr.clone().into();
-        std::fs::create_dir_all(&minecraft_dir).context("Ошибка создания директории сервера")?;
+        std::fs::create_dir_all(&minecraft_dir)
+            .context(crate::t!("error-creating-server-directory"))?;
 
         let download_dir = get_cache_dir(DOWNLOAD_SUBDIR)?;
         let minecraft_file = download_dir.join("server.jar");
@@ -176,16 +179,16 @@ impl Plugin for MinecraftPlugin {
 
         if !server_cfg.exists() {
             std::fs::write(&server_cfg, MINECRAFT_SERVER_CFG)
-                .context("Ошибка создания server.properties")?;
-            std::fs::write(eula, "eula=true").context("Ошибка создания файла eula.txt")?;
+                .context(crate::t!("error-creating-server-properties"))?;
+            std::fs::write(eula, "eula=true").context(crate::t!("error-creating-eula-file"))?;
         }
 
         free_port_for_bind(endpoint).await?;
 
         let re = Regex::new(r"server\-port\s*=\s*\d+").unwrap();
 
-        let server_config =
-            std::fs::read_to_string(&server_cfg).context("Ошибка чтения server.properties")?;
+        let server_config = std::fs::read_to_string(&server_cfg)
+            .context(crate::t!("error-reading-server-properties"))?;
 
         // Read the server config file and replace 'server-port=XXXX' with the new port
         let server_config = re.replace_all(&server_config, |_caps: &regex::Captures| {
@@ -194,7 +197,7 @@ impl Plugin for MinecraftPlugin {
         });
 
         std::fs::write(&server_cfg, server_config.to_string())
-            .context("Ошибка записи server.properties")?;
+            .context(crate::t!("error-writing-server-properties"))?;
 
         // Use custom Java options if provided, otherwise use defaults
         let java_opts = config
@@ -218,7 +221,7 @@ impl Plugin for MinecraftPlugin {
         }
 
         let server = SubProcess::new(
-            get_java().context("Ошибка получения пути к java")?,
+            get_java().context(crate::t!("error-getting-java-path"))?,
             args,
             Some(minecraft_dir),
             Default::default(),

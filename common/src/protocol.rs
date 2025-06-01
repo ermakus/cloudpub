@@ -35,7 +35,7 @@ pub mod v2 {
     use anyhow::{bail, Context, Result};
     use bytes::BytesMut;
     use prost::Message as ProstMessage;
-    use serde::{Deserialize, Serialize};
+
     use std::fmt::{self, Display, Formatter};
     use std::str::FromStr;
     use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
@@ -91,6 +91,7 @@ pub mod v2 {
             }
         }
     }
+    /*
 
     impl Serialize for Protocol {
         fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -110,6 +111,7 @@ pub mod v2 {
             Protocol::from_str(&s).map_err(serde::de::Error::custom)
         }
     }
+    */
 
     impl FromStr for Role {
         type Err = anyhow::Error;

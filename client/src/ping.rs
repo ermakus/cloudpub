@@ -105,7 +105,7 @@ pub async fn ping_test(endpoint: ServerEndpoint, bare: bool) -> Result<String> {
     let mut times = ping_tcp(client, &settings).await;
 
     if times.is_empty() {
-        return Ok("Ошибка измерения".to_string());
+        return Ok(crate::t!("error-measurement"));
     }
 
     times.sort();
@@ -216,7 +216,8 @@ fn format_stats(times: Vec<u32>) -> String {
     };
 
     format!(
-        "   p50: {}\n   p95: {}\n   p99: {}\n   max: {}",
+        "{}:\n   p50: {}\n   p95: {}\n   p99: {}\n   max: {}",
+        crate::t!("ping-time-percentiles"),
         format_duration(times[p50 as usize]),
         format_duration(times[p95 as usize]),
         format_duration(times[p99 as usize]),
